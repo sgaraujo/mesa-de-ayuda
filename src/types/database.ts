@@ -13,6 +13,11 @@ export interface Area {
   nombre: string
 }
 
+export interface Proyecto {
+  id: string
+  nombre: string
+}
+
 export interface Profile {
   id: string
   email: string
@@ -31,6 +36,7 @@ export interface Ticket {
   empresa_solicitante: string
   asignado_a: string | null
   area_id: string | null
+  proyecto_id: string | null
   estado: Estado
   prioridad: Prioridad
   created_at: string
@@ -45,6 +51,7 @@ export interface TicketConRelaciones extends Ticket {
   solicitante: Pick<Profile, 'id' | 'full_name' | 'email'> | null
   asignado: Pick<Profile, 'id' | 'full_name' | 'email'> | null
   area: Pick<Area, 'id' | 'nombre'> | null
+  proyecto: Pick<Proyecto, 'id' | 'nombre'> | null
 }
 
 export interface TicketStatusHistory {

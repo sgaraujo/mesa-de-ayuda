@@ -8,7 +8,8 @@ const TICKET_SELECT = `
   *,
   solicitante:profiles!tickets_solicitante_id_fkey(id, full_name, email),
   asignado:profiles!tickets_asignado_a_fkey(id, full_name, email),
-  area:areas(id, nombre)
+  area:areas(id, nombre),
+  proyecto:proyectos(id, nombre)
 `
 
 export function StatsPage() {
@@ -46,6 +47,7 @@ export function StatsPage() {
   const porArea = contarPor(tickets, (t) => t.area?.nombre ?? null)
   const porAgente = contarPor(tickets, (t) => t.asignado?.full_name ?? t.asignado?.email ?? 'Bandeja general')
   const porEmpresa = contarPor(tickets, (t) => t.empresa_solicitante)
+  const porProyecto = contarPor(tickets, (t) => t.proyecto?.nombre ?? null)
 
   return (
     <div className="stats-page">
@@ -88,6 +90,10 @@ export function StatsPage() {
         <div className="chart-card">
           <h2>Solicitudes por empresa solicitante</h2>
           <BarraHorizontal datos={porEmpresa} />
+        </div>
+        <div className="chart-card">
+          <h2>Solicitudes por proyecto</h2>
+          <BarraHorizontal datos={porProyecto} />
         </div>
       </div>
     </div>

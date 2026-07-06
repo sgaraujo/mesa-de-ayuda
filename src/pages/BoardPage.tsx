@@ -17,7 +17,8 @@ const TICKET_SELECT = `
   *,
   solicitante:profiles!tickets_solicitante_id_fkey(id, full_name, email),
   asignado:profiles!tickets_asignado_a_fkey(id, full_name, email),
-  area:areas(id, nombre)
+  area:areas(id, nombre),
+  proyecto:proyectos(id, nombre)
 `
 
 type FiltroAsignacion = 'todos' | 'mios' | 'bandeja_general'

@@ -38,7 +38,9 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
     >
       <div className="ticket-card__header">
         <span className="ticket-card__prioridad">{PRIORIDAD_LABEL[ticket.prioridad]}</span>
-        {ticket.area && <span className="ticket-card__area">{ticket.area.nombre}</span>}
+        <span className="ticket-card__area">
+          {[ticket.proyecto?.nombre, ticket.area?.nombre].filter(Boolean).join(' · ')}
+        </span>
       </div>
       <h3>{ticket.titulo}</h3>
       <p>{ticket.descripcion}</p>

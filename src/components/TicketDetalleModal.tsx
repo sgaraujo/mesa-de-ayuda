@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAreas } from '../hooks/useAreas'
+import { useProyectos } from '../hooks/useProyectos'
 import type { TicketConRelaciones } from '../types/database'
 
 const PRIORIDAD_LABEL: Record<string, string> = {
@@ -30,6 +32,12 @@ export function TicketDetalleModal({
   onClose,
   onGuardado,
 }: TicketDetalleModalProps) {
+  const { areas } = useAreas()
+  const { proyectos, recargar: recargarProyectos } = useProyectos()
+
+  const [areaId, setAreaId] = useState(ticket.area_id ?? '')
+  const [proyectoId, setProyectoId] = useState(ticket.proyecto_id ?? '')
+  const [nuevoProyecto, setNuevoProyecto] = useState('')
   const [tiempoPropuesto, setTiempoPropuesto] = useState(
     ticket.tiempo_propuesto_horas?.toString() ?? '',
   )
@@ -44,9 +52,29 @@ export function TicketDetalleModal({
     setError(null)
     setGuardando(true)
 
+    let proyectoIdFinal = proyectoId || null
+
+    if (nuevoProyecto.trim()) {
+      const { data: creado, error: errorProyecto } = await supabase
+        .from('proyectos')
+        .insert({ nombre: nuevoProyecto.trim() })
+        .select()
+        .single()
+
+      if (errorProyecto || !creado) {
+        setGuardando(false)
+        setError('No se pudo crear el proyecto nuevo.')
+        return
+      }
+      proyectoIdFinal = creado.id
+      await recargarProyectos()
+    }
+
     const { data, error } = await supabase
       .from('tickets')
       .update({
+        area_id: areaId || null,
+        proyecto_id: proyectoIdFinal,
         tiempo_propuesto_horas: tiempoPropuesto ? Number(tiempoPropuesto) : null,
         tiempo_ejecutado_horas: tiempoEjecutado ? Number(tiempoEjecutado) : null,
       })
@@ -59,7 +87,14 @@ export function TicketDetalleModal({
       setError('No se pudo guardar. Intenta de nuevo.')
       return
     }
-    onGuardado({ ...ticket, ...data })
+
+    const areaActualizada = areas.find((a) => a.id === data.area_id) ?? null
+    const proyectoActualizado = data.proyecto_id
+      ? (proyectos.find((p) => p.id === data.proyecto_id) ??
+        (nuevoProyecto.trim() ? { id: data.proyecto_id, nombre: nuevoProyecto.trim() } : ticket.proyecto))
+      : null
+
+    onGuardado({ ...ticket, ...data, area: areaActualizada, proyecto: proyectoActualizado })
   }
 
   return (
@@ -84,18 +119,60 @@ export function TicketDetalleModal({
           <dt>Empresa</dt>
           <dd>{ticket.empresa_solicitante}</dd>
 
-          <dt>Área</dt>
-          <dd>{ticket.area?.nombre ?? 'Sin definir'}</dd>
-
           <dt>Asignado a</dt>
           <dd>{ticket.asignado?.full_name ?? ticket.asignado?.email ?? 'Bandeja general'}</dd>
 
           <dt>Para cuándo se necesita</dt>
           <dd>{formatearFecha(ticket.fecha_requerida)}</dd>
+
+          {!puedeEditarTiempos && (
+            <>
+              <dt>Área</dt>
+              <dd>{ticket.area?.nombre ?? 'Sin definir'}</dd>
+              <dt>Proyecto</dt>
+              <dd>{ticket.proyecto?.nombre ?? 'Sin definir'}</dd>
+              <dt>Tiempo propuesto</dt>
+              <dd>{ticket.tiempo_propuesto_horas ? `${ticket.tiempo_propuesto_horas} h` : 'Sin definir'}</dd>
+              <dt>Tiempo ejecutado</dt>
+              <dd>{ticket.tiempo_ejecutado_horas ? `${ticket.tiempo_ejecutado_horas} h` : 'Sin definir'}</dd>
+            </>
+          )}
         </dl>
 
-        {puedeEditarTiempos ? (
+        {puedeEditarTiempos && (
           <form onSubmit={handleGuardar} className="modal-tiempos-form">
+            <div className="ticket-form__row">
+              <label>
+                Área
+                <select value={areaId} onChange={(e) => setAreaId(e.target.value)}>
+                  <option value="">Sin definir</option>
+                  {areas.map((area) => (
+                    <option key={area.id} value={area.id}>
+                      {area.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Proyecto
+                <select value={proyectoId} onChange={(e) => setProyectoId(e.target.value)}>
+                  <option value="">Sin definir</option>
+                  {proyectos.map((proyecto) => (
+                    <option key={proyecto.id} value={proyecto.id}>
+                      {proyecto.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label>
+              O crear un proyecto nuevo
+              <input
+                value={nuevoProyecto}
+                onChange={(e) => setNuevoProyecto(e.target.value)}
+                placeholder="ej. Proyecto Castilla"
+              />
+            </label>
             <div className="ticket-form__row">
               <label>
                 Tiempo propuesto (horas)
@@ -122,16 +199,9 @@ export function TicketDetalleModal({
             </div>
             {error && <p className="auth-error">{error}</p>}
             <button type="submit" disabled={guardando}>
-              {guardando ? 'Guardando...' : 'Guardar tiempos'}
+              {guardando ? 'Guardando...' : 'Guardar'}
             </button>
           </form>
-        ) : (
-          <dl className="modal-detalles">
-            <dt>Tiempo propuesto</dt>
-            <dd>{ticket.tiempo_propuesto_horas ? `${ticket.tiempo_propuesto_horas} h` : 'Sin definir'}</dd>
-            <dt>Tiempo ejecutado</dt>
-            <dd>{ticket.tiempo_ejecutado_horas ? `${ticket.tiempo_ejecutado_horas} h` : 'Sin definir'}</dd>
-          </dl>
         )}
       </div>
     </div>
