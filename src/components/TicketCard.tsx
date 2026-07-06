@@ -1,4 +1,5 @@
 import { useDraggable } from '@dnd-kit/core'
+import { nombresAsignados } from '../lib/ticket'
 import type { TicketConRelaciones } from '../types/database'
 
 const PRIORIDAD_LABEL: Record<string, string> = {
@@ -37,7 +38,10 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
       className={`ticket-card ticket-card--${ticket.prioridad}`}
     >
       <div className="ticket-card__header">
-        <span className="ticket-card__prioridad">{PRIORIDAD_LABEL[ticket.prioridad]}</span>
+        <span className="ticket-card__prioridad">
+          {PRIORIDAD_LABEL[ticket.prioridad]}
+          {ticket.es_grupal && <span className="badge badge--grupal">Grupo</span>}
+        </span>
         <span className="ticket-card__area">
           {[ticket.proyecto?.nombre, ticket.area?.nombre].filter(Boolean).join(' · ')}
         </span>
@@ -53,7 +57,7 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
       )}
       <div className="ticket-card__footer">
         <span>{ticket.empresa_solicitante}</span>
-        <span>{ticket.asignado ? ticket.asignado.full_name ?? ticket.asignado.email : 'Bandeja general'}</span>
+        <span>{nombresAsignados(ticket).join(', ') || 'Bandeja general'}</span>
       </div>
     </div>
   )

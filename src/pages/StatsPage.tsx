@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { contarPor, formatearDuracion } from '../lib/agregaciones'
+import { contarPor, formatearDuracion, type ConteoCategoria } from '../lib/agregaciones'
+import { nombresAsignados } from '../lib/ticket'
 import { BarraHorizontal } from '../components/BarraHorizontal'
 import type { TicketConRelaciones } from '../types/database'
 
@@ -9,8 +10,23 @@ const TICKET_SELECT = `
   solicitante:profiles!tickets_solicitante_id_fkey(id, full_name, email),
   asignado:profiles!tickets_asignado_a_fkey(id, full_name, email),
   area:areas(id, nombre),
-  proyecto:proyectos(id, nombre)
+  proyecto:proyectos(id, nombre),
+  asignados:ticket_asignados(profile:profiles(id, full_name, email))
 `
+
+function contarPorPersonaAsignada(tickets: TicketConRelaciones[]): ConteoCategoria[] {
+  const conteo = new Map<string, number>()
+  for (const ticket of tickets) {
+    const nombres = nombresAsignados(ticket)
+    const claves = nombres.length > 0 ? nombres : ['Bandeja general']
+    for (const nombre of claves) {
+      conteo.set(nombre, (conteo.get(nombre) ?? 0) + 1)
+    }
+  }
+  return Array.from(conteo.entries())
+    .map(([nombre, total]) => ({ nombre, total }))
+    .sort((a, b) => b.total - a.total)
+}
 
 export function StatsPage() {
   const [tickets, setTickets] = useState<TicketConRelaciones[]>([])
@@ -45,7 +61,7 @@ export function StatsPage() {
       : null
 
   const porArea = contarPor(tickets, (t) => t.area?.nombre ?? null)
-  const porAgente = contarPor(tickets, (t) => t.asignado?.full_name ?? t.asignado?.email ?? 'Bandeja general')
+  const porAgente = contarPorPersonaAsignada(tickets)
   const porEmpresa = contarPor(tickets, (t) => t.empresa_solicitante)
   const porProyecto = contarPor(tickets, (t) => t.proyecto?.nombre ?? null)
 

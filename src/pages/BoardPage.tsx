@@ -6,6 +6,7 @@ import { useAreas } from '../hooks/useAreas'
 import { KanbanColumn, type ColumnaId } from '../components/KanbanColumn'
 import { TicketDetalleModal } from '../components/TicketDetalleModal'
 import { NuevaTareaModal } from '../components/NuevaTareaModal'
+import { estaSinAsignar } from '../lib/ticket'
 import type { Estado, TicketConRelaciones } from '../types/database'
 
 const COLUMNAS: { id: ColumnaId; titulo: string }[] = [
@@ -20,7 +21,8 @@ const TICKET_SELECT = `
   solicitante:profiles!tickets_solicitante_id_fkey(id, full_name, email),
   asignado:profiles!tickets_asignado_a_fkey(id, full_name, email),
   area:areas(id, nombre),
-  proyecto:proyectos(id, nombre)
+  proyecto:proyectos(id, nombre),
+  asignados:ticket_asignados(profile:profiles(id, full_name, email))
 `
 
 export function BoardPage() {
@@ -55,8 +57,8 @@ export function BoardPage() {
   }, [tickets, filtroArea])
 
   function ticketsParaColumna(id: ColumnaId) {
-    if (id === 'tareas') return ticketsFiltrados.filter((t) => t.asignado_a === null)
-    return ticketsFiltrados.filter((t) => t.asignado_a !== null && t.estado === id)
+    if (id === 'tareas') return ticketsFiltrados.filter((t) => estaSinAsignar(t))
+    return ticketsFiltrados.filter((t) => !estaSinAsignar(t) && t.estado === id)
   }
 
   async function handleDragEnd(event: DragEndEvent) {
@@ -67,6 +69,27 @@ export function BoardPage() {
     const destino = over.id as ColumnaId
     const ticket = tickets.find((t) => t.id === ticketId)
     if (!ticket) return
+
+    // Las tareas en grupo no se (des)asignan arrastrando; eso se maneja
+    // desde el panel de detalle. Solo se les actualiza el estado.
+    if (ticket.es_grupal) {
+      if (destino === 'tareas' || ticket.estado === destino) return
+      const nuevoEstado = destino as Estado
+      setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, estado: nuevoEstado } : t)))
+      await supabase
+        .from('tickets')
+        .update({
+          estado: nuevoEstado,
+          finalizado_at: nuevoEstado === 'finalizado' ? new Date().toISOString() : null,
+        })
+        .eq('id', ticketId)
+      await supabase.from('ticket_status_history').insert({
+        ticket_id: ticketId,
+        estado: nuevoEstado,
+        changed_by: profile?.id ?? null,
+      })
+      return
+    }
 
     // Soltar en "Tareas" devuelve el ticket a la bandeja general (lo desasigna).
     if (destino === 'tareas') {

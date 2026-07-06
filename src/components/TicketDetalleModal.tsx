@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAreas } from '../hooks/useAreas'
 import { useProyectos } from '../hooks/useProyectos'
+import { useAgentes } from '../hooks/useAgentes'
+import { nombresAsignados } from '../lib/ticket'
 import type { TicketConRelaciones } from '../types/database'
 
 const PRIORIDAD_LABEL: Record<string, string> = {
@@ -34,10 +36,13 @@ export function TicketDetalleModal({
 }: TicketDetalleModalProps) {
   const { areas } = useAreas()
   const { proyectos, recargar: recargarProyectos } = useProyectos()
+  const { agentes } = useAgentes()
 
   const [areaId, setAreaId] = useState(ticket.area_id ?? '')
   const [proyectoId, setProyectoId] = useState(ticket.proyecto_id ?? '')
   const [nuevoProyecto, setNuevoProyecto] = useState('')
+  const [esGrupal, setEsGrupal] = useState(ticket.es_grupal)
+  const [miembros, setMiembros] = useState<string[]>(ticket.asignados.map((a) => a.profile.id))
   const [tiempoPropuesto, setTiempoPropuesto] = useState(
     ticket.tiempo_propuesto_horas?.toString() ?? '',
   )
@@ -46,6 +51,10 @@ export function TicketDetalleModal({
   )
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function alternarMiembro(id: string) {
+    setMiembros((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]))
+  }
 
   async function handleGuardar(e: FormEvent) {
     e.preventDefault()
@@ -75,6 +84,8 @@ export function TicketDetalleModal({
       .update({
         area_id: areaId || null,
         proyecto_id: proyectoIdFinal,
+        es_grupal: esGrupal,
+        asignado_a: esGrupal ? null : ticket.asignado_a,
         tiempo_propuesto_horas: tiempoPropuesto ? Number(tiempoPropuesto) : null,
         tiempo_ejecutado_horas: tiempoEjecutado ? Number(tiempoEjecutado) : null,
       })
@@ -82,19 +93,39 @@ export function TicketDetalleModal({
       .select()
       .single()
 
-    setGuardando(false)
     if (error || !data) {
+      setGuardando(false)
       setError('No se pudo guardar. Intenta de nuevo.')
       return
     }
+
+    await supabase.from('ticket_asignados').delete().eq('ticket_id', ticket.id)
+    if (esGrupal && miembros.length > 0) {
+      await supabase
+        .from('ticket_asignados')
+        .insert(miembros.map((profile_id) => ({ ticket_id: ticket.id, profile_id })))
+    }
+
+    setGuardando(false)
 
     const areaActualizada = areas.find((a) => a.id === data.area_id) ?? null
     const proyectoActualizado = data.proyecto_id
       ? (proyectos.find((p) => p.id === data.proyecto_id) ??
         (nuevoProyecto.trim() ? { id: data.proyecto_id, nombre: nuevoProyecto.trim() } : ticket.proyecto))
       : null
+    const asignadosActualizados = esGrupal
+      ? agentes
+          .filter((a) => miembros.includes(a.id))
+          .map((a) => ({ profile: { id: a.id, full_name: a.full_name, email: a.email } }))
+      : []
 
-    onGuardado({ ...ticket, ...data, area: areaActualizada, proyecto: proyectoActualizado })
+    onGuardado({
+      ...ticket,
+      ...data,
+      area: areaActualizada,
+      proyecto: proyectoActualizado,
+      asignados: asignadosActualizados,
+    })
   }
 
   return (
@@ -120,7 +151,7 @@ export function TicketDetalleModal({
           <dd>{ticket.empresa_solicitante}</dd>
 
           <dt>Asignado a</dt>
-          <dd>{ticket.asignado?.full_name ?? ticket.asignado?.email ?? 'Bandeja general'}</dd>
+          <dd>{nombresAsignados(ticket).join(', ') || 'Bandeja general'}</dd>
 
           <dt>Para cuándo se necesita</dt>
           <dd>{formatearFecha(ticket.fecha_requerida)}</dd>
@@ -173,6 +204,34 @@ export function TicketDetalleModal({
                 placeholder="ej. Proyecto Castilla"
               />
             </label>
+
+            <label className="modal-checkbox">
+              <input
+                type="checkbox"
+                checked={esGrupal}
+                onChange={(e) => setEsGrupal(e.target.checked)}
+              />
+              Es una tarea en grupo (varias personas)
+            </label>
+
+            {esGrupal && (
+              <div className="modal-miembros">
+                <p className="modal-miembros__label">Selecciona a las personas del grupo</p>
+                <div className="modal-miembros__lista">
+                  {agentes.map((agente) => (
+                    <label key={agente.id} className="modal-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={miembros.includes(agente.id)}
+                        onChange={() => alternarMiembro(agente.id)}
+                      />
+                      {agente.full_name ?? agente.email}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="ticket-form__row">
               <label>
                 Tiempo propuesto (horas)

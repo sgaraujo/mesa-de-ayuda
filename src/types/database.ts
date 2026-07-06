@@ -38,6 +38,7 @@ export interface Ticket {
   asignado_a: string | null
   area_id: string | null
   proyecto_id: string | null
+  es_grupal: boolean
   estado: Estado
   prioridad: Prioridad
   created_at: string
@@ -53,6 +54,7 @@ export interface TicketConRelaciones extends Ticket {
   asignado: Pick<Profile, 'id' | 'full_name' | 'email'> | null
   area: Pick<Area, 'id' | 'nombre'> | null
   proyecto: Pick<Proyecto, 'id' | 'nombre'> | null
+  asignados: { profile: Pick<Profile, 'id' | 'full_name' | 'email'> }[]
 }
 
 export interface TicketStatusHistory {

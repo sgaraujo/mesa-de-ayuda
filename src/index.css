@@ -565,6 +565,47 @@ label {
   padding-top: 1rem;
 }
 
+.modal-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.modal-checkbox input {
+  width: auto;
+}
+
+.modal-miembros__label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.modal-miembros__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+}
+
+.badge--grupal {
+  margin-left: 0.4rem;
+  background: var(--series-5);
+  color: white;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 .badge--prioridad-baja {
   background: rgba(12, 163, 12, 0.15);
   color: var(--prioridad-baja);
