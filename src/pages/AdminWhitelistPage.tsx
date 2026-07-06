@@ -132,6 +132,118 @@ export function AdminWhitelistPage() {
 
   if (loading) return <div className="pantalla-carga">Cargando whitelist...</div>
 
+  function renderFila(e: AllowedEmail) {
+    const enEdicion = editandoEmail === e.email
+    return (
+      <tr key={e.email}>
+        <td>{e.email}</td>
+        <td>
+          {enEdicion ? (
+            <select value={editRole} onChange={(ev) => setEditRole(ev.target.value as Role)}>
+              <option value="solicitante">Solicitante</option>
+              <option value="agente">Agente</option>
+              <option value="admin">Admin</option>
+            </select>
+          ) : (
+            e.role
+          )}
+        </td>
+        <td>
+          {enEdicion ? (
+            <select value={editAreaId} onChange={(ev) => setEditAreaId(ev.target.value)}>
+              <option value="">Sin definir</option>
+              {areas.map((area) => (
+                <option key={area.id} value={area.id}>
+                  {area.nombre}
+                </option>
+              ))}
+            </select>
+          ) : (
+            areas.find((a) => a.id === e.area_id)?.nombre ?? '—'
+          )}
+        </td>
+        <td>
+          <span className={`badge ${e.used_at ? 'badge--usado' : 'badge--pendiente'}`}>
+            {e.used_at ? 'Registrado' : 'Pendiente'}
+          </span>
+        </td>
+        <td>
+          <div className="admin-table__acciones">
+            {enEdicion ? (
+              <>
+                <button type="button" onClick={() => guardarEdicion(e.email)}>
+                  Guardar
+                </button>
+                <button
+                  type="button"
+                  className="admin-table__accion-secundaria"
+                  onClick={() => setEditandoEmail(null)}
+                >
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" className="admin-table__accion-secundaria" onClick={() => iniciarEdicion(e)}>
+                  Editar
+                </button>
+                {!e.used_at && (
+                  <button
+                    type="button"
+                    className="admin-table__accion-secundaria"
+                    onClick={() => reenviarCorreo(e.email)}
+                    disabled={reenviando === e.email}
+                  >
+                    {reenviando === e.email ? 'Enviando...' : 'Reenviar correo'}
+                  </button>
+                )}
+                <button type="button" className="admin-table__accion-eliminar" onClick={() => eliminarCorreo(e.email)}>
+                  Eliminar
+                </button>
+              </>
+            )}
+            {mensajeAccion?.email === e.email && (
+              <span className="admin-table__mensaje">{mensajeAccion.texto}</span>
+            )}
+          </div>
+        </td>
+      </tr>
+    )
+  }
+
+  function renderPanel(titulo: string, lista: AllowedEmail[]) {
+    return (
+      <div className="chart-card admin-panel">
+        <h2>
+          {titulo} <span className="kanban-column__count">{lista.length}</span>
+        </h2>
+        <div className="admin-table-scroll">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Correo</th>
+                <th>Rol</th>
+                <th>Área</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lista.map(renderFila)}
+              {lista.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="chart-card__vacio">
+                    Sin correos en este rol
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="admin-page">
       <h1>Whitelist de correos autorizados</h1>
@@ -179,113 +291,10 @@ export function AdminWhitelistPage() {
 
       {error && <p className="auth-error">{error}</p>}
 
-      <div className="admin-table-scroll">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Correo</th>
-              <th>Rol</th>
-              <th>Área</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {emails.map((e) => {
-              const enEdicion = editandoEmail === e.email
-              return (
-                <tr key={e.email}>
-                  <td>{e.email}</td>
-                  <td>
-                    {enEdicion ? (
-                      <select value={editRole} onChange={(ev) => setEditRole(ev.target.value as Role)}>
-                        <option value="solicitante">Solicitante</option>
-                        <option value="agente">Agente</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    ) : (
-                      e.role
-                    )}
-                  </td>
-                  <td>
-                    {enEdicion ? (
-                      <select value={editAreaId} onChange={(ev) => setEditAreaId(ev.target.value)}>
-                        <option value="">Sin definir</option>
-                        {areas.map((area) => (
-                          <option key={area.id} value={area.id}>
-                            {area.nombre}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      areas.find((a) => a.id === e.area_id)?.nombre ?? '—'
-                    )}
-                  </td>
-                  <td>
-                    <span className={`badge ${e.used_at ? 'badge--usado' : 'badge--pendiente'}`}>
-                      {e.used_at ? 'Registrado' : 'Pendiente'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="admin-table__acciones">
-                      {enEdicion ? (
-                        <>
-                          <button type="button" onClick={() => guardarEdicion(e.email)}>
-                            Guardar
-                          </button>
-                          <button
-                            type="button"
-                            className="admin-table__accion-secundaria"
-                            onClick={() => setEditandoEmail(null)}
-                          >
-                            Cancelar
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            className="admin-table__accion-secundaria"
-                            onClick={() => iniciarEdicion(e)}
-                          >
-                            Editar
-                          </button>
-                          {!e.used_at && (
-                            <button
-                              type="button"
-                              className="admin-table__accion-secundaria"
-                              onClick={() => reenviarCorreo(e.email)}
-                              disabled={reenviando === e.email}
-                            >
-                              {reenviando === e.email ? 'Enviando...' : 'Reenviar correo'}
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            className="admin-table__accion-eliminar"
-                            onClick={() => eliminarCorreo(e.email)}
-                          >
-                            Eliminar
-                          </button>
-                        </>
-                      )}
-                      {mensajeAccion?.email === e.email && (
-                        <span className="admin-table__mensaje">{mensajeAccion.texto}</span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-            {emails.length === 0 && (
-              <tr>
-                <td colSpan={5} className="chart-card__vacio">
-                  Sin correos cargados todavía
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="admin-panels">
+        {renderPanel('Administradores', emails.filter((e) => e.role === 'admin'))}
+        {renderPanel('Agentes', emails.filter((e) => e.role === 'agente'))}
+        {renderPanel('Solicitantes', emails.filter((e) => e.role === 'solicitante'))}
       </div>
     </div>
   )
