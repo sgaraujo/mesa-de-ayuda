@@ -6,9 +6,10 @@ interface KanbanColumnProps {
   estado: Estado
   titulo: string
   tickets: TicketConRelaciones[]
+  onTicketClick?: (ticket: TicketConRelaciones) => void
 }
 
-export function KanbanColumn({ estado, titulo, tickets }: KanbanColumnProps) {
+export function KanbanColumn({ estado, titulo, tickets, onTicketClick }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: estado })
 
   return (
@@ -22,7 +23,7 @@ export function KanbanColumn({ estado, titulo, tickets }: KanbanColumnProps) {
       </div>
       <div className="kanban-column__body">
         {tickets.map((ticket) => (
-          <TicketCard key={ticket.id} ticket={ticket} />
+          <TicketCard key={ticket.id} ticket={ticket} onClick={() => onTicketClick?.(ticket)} />
         ))}
         {tickets.length === 0 && <p className="kanban-column__vacio">Sin solicitudes</p>}
       </div>

@@ -36,6 +36,9 @@ export interface Ticket {
   created_at: string
   updated_at: string
   finalizado_at: string | null
+  fecha_requerida: string | null
+  tiempo_propuesto_horas: number | null
+  tiempo_ejecutado_horas: number | null
 }
 
 export interface TicketConRelaciones extends Ticket {

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { DndContext, type DragEndEvent } from '@dnd-kit/core'
+import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useAreas } from '../hooks/useAreas'
 import { KanbanColumn } from '../components/KanbanColumn'
+import { TicketDetalleModal } from '../components/TicketDetalleModal'
 import type { Estado, TicketConRelaciones } from '../types/database'
 
 const COLUMNAS: { estado: Estado; titulo: string }[] = [
@@ -28,6 +29,11 @@ export function BoardPage() {
   const [loading, setLoading] = useState(true)
   const [filtroArea, setFiltroArea] = useState('')
   const [filtroAsignacion, setFiltroAsignacion] = useState<FiltroAsignacion>('todos')
+  const [ticketSeleccionado, setTicketSeleccionado] = useState<TicketConRelaciones | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  )
 
   async function cargarTickets() {
     setLoading(true)
@@ -105,7 +111,7 @@ export function BoardPage() {
           </select>
         </div>
       </div>
-      <DndContext onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="kanban-board">
           {COLUMNAS.map((columna) => (
             <KanbanColumn
@@ -113,10 +119,23 @@ export function BoardPage() {
               estado={columna.estado}
               titulo={columna.titulo}
               tickets={ticketsFiltrados.filter((t) => t.estado === columna.estado)}
+              onTicketClick={setTicketSeleccionado}
             />
           ))}
         </div>
       </DndContext>
+
+      {ticketSeleccionado && (
+        <TicketDetalleModal
+          ticket={ticketSeleccionado}
+          puedeEditarTiempos={profile?.role === 'agente' || profile?.role === 'admin'}
+          onClose={() => setTicketSeleccionado(null)}
+          onGuardado={(actualizado) => {
+            setTickets((prev) => prev.map((t) => (t.id === actualizado.id ? { ...t, ...actualizado } : t)))
+            setTicketSeleccionado(null)
+          }}
+        />
+      )}
     </div>
   )
 }

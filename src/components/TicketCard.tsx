@@ -8,7 +8,17 @@ const PRIORIDAD_LABEL: Record<string, string> = {
   urgente: 'Urgente',
 }
 
-export function TicketCard({ ticket }: { ticket: TicketConRelaciones }) {
+function formatearFechaCorta(iso: string | null): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+interface TicketCardProps {
+  ticket: TicketConRelaciones
+  onClick?: () => void
+}
+
+export function TicketCard({ ticket, onClick }: TicketCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: ticket.id,
   })
@@ -23,6 +33,7 @@ export function TicketCard({ ticket }: { ticket: TicketConRelaciones }) {
       style={style}
       {...listeners}
       {...attributes}
+      onClick={onClick}
       className={`ticket-card ticket-card--${ticket.prioridad}`}
     >
       <div className="ticket-card__header">
@@ -31,6 +42,13 @@ export function TicketCard({ ticket }: { ticket: TicketConRelaciones }) {
       </div>
       <h3>{ticket.titulo}</h3>
       <p>{ticket.descripcion}</p>
+      {(ticket.fecha_requerida || ticket.tiempo_propuesto_horas || ticket.tiempo_ejecutado_horas) && (
+        <div className="ticket-card__tiempos">
+          {ticket.fecha_requerida && <span>Para: {formatearFechaCorta(ticket.fecha_requerida)}</span>}
+          {ticket.tiempo_propuesto_horas != null && <span>Propuesto: {ticket.tiempo_propuesto_horas}h</span>}
+          {ticket.tiempo_ejecutado_horas != null && <span>Ejecutado: {ticket.tiempo_ejecutado_horas}h</span>}
+        </div>
+      )}
       <div className="ticket-card__footer">
         <span>{ticket.empresa_solicitante}</span>
         <span>{ticket.asignado ? ticket.asignado.full_name ?? ticket.asignado.email : 'Bandeja general'}</span>

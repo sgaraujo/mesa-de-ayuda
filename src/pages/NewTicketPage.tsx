@@ -19,6 +19,7 @@ export function NewTicketPage() {
   const [areaId, setAreaId] = useState('')
   const [prioridad, setPrioridad] = useState<Prioridad>('media')
   const [asignadoA, setAsignadoA] = useState(BANDEJA_GENERAL)
+  const [fechaRequerida, setFechaRequerida] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exito, setExito] = useState(false)
@@ -38,6 +39,7 @@ export function NewTicketPage() {
       asignado_a: asignadoA || null,
       prioridad,
       estado: 'pendiente',
+      fecha_requerida: fechaRequerida ? new Date(fechaRequerida).toISOString() : null,
     })
 
     setEnviando(false)
@@ -88,6 +90,14 @@ export function NewTicketPage() {
             </select>
           </label>
         </div>
+        <label>
+          ¿Para cuándo lo necesitas? (opcional)
+          <input
+            type="datetime-local"
+            value={fechaRequerida}
+            onChange={(e) => setFechaRequerida(e.target.value)}
+          />
+        </label>
         <label>
           Asignar a
           <select value={asignadoA} onChange={(e) => setAsignadoA(e.target.value)}>
