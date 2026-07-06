@@ -12,7 +12,7 @@ export function ProtectedRoute({ rolesPermitidos }: ProtectedRouteProps) {
   if (loading) return <div className="pantalla-carga">Cargando...</div>
   if (!session) return <Navigate to="/login" replace />
   if (rolesPermitidos && profile && !rolesPermitidos.includes(profile.role)) {
-    return <Navigate to="/tablero" replace />
+    return <Navigate to="/nueva-solicitud" replace />
   }
 
   return <Outlet />

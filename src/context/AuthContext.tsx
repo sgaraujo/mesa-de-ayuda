@@ -29,34 +29,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => listener.subscription.unsubscribe()
   }, [])
 
+  const userId = session?.user?.id
+
   useEffect(() => {
     let cancelled = false
 
-    async function cargarPerfil() {
-      if (!session?.user) {
-        setProfile(null)
-        setLoading(false)
-        return
-      }
+    if (!userId) {
+      setProfile(null)
+      setLoading(false)
+      return
+    }
 
-      setLoading(true)
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single()
-
+    async function cargarPerfil(id: string) {
+      const { data } = await supabase.from('profiles').select('*').eq('id', id).single()
       if (!cancelled) {
         setProfile(data ?? null)
         setLoading(false)
       }
     }
 
-    cargarPerfil()
+    cargarPerfil(userId)
     return () => {
       cancelled = true
     }
-  }, [session])
+  }, [userId])
 
   async function signOut() {
     await supabase.auth.signOut()
