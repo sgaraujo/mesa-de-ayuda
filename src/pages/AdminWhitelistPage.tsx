@@ -14,6 +14,13 @@ export function AdminWhitelistPage() {
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [editandoEmail, setEditandoEmail] = useState<string | null>(null)
+  const [editRole, setEditRole] = useState<Role>('solicitante')
+  const [editAreaId, setEditAreaId] = useState('')
+
+  const [reenviando, setReenviando] = useState<string | null>(null)
+  const [mensajeAccion, setMensajeAccion] = useState<{ email: string; texto: string } | null>(null)
+
   async function cargar() {
     setLoading(true)
     const { data } = await supabase
@@ -79,6 +86,50 @@ export function AdminWhitelistPage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  function iniciarEdicion(e: AllowedEmail) {
+    setEditandoEmail(e.email)
+    setEditRole(e.role)
+    setEditAreaId(e.area_id ?? '')
+    setMensajeAccion(null)
+  }
+
+  async function guardarEdicion(email: string) {
+    const { error } = await supabase
+      .from('allowed_emails')
+      .update({ role: editRole, area_id: editAreaId || null })
+      .eq('email', email)
+
+    if (error) {
+      setMensajeAccion({ email, texto: 'No se pudo guardar el cambio.' })
+      return
+    }
+    setEditandoEmail(null)
+    cargar()
+  }
+
+  async function eliminarCorreo(email: string) {
+    if (!confirm(`¿Eliminar ${email} de la whitelist?`)) return
+
+    const { error } = await supabase.from('allowed_emails').delete().eq('email', email)
+    if (error) {
+      setMensajeAccion({ email, texto: 'No se pudo eliminar.' })
+      return
+    }
+    cargar()
+  }
+
+  async function reenviarCorreo(email: string) {
+    setReenviando(email)
+    setMensajeAccion(null)
+    const { error } = await supabase.functions.invoke('invite-user', { body: { email } })
+    setReenviando(null)
+    setMensajeAccion({
+      email,
+      texto: error ? 'No se pudo reenviar. Intenta de nuevo.' : 'Correo reenviado.',
+    })
+    cargar()
+  }
+
   if (loading) return <div className="pantalla-carga">Cargando whitelist...</div>
 
   return (
@@ -134,24 +185,101 @@ export function AdminWhitelistPage() {
             <tr>
               <th>Correo</th>
               <th>Rol</th>
+              <th>Área</th>
               <th>Estado</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {emails.map((e) => (
-              <tr key={e.email}>
-                <td>{e.email}</td>
-                <td>{e.role}</td>
-                <td>
-                  <span className={`badge ${e.used_at ? 'badge--usado' : 'badge--pendiente'}`}>
-                    {e.used_at ? 'Registrado' : 'Pendiente'}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {emails.map((e) => {
+              const enEdicion = editandoEmail === e.email
+              return (
+                <tr key={e.email}>
+                  <td>{e.email}</td>
+                  <td>
+                    {enEdicion ? (
+                      <select value={editRole} onChange={(ev) => setEditRole(ev.target.value as Role)}>
+                        <option value="solicitante">Solicitante</option>
+                        <option value="agente">Agente</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    ) : (
+                      e.role
+                    )}
+                  </td>
+                  <td>
+                    {enEdicion ? (
+                      <select value={editAreaId} onChange={(ev) => setEditAreaId(ev.target.value)}>
+                        <option value="">Sin definir</option>
+                        {areas.map((area) => (
+                          <option key={area.id} value={area.id}>
+                            {area.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      areas.find((a) => a.id === e.area_id)?.nombre ?? '—'
+                    )}
+                  </td>
+                  <td>
+                    <span className={`badge ${e.used_at ? 'badge--usado' : 'badge--pendiente'}`}>
+                      {e.used_at ? 'Registrado' : 'Pendiente'}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="admin-table__acciones">
+                      {enEdicion ? (
+                        <>
+                          <button type="button" onClick={() => guardarEdicion(e.email)}>
+                            Guardar
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-table__accion-secundaria"
+                            onClick={() => setEditandoEmail(null)}
+                          >
+                            Cancelar
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="admin-table__accion-secundaria"
+                            onClick={() => iniciarEdicion(e)}
+                          >
+                            Editar
+                          </button>
+                          {!e.used_at && (
+                            <button
+                              type="button"
+                              className="admin-table__accion-secundaria"
+                              onClick={() => reenviarCorreo(e.email)}
+                              disabled={reenviando === e.email}
+                            >
+                              {reenviando === e.email ? 'Enviando...' : 'Reenviar correo'}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="admin-table__accion-eliminar"
+                            onClick={() => eliminarCorreo(e.email)}
+                          >
+                            Eliminar
+                          </button>
+                        </>
+                      )}
+                      {mensajeAccion?.email === e.email && (
+                        <span className="admin-table__mensaje">{mensajeAccion.texto}</span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
             {emails.length === 0 && (
               <tr>
-                <td colSpan={3} className="chart-card__vacio">
+                <td colSpan={5} className="chart-card__vacio">
                   Sin correos cargados todavía
                 </td>
               </tr>

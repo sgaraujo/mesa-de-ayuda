@@ -123,11 +123,23 @@ Deno.serve(async (req) => {
     if (whitelistRow && !whitelistRow.used_at) {
       const redirectTo = `${Deno.env.get('SITE_URL') ?? ''}/crear-password`
 
-      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      let { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'invite',
         email: correo,
         options: { redirectTo },
       })
+
+      // Si un intento anterior falló después de crear el usuario en Auth (ej. el
+      // correo no llegó), "invite" ya no sirve porque el usuario existe pero está
+      // sin confirmar. "magiclink" sí genera un link válido para reenviar en ese caso.
+      if (linkError && linkError.message.toLowerCase().includes('already been registered')) {
+        console.log('Usuario ya existe sin confirmar, reintentando con magiclink para', correo)
+        ;({ data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+          type: 'magiclink',
+          email: correo,
+          options: { redirectTo },
+        }))
+      }
 
       if (linkError) {
         console.error('generateLink falló para', correo, ':', linkError.message)
