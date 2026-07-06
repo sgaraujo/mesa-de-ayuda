@@ -128,35 +128,37 @@ export function AdminWhitelistPage() {
 
       {error && <p className="auth-error">{error}</p>}
 
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>Correo</th>
-            <th>Rol</th>
-            <th>Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-          {emails.map((e) => (
-            <tr key={e.email}>
-              <td>{e.email}</td>
-              <td>{e.role}</td>
-              <td>
-                <span className={`badge ${e.used_at ? 'badge--usado' : 'badge--pendiente'}`}>
-                  {e.used_at ? 'Registrado' : 'Pendiente'}
-                </span>
-              </td>
-            </tr>
-          ))}
-          {emails.length === 0 && (
+      <div className="admin-table-scroll">
+        <table className="admin-table">
+          <thead>
             <tr>
-              <td colSpan={3} className="chart-card__vacio">
-                Sin correos cargados todavía
-              </td>
+              <th>Correo</th>
+              <th>Rol</th>
+              <th>Estado</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {emails.map((e) => (
+              <tr key={e.email}>
+                <td>{e.email}</td>
+                <td>{e.role}</td>
+                <td>
+                  <span className={`badge ${e.used_at ? 'badge--usado' : 'badge--pendiente'}`}>
+                    {e.used_at ? 'Registrado' : 'Pendiente'}
+                  </span>
+                </td>
+              </tr>
+            ))}
+            {emails.length === 0 && (
+              <tr>
+                <td colSpan={3} className="chart-card__vacio">
+                  Sin correos cargados todavía
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
