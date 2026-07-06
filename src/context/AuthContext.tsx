@@ -8,6 +8,7 @@ interface AuthContextValue {
   profile: Profile | null
   loading: boolean
   signOut: () => Promise<void>
+  refrescarPerfil: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -31,6 +32,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const userId = session?.user?.id
 
+  async function cargarPerfil(id: string) {
+    const { data } = await supabase.from('profiles').select('*').eq('id', id).single()
+    setProfile(data ?? null)
+  }
+
   useEffect(() => {
     let cancelled = false
 
@@ -40,15 +46,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    async function cargarPerfil(id: string) {
-      const { data } = await supabase.from('profiles').select('*').eq('id', id).single()
-      if (!cancelled) {
-        setProfile(data ?? null)
-        setLoading(false)
-      }
-    }
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+      .then(({ data }) => {
+        if (!cancelled) {
+          setProfile(data ?? null)
+          setLoading(false)
+        }
+      })
 
-    cargarPerfil(userId)
     return () => {
       cancelled = true
     }
@@ -58,8 +67,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
   }
 
+  async function refrescarPerfil() {
+    if (userId) await cargarPerfil(userId)
+  }
+
   return (
-    <AuthContext.Provider value={{ session, profile, loading, signOut }}>
+    <AuthContext.Provider value={{ session, profile, loading, signOut, refrescarPerfil }}>
       {children}
     </AuthContext.Provider>
   )

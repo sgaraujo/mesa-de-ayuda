@@ -1,9 +1,14 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { CompletarPerfilForm } from './CompletarPerfilForm'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
   const esAgenteOAdmin = profile?.role === 'agente' || profile?.role === 'admin'
+
+  if (profile && (!profile.full_name || !profile.area_id)) {
+    return <CompletarPerfilForm />
+  }
 
   return (
     <div className="app-shell">
