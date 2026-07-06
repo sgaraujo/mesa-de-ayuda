@@ -8,7 +8,10 @@ export function Layout() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div className="app-header__brand">Mesa de Ayuda</div>
+        <div className="app-header__brand">
+          <span className="app-header__logo-dot" aria-hidden="true" />
+          Mesa de Ayuda
+        </div>
         <nav className="app-nav">
           <NavLink to="/nueva-solicitud">Nueva solicitud</NavLink>
           {esAgenteOAdmin && <NavLink to="/tablero">Tablero</NavLink>}

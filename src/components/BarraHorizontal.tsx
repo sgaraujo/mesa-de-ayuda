@@ -39,7 +39,7 @@ export function BarraHorizontal({ datos }: { datos: ConteoCategoria[] }) {
             fontSize: 13,
           }}
         />
-        <Bar dataKey="total" fill="var(--series-1)" barSize={20} radius={[0, 4, 4, 0]}>
+        <Bar dataKey="total" fill="var(--brand)" barSize={20} radius={[0, 4, 4, 0]}>
           <LabelList dataKey="total" position="right" fill="var(--text-secondary)" fontSize={12} />
         </Bar>
       </BarChart>
