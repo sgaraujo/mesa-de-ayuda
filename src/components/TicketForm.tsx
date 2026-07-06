@@ -2,27 +2,21 @@ import { useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useAreas } from '../hooks/useAreas'
-import { useAgentes } from '../hooks/useAgentes'
 import type { Prioridad } from '../types/database'
-
-const BANDEJA_GENERAL = ''
 
 interface TicketFormProps {
   asignadoAPorDefecto?: string
   onCreado?: () => void
 }
 
-export function TicketForm({ asignadoAPorDefecto = BANDEJA_GENERAL, onCreado }: TicketFormProps) {
+export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormProps) {
   const { profile } = useAuth()
   const { areas } = useAreas()
-  const { agentes } = useAgentes()
 
   const [titulo, setTitulo] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [areaId, setAreaId] = useState('')
   const [prioridad, setPrioridad] = useState<Prioridad>('media')
-  const [asignadoA, setAsignadoA] = useState(asignadoAPorDefecto)
-  const [fechaRequerida, setFechaRequerida] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exito, setExito] = useState(false)
@@ -39,10 +33,9 @@ export function TicketForm({ asignadoAPorDefecto = BANDEJA_GENERAL, onCreado }: 
       solicitante_id: profile.id,
       empresa_solicitante: profile.empresa,
       area_id: areaId || null,
-      asignado_a: asignadoA || null,
+      asignado_a: asignadoAPorDefecto || null,
       prioridad,
       estado: 'pendiente',
-      fecha_requerida: fechaRequerida ? new Date(fechaRequerida).toISOString() : null,
     })
 
     setEnviando(false)
@@ -56,8 +49,6 @@ export function TicketForm({ asignadoAPorDefecto = BANDEJA_GENERAL, onCreado }: 
     setDescripcion('')
     setAreaId('')
     setPrioridad('media')
-    setAsignadoA(asignadoAPorDefecto)
-    setFechaRequerida('')
     setTimeout(() => onCreado?.(), 900)
   }
 
@@ -98,27 +89,6 @@ export function TicketForm({ asignadoAPorDefecto = BANDEJA_GENERAL, onCreado }: 
           </select>
         </label>
       </div>
-      <label>
-        ¿Para cuándo lo necesitas? (opcional)
-        <input
-          type="datetime-local"
-          value={fechaRequerida}
-          onChange={(e) => setFechaRequerida(e.target.value)}
-        />
-      </label>
-      {profile?.role !== 'solicitante' && (
-        <label>
-          Asignar a
-          <select value={asignadoA} onChange={(e) => setAsignadoA(e.target.value)}>
-            <option value={BANDEJA_GENERAL}>Bandeja general del equipo</option>
-            {agentes.map((agente) => (
-              <option key={agente.id} value={agente.id}>
-                {agente.full_name ?? agente.email}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
       {error && <p className="auth-error">{error}</p>}
       {exito && <p className="auth-success">Solicitud creada correctamente.</p>}
       <button type="submit" disabled={enviando}>
