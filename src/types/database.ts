@@ -11,6 +11,7 @@ export const DOMINIOS_PERMITIDOS = [
 export interface Area {
   id: string
   nombre: string
+  orden: number
 }
 
 export interface Proyecto {

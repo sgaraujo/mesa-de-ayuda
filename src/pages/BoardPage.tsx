@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAreas } from '../hooks/useAreas'
 import { KanbanColumn } from '../components/KanbanColumn'
 import { TicketDetalleModal } from '../components/TicketDetalleModal'
+import { NuevaTareaModal } from '../components/NuevaTareaModal'
 import type { Estado, TicketConRelaciones } from '../types/database'
 
 const COLUMNAS: { estado: Estado; titulo: string }[] = [
@@ -31,6 +32,7 @@ export function BoardPage() {
   const [filtroArea, setFiltroArea] = useState('')
   const [filtroAsignacion, setFiltroAsignacion] = useState<FiltroAsignacion>('todos')
   const [ticketSeleccionado, setTicketSeleccionado] = useState<TicketConRelaciones | null>(null)
+  const [mostrarNuevaTarea, setMostrarNuevaTarea] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -110,6 +112,9 @@ export function BoardPage() {
             <option value="mios">Asignadas a mí</option>
             <option value="bandeja_general">Bandeja general</option>
           </select>
+          <button type="button" onClick={() => setMostrarNuevaTarea(true)}>
+            + Nueva tarea
+          </button>
         </div>
       </div>
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
@@ -134,6 +139,16 @@ export function BoardPage() {
           onGuardado={(actualizado) => {
             setTickets((prev) => prev.map((t) => (t.id === actualizado.id ? { ...t, ...actualizado } : t)))
             setTicketSeleccionado(null)
+          }}
+        />
+      )}
+
+      {mostrarNuevaTarea && (
+        <NuevaTareaModal
+          onClose={() => setMostrarNuevaTarea(false)}
+          onCreado={() => {
+            setMostrarNuevaTarea(false)
+            cargarTickets()
           }}
         />
       )}

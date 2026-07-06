@@ -753,7 +753,8 @@ label {
     flex-direction: column;
   }
 
-  .board-page__filtros select {
+  .board-page__filtros select,
+  .board-page__filtros button {
     width: 100%;
   }
 

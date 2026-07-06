@@ -10,7 +10,7 @@ export function useAreas() {
     supabase
       .from('areas')
       .select('*')
-      .order('nombre')
+      .order('orden')
       .then(({ data }) => {
         setAreas(data ?? [])
         setLoading(false)
