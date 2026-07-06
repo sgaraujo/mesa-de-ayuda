@@ -106,17 +106,19 @@ export function TicketForm({ asignadoAPorDefecto = BANDEJA_GENERAL, onCreado }: 
           onChange={(e) => setFechaRequerida(e.target.value)}
         />
       </label>
-      <label>
-        Asignar a
-        <select value={asignadoA} onChange={(e) => setAsignadoA(e.target.value)}>
-          <option value={BANDEJA_GENERAL}>Bandeja general del equipo</option>
-          {agentes.map((agente) => (
-            <option key={agente.id} value={agente.id}>
-              {agente.full_name ?? agente.email}
-            </option>
-          ))}
-        </select>
-      </label>
+      {profile?.role !== 'solicitante' && (
+        <label>
+          Asignar a
+          <select value={asignadoA} onChange={(e) => setAsignadoA(e.target.value)}>
+            <option value={BANDEJA_GENERAL}>Bandeja general del equipo</option>
+            {agentes.map((agente) => (
+              <option key={agente.id} value={agente.id}>
+                {agente.full_name ?? agente.email}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {error && <p className="auth-error">{error}</p>}
       {exito && <p className="auth-success">Solicitud creada correctamente.</p>}
       <button type="submit" disabled={enviando}>

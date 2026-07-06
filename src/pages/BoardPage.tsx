@@ -3,15 +3,16 @@ import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } f
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useAreas } from '../hooks/useAreas'
-import { KanbanColumn } from '../components/KanbanColumn'
+import { KanbanColumn, type ColumnaId } from '../components/KanbanColumn'
 import { TicketDetalleModal } from '../components/TicketDetalleModal'
 import { NuevaTareaModal } from '../components/NuevaTareaModal'
 import type { Estado, TicketConRelaciones } from '../types/database'
 
-const COLUMNAS: { estado: Estado; titulo: string }[] = [
-  { estado: 'pendiente', titulo: 'Pendiente' },
-  { estado: 'en_curso', titulo: 'En curso' },
-  { estado: 'finalizado', titulo: 'Finalizado' },
+const COLUMNAS: { id: ColumnaId; titulo: string }[] = [
+  { id: 'tareas', titulo: 'Tareas (sin asignar)' },
+  { id: 'pendiente', titulo: 'Pendiente' },
+  { id: 'en_curso', titulo: 'En curso' },
+  { id: 'finalizado', titulo: 'Finalizado' },
 ]
 
 const TICKET_SELECT = `
@@ -22,15 +23,12 @@ const TICKET_SELECT = `
   proyecto:proyectos(id, nombre)
 `
 
-type FiltroAsignacion = 'todos' | 'mios' | 'bandeja_general'
-
 export function BoardPage() {
   const { profile } = useAuth()
   const { areas } = useAreas()
   const [tickets, setTickets] = useState<TicketConRelaciones[]>([])
   const [loading, setLoading] = useState(true)
   const [filtroArea, setFiltroArea] = useState('')
-  const [filtroAsignacion, setFiltroAsignacion] = useState<FiltroAsignacion>('todos')
   const [ticketSeleccionado, setTicketSeleccionado] = useState<TicketConRelaciones | null>(null)
   const [mostrarNuevaTarea, setMostrarNuevaTarea] = useState(false)
 
@@ -53,40 +51,54 @@ export function BoardPage() {
   }, [])
 
   const ticketsFiltrados = useMemo(() => {
-    return tickets.filter((t) => {
-      if (filtroArea && t.area_id !== filtroArea) return false
-      if (filtroAsignacion === 'mios' && t.asignado_a !== profile?.id) return false
-      if (filtroAsignacion === 'bandeja_general' && t.asignado_a !== null) return false
-      return true
-    })
-  }, [tickets, filtroArea, filtroAsignacion, profile])
+    return tickets.filter((t) => !filtroArea || t.area_id === filtroArea)
+  }, [tickets, filtroArea])
+
+  function ticketsParaColumna(id: ColumnaId) {
+    if (id === 'tareas') return ticketsFiltrados.filter((t) => t.asignado_a === null)
+    return ticketsFiltrados.filter((t) => t.asignado_a !== null && t.estado === id)
+  }
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over) return
 
     const ticketId = String(active.id)
-    const nuevoEstado = over.id as Estado
+    const destino = over.id as ColumnaId
     const ticket = tickets.find((t) => t.id === ticketId)
-    if (!ticket || ticket.estado === nuevoEstado) return
+    if (!ticket) return
 
-    setTickets((prev) =>
-      prev.map((t) => (t.id === ticketId ? { ...t, estado: nuevoEstado } : t)),
-    )
+    // Soltar en "Tareas" devuelve el ticket a la bandeja general (lo desasigna).
+    if (destino === 'tareas') {
+      if (ticket.asignado_a === null) return
+      setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, asignado_a: null } : t)))
+      await supabase.from('tickets').update({ asignado_a: null }).eq('id', ticketId)
+      return
+    }
 
-    await supabase
-      .from('tickets')
-      .update({
-        estado: nuevoEstado,
-        finalizado_at: nuevoEstado === 'finalizado' ? new Date().toISOString() : null,
-      })
-      .eq('id', ticketId)
+    const nuevoEstado = destino as Estado
+    const estabaSinAsignar = ticket.asignado_a === null
 
-    await supabase.from('ticket_status_history').insert({
-      ticket_id: ticketId,
+    // Sin cambios reales: ya estaba asignado y en ese mismo estado.
+    if (!estabaSinAsignar && ticket.estado === nuevoEstado) return
+
+    const cambios: Record<string, unknown> = {
       estado: nuevoEstado,
-      changed_by: profile?.id ?? null,
-    })
+      finalizado_at: nuevoEstado === 'finalizado' ? new Date().toISOString() : null,
+    }
+    // Soltar un ticket de "Tareas" en cualquier columna lo asigna a quien lo tomó.
+    if (estabaSinAsignar) cambios.asignado_a = profile?.id ?? null
+
+    setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, ...cambios } : t)))
+    await supabase.from('tickets').update(cambios).eq('id', ticketId)
+
+    if (ticket.estado !== nuevoEstado) {
+      await supabase.from('ticket_status_history').insert({
+        ticket_id: ticketId,
+        estado: nuevoEstado,
+        changed_by: profile?.id ?? null,
+      })
+    }
   }
 
   if (loading) return <div className="pantalla-carga">Cargando tablero...</div>
@@ -104,27 +116,19 @@ export function BoardPage() {
               </option>
             ))}
           </select>
-          <select
-            value={filtroAsignacion}
-            onChange={(e) => setFiltroAsignacion(e.target.value as FiltroAsignacion)}
-          >
-            <option value="todos">Todas las solicitudes</option>
-            <option value="mios">Asignadas a mí</option>
-            <option value="bandeja_general">Bandeja general</option>
-          </select>
           <button type="button" onClick={() => setMostrarNuevaTarea(true)}>
             + Nueva tarea
           </button>
         </div>
       </div>
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="kanban-board">
+        <div className="kanban-board kanban-board--4">
           {COLUMNAS.map((columna) => (
             <KanbanColumn
-              key={columna.estado}
-              estado={columna.estado}
+              key={columna.id}
+              id={columna.id}
               titulo={columna.titulo}
-              tickets={ticketsFiltrados.filter((t) => t.estado === columna.estado)}
+              tickets={ticketsParaColumna(columna.id)}
               onTicketClick={setTicketSeleccionado}
             />
           ))}

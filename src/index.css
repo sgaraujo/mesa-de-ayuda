@@ -347,6 +347,10 @@ label {
   align-items: start;
 }
 
+.kanban-board--4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
 .kanban-column {
   background: var(--surface-1);
   border: 1px solid var(--border);
@@ -358,6 +362,9 @@ label {
   box-shadow: var(--shadow-sm);
 }
 
+.kanban-column--tareas {
+  border-top-color: var(--series-5);
+}
 .kanban-column--pendiente {
   border-top-color: var(--estado-pendiente);
 }
