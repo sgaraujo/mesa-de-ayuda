@@ -52,7 +52,19 @@ Deno.serve(async (req) => {
 
     if (whitelistRow && !whitelistRow.used_at) {
       const redirectTo = `${Deno.env.get('SITE_URL') ?? ''}/crear-password`
-      await supabaseAdmin.auth.admin.inviteUserByEmail(correo, { redirectTo })
+      console.log('Invitando a', correo, 'con redirectTo =', redirectTo)
+      const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(correo, {
+        redirectTo,
+      })
+
+      if (inviteError) {
+        console.error('inviteUserByEmail failed for', correo, ':', inviteError.message)
+        return new Response(
+          JSON.stringify({ ok: false, message: 'No se pudo enviar la invitación. Intenta más tarde.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+
       await supabaseAdmin
         .from('allowed_emails')
         .update({ invited_at: new Date().toISOString() })
