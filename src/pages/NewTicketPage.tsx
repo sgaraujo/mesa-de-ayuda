@@ -54,6 +54,10 @@ export function NewTicketPage() {
   return (
     <div className="page-form">
       <h1>Nueva solicitud</h1>
+      <p className="page-form__subtitulo">
+        Cuéntanos qué necesitas — puedes asignarla a alguien específico o dejarla en la
+        bandeja general del equipo.
+      </p>
       <form onSubmit={handleSubmit} className="ticket-form">
         <label>
           Título

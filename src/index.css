@@ -294,6 +294,17 @@ label {
 
 .page-form {
   max-width: 640px;
+  margin: 0 auto;
+}
+
+.page-form h1 {
+  margin-bottom: 0.2rem;
+}
+
+.page-form__subtitulo {
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  margin: 0 0 1.2rem;
 }
 
 .ticket-form {
