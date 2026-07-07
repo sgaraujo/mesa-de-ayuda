@@ -23,12 +23,17 @@ export function CreatePasswordPage() {
     }
 
     setEnviando(true)
-    const { error } = await supabase.auth.updateUser({ password })
+    const { data, error } = await supabase.auth.updateUser({ password })
     setEnviando(false)
 
     if (error) {
       setError('No se pudo guardar la contraseña. El enlace pudo haber expirado.')
       return
+    }
+
+    const correo = data.user?.email
+    if (correo) {
+      supabase.functions.invoke('send-welcome-email', { body: { email: correo } })
     }
 
     navigate('/tablero')
