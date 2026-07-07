@@ -6,6 +6,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, enviarCorreo } from '../_shared/graph.ts'
+import { plantillaCorreo } from '../_shared/email-template.ts'
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -57,13 +58,15 @@ Deno.serve(async (req) => {
       await enviarCorreo(
         correo,
         '¡Bienvenido a Mesa de Ayuda!',
-        `
-          <p>${saludo}</p>
-          <p>Tu cuenta en <strong>Mesa de Ayuda</strong> ya está lista.</p>
-          <p>Desde ahí puedes crear solicitudes de trabajo, y si eres agente o admin,
-          tomar tareas del tablero, hacerles seguimiento y ver estadísticas del equipo.</p>
-          <p><a href="${siteUrl}">Entrar a Mesa de Ayuda</a></p>
-        `,
+        plantillaCorreo({
+          titulo: '¡Tu cuenta ya está lista!',
+          parrafos: [
+            `${saludo} tu cuenta en <strong>Mesa de Ayuda</strong> quedó activada.`,
+            'Desde ahí puedes crear solicitudes de trabajo, y si eres agente o admin, tomar tareas del tablero, hacerles seguimiento y ver estadísticas del equipo.',
+          ],
+          botonTexto: 'Entrar a Mesa de Ayuda',
+          botonUrl: siteUrl,
+        }),
       )
     } catch (graphErr) {
       console.error('Envío del correo de bienvenida falló para', correo, ':', (graphErr as Error).message)

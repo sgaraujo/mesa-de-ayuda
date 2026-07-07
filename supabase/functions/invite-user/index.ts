@@ -10,6 +10,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, enviarCorreo } from '../_shared/graph.ts'
+import { plantillaCorreo } from '../_shared/email-template.ts'
 
 const DOMINIOS_PERMITIDOS = ['inteegra.net.co', 'triangulum.net.co', 'netcol.net.co']
 
@@ -99,11 +100,15 @@ Deno.serve(async (req) => {
         await enviarCorreo(
           correo,
           'Invitación a Mesa de Ayuda',
-          `
-            <p>Te invitaron a Mesa de Ayuda.</p>
-            <p><a href="${actionLink}">Haz clic aquí para crear tu contraseña</a></p>
-            <p>Si no esperabas este correo, puedes ignorarlo.</p>
-          `,
+          plantillaCorreo({
+            titulo: 'Te invitaron a Mesa de Ayuda',
+            parrafos: [
+              'Ya casi quedas dentro. Solo falta que crees tu contraseña para poder entrar a la plataforma de solicitudes y tickets del equipo.',
+              'Este enlace es personal y expira después de un tiempo, así que créala pronto.',
+            ],
+            botonTexto: 'Crear mi contraseña',
+            botonUrl: actionLink,
+          }),
         )
       } catch (graphErr) {
         console.error('Envío por Graph falló para', correo, ':', (graphErr as Error).message)
