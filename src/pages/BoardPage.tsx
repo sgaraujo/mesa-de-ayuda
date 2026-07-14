@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -16,6 +17,11 @@ const COLUMNAS: { id: ColumnaId; titulo: string }[] = [
   { id: 'finalizado', titulo: 'Finalizado' },
 ]
 
+const COLUMNAS_SOLICITANTE: { id: ColumnaId; titulo: string }[] = [
+  { id: 'pendiente', titulo: 'Pendientes' },
+  { id: 'finalizado', titulo: 'Finalizadas' },
+]
+
 const TICKET_SELECT = `
   *,
   solicitante:profiles!tickets_solicitante_id_fkey(id, full_name, email),
@@ -25,43 +31,80 @@ const TICKET_SELECT = `
   asignados:ticket_asignados(profile:profiles(id, full_name, email))
 `
 
+const BOARD_CHANNEL = 'ticket-board'
+
 export function BoardPage() {
   const { profile } = useAuth()
+  const esSolicitante = profile?.role === 'solicitante'
   const { areas } = useAreas()
   const [tickets, setTickets] = useState<TicketConRelaciones[]>([])
   const [loading, setLoading] = useState(true)
   const [filtroArea, setFiltroArea] = useState('')
   const [ticketSeleccionado, setTicketSeleccionado] = useState<TicketConRelaciones | null>(null)
   const [mostrarNuevaTarea, setMostrarNuevaTarea] = useState(false)
+  const boardChannel = useRef<RealtimeChannel | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   )
 
-  async function cargarTickets() {
-    setLoading(true)
+  const cargarTickets = useCallback(async (mostrarCarga = false) => {
+    if (mostrarCarga) setLoading(true)
     const { data } = await supabase
       .from('tickets')
       .select(TICKET_SELECT)
       .order('created_at', { ascending: false })
     setTickets((data as unknown as TicketConRelaciones[]) ?? [])
     setLoading(false)
-  }
+  }, [])
+
+  const notificarCambio = useCallback(async () => {
+    await boardChannel.current?.send({
+      type: 'broadcast',
+      event: 'tickets_changed',
+      payload: {},
+    })
+  }, [])
 
   useEffect(() => {
-    cargarTickets()
-  }, [])
+    void cargarTickets(true)
+
+    const channel = supabase
+      .channel(BOARD_CHANNEL)
+      .on('broadcast', { event: 'tickets_changed' }, () => {
+        void cargarTickets()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
+        void cargarTickets()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_asignados' }, () => {
+        void cargarTickets()
+      })
+      .subscribe()
+    boardChannel.current = channel
+
+    return () => {
+      boardChannel.current = null
+      void supabase.removeChannel(channel)
+    }
+  }, [cargarTickets])
 
   const ticketsFiltrados = useMemo(() => {
     return tickets.filter((t) => !filtroArea || t.area_id === filtroArea)
   }, [tickets, filtroArea])
 
   function ticketsParaColumna(id: ColumnaId) {
+    if (esSolicitante) {
+      if (id === 'pendiente') return ticketsFiltrados.filter((t) => t.estado !== 'finalizado')
+      if (id === 'finalizado') return ticketsFiltrados.filter((t) => t.estado === 'finalizado')
+      return []
+    }
     if (id === 'tareas') return ticketsFiltrados.filter((t) => estaSinAsignar(t))
     return ticketsFiltrados.filter((t) => !estaSinAsignar(t) && t.estado === id)
   }
 
   async function handleDragEnd(event: DragEndEvent) {
+    if (esSolicitante) return
     const { active, over } = event
     if (!over) return
 
@@ -88,6 +131,7 @@ export function BoardPage() {
         estado: nuevoEstado,
         changed_by: profile?.id ?? null,
       })
+      await notificarCambio()
       return
     }
 
@@ -96,6 +140,7 @@ export function BoardPage() {
       if (ticket.asignado_a === null) return
       setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, asignado_a: null } : t)))
       await supabase.from('tickets').update({ asignado_a: null }).eq('id', ticketId)
+      await notificarCambio()
       return
     }
 
@@ -122,6 +167,7 @@ export function BoardPage() {
         changed_by: profile?.id ?? null,
       })
     }
+    await notificarCambio()
   }
 
   if (loading) return <div className="pantalla-carga">Cargando tablero...</div>
@@ -129,29 +175,32 @@ export function BoardPage() {
   return (
     <div className="board-page">
       <div className="board-page__toolbar">
-        <h1>Tablero</h1>
+        <h1>{esSolicitante ? 'Mis solicitudes' : 'Tablero'}</h1>
         <div className="board-page__filtros">
-          <select value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}>
-            <option value="">Todas las áreas</option>
-            {areas.map((area) => (
-              <option key={area.id} value={area.id}>
-                {area.nombre}
-              </option>
-            ))}
-          </select>
+          {!esSolicitante && (
+            <select value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}>
+              <option value="">Todas las áreas</option>
+              {areas.map((area) => (
+                <option key={area.id} value={area.id}>
+                  {area.nombre}
+                </option>
+              ))}
+            </select>
+          )}
           <button type="button" onClick={() => setMostrarNuevaTarea(true)}>
             + Nueva tarea
           </button>
         </div>
       </div>
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="kanban-board kanban-board--4">
-          {COLUMNAS.map((columna) => (
+        <div className={`kanban-board ${esSolicitante ? 'kanban-board--2' : 'kanban-board--4'}`}>
+          {(esSolicitante ? COLUMNAS_SOLICITANTE : COLUMNAS).map((columna) => (
             <KanbanColumn
               key={columna.id}
               id={columna.id}
               titulo={columna.titulo}
               tickets={ticketsParaColumna(columna.id)}
+              puedeArrastrar={!esSolicitante}
               onTicketClick={setTicketSeleccionado}
             />
           ))}
@@ -166,6 +215,7 @@ export function BoardPage() {
           onGuardado={(actualizado) => {
             setTickets((prev) => prev.map((t) => (t.id === actualizado.id ? { ...t, ...actualizado } : t)))
             setTicketSeleccionado(null)
+            void notificarCambio()
           }}
         />
       )}
@@ -175,7 +225,8 @@ export function BoardPage() {
           onClose={() => setMostrarNuevaTarea(false)}
           onCreado={() => {
             setMostrarNuevaTarea(false)
-            cargarTickets()
+            void cargarTickets()
+            void notificarCambio()
           }}
         />
       )}

@@ -17,11 +17,13 @@ function formatearFechaCorta(iso: string | null): string {
 interface TicketCardProps {
   ticket: TicketConRelaciones
   onClick?: () => void
+  puedeArrastrar?: boolean
 }
 
-export function TicketCard({ ticket, onClick }: TicketCardProps) {
+export function TicketCard({ ticket, onClick, puedeArrastrar = true }: TicketCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: ticket.id,
+    disabled: !puedeArrastrar,
   })
 
   const style = transform
@@ -32,8 +34,8 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
     <div
       ref={setNodeRef}
       style={style}
-      {...listeners}
-      {...attributes}
+      {...(puedeArrastrar ? listeners : {})}
+      {...(puedeArrastrar ? attributes : {})}
       onClick={onClick}
       className={`ticket-card ticket-card--${ticket.prioridad}`}
     >

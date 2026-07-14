@@ -19,7 +19,7 @@ export function Layout() {
         </div>
         <nav className="app-nav">
           <NavLink to="/nueva-solicitud">Nueva solicitud</NavLink>
-          {esAgenteOAdmin && <NavLink to="/tablero">Tablero</NavLink>}
+          <NavLink to="/tablero">{profile?.role === 'solicitante' ? 'Mis solicitudes' : 'Tablero'}</NavLink>
           {esAgenteOAdmin && <NavLink to="/estadisticas">Estadísticas</NavLink>}
           {profile?.role === 'admin' && <NavLink to="/admin/whitelist">Whitelist</NavLink>}
         </nav>

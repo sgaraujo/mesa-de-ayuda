@@ -23,8 +23,9 @@ export default function App() {
             <Route element={<Layout />}>
               <Route path="/nueva-solicitud" element={<NewTicketPage />} />
 
+              <Route path="/tablero" element={<BoardPage />} />
+
               <Route element={<ProtectedRoute rolesPermitidos={['agente', 'admin']} />}>
-                <Route path="/tablero" element={<BoardPage />} />
                 <Route path="/estadisticas" element={<StatsPage />} />
               </Route>
 
