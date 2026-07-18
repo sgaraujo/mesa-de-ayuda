@@ -6,6 +6,9 @@ import {
   contarPor,
   dentroDeRango,
   formatearDuracion,
+  formatearEtiquetaPeriodo,
+  serieTemporal,
+  type Agrupacion,
   type ConteoCategoria,
   type RangoFecha,
 } from '../lib/agregaciones'
@@ -13,6 +16,7 @@ import { nombresAsignados } from '../lib/ticket'
 import { BarraHorizontal } from '../components/BarraHorizontal'
 import { RankingLista } from '../components/RankingLista'
 import { DonutChart } from '../components/DonutChart'
+import { LineaTendencia } from '../components/LineaTendencia'
 import type { Estado, TicketConRelaciones } from '../types/database'
 
 const TICKET_SELECT = `
@@ -95,6 +99,8 @@ export function StatsPage() {
   const porEmpresa = contarPor(ticketsFiltrados, (t) => t.empresa_solicitante)
   const porProyecto = contarPor(ticketsFiltrados, (t) => t.proyecto?.nombre ?? null)
   const porPersonaResuelto = contarPorPersonaAsignada(ticketsBase.filter((t) => t.estado === 'finalizado'))
+  const agrupacionTendencia: Agrupacion = filtroRango === 'todo' ? 'mes' : 'dia'
+  const tendencia = serieTemporal(ticketsBase, agrupacionTendencia)
 
   return (
     <div className="stats-page">
@@ -158,6 +164,13 @@ export function StatsPage() {
       </div>
 
       <div className="charts-grid">
+        <div className="chart-card chart-card--ancho">
+          <h2>Tendencia de solicitudes</h2>
+          <LineaTendencia
+            datos={tendencia}
+            formatearEtiqueta={(periodo) => formatearEtiquetaPeriodo(periodo, agrupacionTendencia)}
+          />
+        </div>
         <div className="chart-card">
           <h2>Solicitudes por área</h2>
           <BarraHorizontal datos={porArea} />

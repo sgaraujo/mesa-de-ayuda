@@ -703,6 +703,10 @@ label {
   margin: 0 0 0.8rem;
 }
 
+.chart-card--ancho {
+  grid-column: 1 / -1;
+}
+
 .chart-card__vacio {
   color: var(--text-muted);
   font-size: 0.85rem;
