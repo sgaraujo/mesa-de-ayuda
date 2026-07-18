@@ -633,6 +633,17 @@ label {
   margin-bottom: 1rem;
 }
 
+.stats-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.2rem;
+}
+
+.stats-filtros select {
+  min-width: 160px;
+}
+
 .stat-tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -697,6 +708,130 @@ label {
   font-size: 0.85rem;
   padding: 2rem 0;
   text-align: center;
+}
+
+.ranking-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.ranking-item__rank {
+  flex-shrink: 0;
+  width: 1.8rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.ranking-item__cuerpo {
+  flex: 1;
+  min-width: 0;
+}
+
+.ranking-item__cabecera {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+  margin-bottom: 0.3rem;
+}
+
+.ranking-item__nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-item__valor {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.ranking-item__barra-fondo {
+  background: var(--gridline);
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.ranking-item__barra {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.donut-chart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.donut-chart__grafico {
+  position: relative;
+  width: 100%;
+}
+
+.donut-chart__centro {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.donut-chart__total {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.donut-chart__etiqueta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.donut-chart__leyenda {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.donut-chart__leyenda li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+
+.donut-chart__leyenda-nombre {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.donut-chart__punto {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
 }
 
 /* ---- Admin ---- */
