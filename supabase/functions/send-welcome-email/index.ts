@@ -6,7 +6,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, enviarCorreo } from '../_shared/graph.ts'
-import { plantillaCorreo } from '../_shared/email-template.ts'
+import { escaparHtml, plantillaCorreo } from '../_shared/email-template.ts'
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -52,19 +52,26 @@ Deno.serve(async (req) => {
     }
 
     const siteUrl = Deno.env.get('SITE_URL') ?? ''
-    const saludo = perfil.full_name?.trim() ? `Hola ${perfil.full_name.trim()},` : 'Hola,'
+    const nombre = perfil.full_name?.trim() ? escaparHtml(perfil.full_name.trim()) : null
+    const saludo = nombre ? `Hola <strong>${nombre}</strong>,` : 'Hola,'
 
     try {
       await enviarCorreo(
         correo,
         '¡Bienvenido a Mesa de Ayuda!',
         plantillaCorreo({
-          titulo: '¡Tu cuenta ya está lista!',
+          titulo: 'Tu cuenta ya está lista',
+          etiqueta: 'Bienvenido al equipo',
+          preheader: 'Ya puedes ingresar, crear solicitudes y hacer seguimiento desde Mesa de Ayuda.',
           parrafos: [
-            `${saludo} tu cuenta en <strong>Mesa de Ayuda</strong> quedó activada.`,
-            'Desde ahí puedes crear solicitudes de trabajo, y si eres agente o admin, tomar tareas del tablero, hacerles seguimiento y ver estadísticas del equipo.',
+            `${saludo} activamos correctamente tu acceso a <strong>Mesa de Ayuda</strong>. Ya puedes ingresar y empezar a trabajar desde un solo lugar.`,
           ],
-          botonTexto: 'Entrar a Mesa de Ayuda',
+          items: [
+            '<strong>Crea solicitudes</strong> y consulta su estado en cualquier momento.',
+            '<strong>Haz seguimiento</strong> a las tareas y tiempos de ejecución.',
+            '<strong>Colabora con el equipo</strong> desde el tablero según tu rol.',
+          ],
+          botonTexto: 'Ingresar a Mesa de Ayuda',
           botonUrl: siteUrl,
         }),
       )

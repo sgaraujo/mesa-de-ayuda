@@ -7,11 +7,13 @@ export function CreatePasswordPage() {
   const [password, setPassword] = useState('')
   const [confirmacion, setConfirmacion] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [advertencia, setAdvertencia] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+    setAdvertencia(null)
 
     if (password.length < 8) {
       setError('La contraseña debe tener al menos 8 caracteres.')
@@ -24,18 +26,29 @@ export function CreatePasswordPage() {
 
     setEnviando(true)
     const { data, error } = await supabase.auth.updateUser({ password })
-    setEnviando(false)
-
     if (error) {
+      setEnviando(false)
       setError('No se pudo guardar la contraseña. El enlace pudo haber expirado.')
       return
     }
 
     const correo = data.user?.email
     if (correo) {
-      supabase.functions.invoke('send-welcome-email', { body: { email: correo } })
+      const { error: errorCorreo } = await supabase.functions.invoke('send-welcome-email', {
+        body: { email: correo },
+      })
+
+      if (errorCorreo) {
+        console.error('No se pudo enviar el correo de bienvenida:', errorCorreo)
+        setEnviando(false)
+        setAdvertencia(
+          'Tu contraseña quedó guardada, pero no pudimos enviar el correo de bienvenida. Ya puedes iniciar sesión normalmente.',
+        )
+        return
+      }
     }
 
+    setEnviando(false)
     navigate('/tablero')
   }
 
@@ -64,9 +77,19 @@ export function CreatePasswordPage() {
           />
         </label>
         {error && <p className="auth-error">{error}</p>}
-        <button type="submit" disabled={enviando}>
-          {enviando ? 'Guardando...' : 'Guardar y continuar'}
-        </button>
+        {advertencia && (
+          <>
+            <p className="auth-error">{advertencia}</p>
+            <button type="button" onClick={() => navigate('/login')}>
+              Ir a iniciar sesión
+            </button>
+          </>
+        )}
+        {!advertencia && (
+          <button type="submit" disabled={enviando}>
+            {enviando ? 'Guardando y enviando...' : 'Guardar y continuar'}
+          </button>
+        )}
       </form>
     </div>
   )
