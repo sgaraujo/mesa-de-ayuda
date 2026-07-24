@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAreas } from '../hooks/useAreas'
-import { esDominioPermitido } from '../lib/dominio'
 import type { AllowedEmail, Role } from '../types/database'
 
 export function AdminWhitelistPage() {
@@ -40,11 +39,6 @@ export function AdminWhitelistPage() {
     setError(null)
     const email = nuevoEmail.trim().toLowerCase()
 
-    if (!esDominioPermitido(email)) {
-      setError('El correo debe pertenecer a inteegra.net.co, triangulum.net.co o netcol.net.co.')
-      return
-    }
-
     const { error } = await supabase.from('allowed_emails').upsert({
       email,
       role: nuevoRole,
@@ -77,7 +71,7 @@ export function AdminWhitelistPage() {
         role: (role?.trim() as Role) || 'solicitante',
         area_id: areas.find((a) => a.nombre.toLowerCase() === areaNombre?.trim().toLowerCase())?.id ?? null,
       }))
-      .filter((r) => r.email && esDominioPermitido(r.email))
+      .filter((r) => r.email)
 
     if (registros.length > 0) {
       await supabase.from('allowed_emails').upsert(registros)
@@ -260,7 +254,7 @@ export function AdminWhitelistPage() {
             required
             value={nuevoEmail}
             onChange={(e) => setNuevoEmail(e.target.value)}
-            placeholder="nombre@netcol.net.co"
+            placeholder="nombre@ejemplo.com"
           />
         </label>
         <label>

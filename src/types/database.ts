@@ -2,12 +2,6 @@ export type Role = 'admin' | 'agente' | 'solicitante'
 export type Estado = 'pendiente' | 'en_curso' | 'finalizado'
 export type Prioridad = 'baja' | 'media' | 'alta' | 'urgente'
 
-export const DOMINIOS_PERMITIDOS = [
-  'inteegra.net.co',
-  'triangulum.net.co',
-  'netcol.net.co',
-] as const
-
 export interface Area {
   id: string
   nombre: string

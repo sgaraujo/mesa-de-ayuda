@@ -43,6 +43,7 @@ export function BoardPage() {
   const [ticketSeleccionado, setTicketSeleccionado] = useState<TicketConRelaciones | null>(null)
   const [mostrarNuevaTarea, setMostrarNuevaTarea] = useState(false)
   const boardChannel = useRef<RealtimeChannel | null>(null)
+  const recargaPendiente = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -66,28 +67,37 @@ export function BoardPage() {
     })
   }, [])
 
+  const programarRecarga = useCallback(() => {
+    if (recargaPendiente.current) clearTimeout(recargaPendiente.current)
+    recargaPendiente.current = setTimeout(() => {
+      recargaPendiente.current = null
+      void cargarTickets()
+    }, 150)
+  }, [cargarTickets])
+
   useEffect(() => {
     void cargarTickets(true)
 
     const channel = supabase
       .channel(BOARD_CHANNEL)
       .on('broadcast', { event: 'tickets_changed' }, () => {
-        void cargarTickets()
+        programarRecarga()
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
-        void cargarTickets()
+        programarRecarga()
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_asignados' }, () => {
-        void cargarTickets()
+        programarRecarga()
       })
       .subscribe()
     boardChannel.current = channel
 
     return () => {
+      if (recargaPendiente.current) clearTimeout(recargaPendiente.current)
       boardChannel.current = null
       void supabase.removeChannel(channel)
     }
-  }, [cargarTickets])
+  }, [cargarTickets, programarRecarga])
 
   const ticketsFiltrados = useMemo(() => {
     return tickets.filter((t) => !filtroArea || t.area_id === filtroArea)

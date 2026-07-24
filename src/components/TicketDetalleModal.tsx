@@ -21,6 +21,25 @@ function formatearFecha(iso: string | null): string {
   })
 }
 
+function separarTiempo(horas: number | null): [string, string] {
+  if (horas == null) return ['', '']
+  const minutosTotales = Math.round(horas * 60)
+  return [String(Math.floor(minutosTotales / 60)), String(minutosTotales % 60)]
+}
+
+function combinarTiempo(horas: string, minutos: string): number | null {
+  if (!horas && !minutos) return null
+  return (Number(horas || 0) * 60 + Number(minutos || 0)) / 60
+}
+
+function formatearTiempo(horas: number | null): string {
+  if (horas == null) return 'Sin definir'
+  const minutosTotales = Math.round(horas * 60)
+  const horasEnteras = Math.floor(minutosTotales / 60)
+  const minutos = minutosTotales % 60
+  return [horasEnteras ? `${horasEnteras} h` : '', minutos ? `${minutos} min` : ''].filter(Boolean).join(' ') || '0 min'
+}
+
 interface TicketDetalleModalProps {
   ticket: TicketConRelaciones
   puedeEditarTiempos: boolean
@@ -43,12 +62,12 @@ export function TicketDetalleModal({
   const [nuevoProyecto, setNuevoProyecto] = useState('')
   const [esGrupal, setEsGrupal] = useState(ticket.es_grupal)
   const [miembros, setMiembros] = useState<string[]>(ticket.asignados.map((a) => a.profile.id))
-  const [tiempoPropuesto, setTiempoPropuesto] = useState(
-    ticket.tiempo_propuesto_horas?.toString() ?? '',
-  )
-  const [tiempoEjecutado, setTiempoEjecutado] = useState(
-    ticket.tiempo_ejecutado_horas?.toString() ?? '',
-  )
+  const [propuestoInicialHoras, propuestoInicialMinutos] = separarTiempo(ticket.tiempo_propuesto_horas)
+  const [ejecutadoInicialHoras, ejecutadoInicialMinutos] = separarTiempo(ticket.tiempo_ejecutado_horas)
+  const [tiempoPropuestoHoras, setTiempoPropuestoHoras] = useState(propuestoInicialHoras)
+  const [tiempoPropuestoMinutos, setTiempoPropuestoMinutos] = useState(propuestoInicialMinutos)
+  const [tiempoEjecutadoHoras, setTiempoEjecutadoHoras] = useState(ejecutadoInicialHoras)
+  const [tiempoEjecutadoMinutos, setTiempoEjecutadoMinutos] = useState(ejecutadoInicialMinutos)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -86,8 +105,8 @@ export function TicketDetalleModal({
         proyecto_id: proyectoIdFinal,
         es_grupal: esGrupal,
         asignado_a: esGrupal ? null : ticket.asignado_a,
-        tiempo_propuesto_horas: tiempoPropuesto ? Number(tiempoPropuesto) : null,
-        tiempo_ejecutado_horas: tiempoEjecutado ? Number(tiempoEjecutado) : null,
+        tiempo_propuesto_horas: combinarTiempo(tiempoPropuestoHoras, tiempoPropuestoMinutos),
+        tiempo_ejecutado_horas: combinarTiempo(tiempoEjecutadoHoras, tiempoEjecutadoMinutos),
       })
       .eq('id', ticket.id)
       .select()
@@ -163,9 +182,9 @@ export function TicketDetalleModal({
               <dt>Proyecto</dt>
               <dd>{ticket.proyecto?.nombre ?? 'Sin definir'}</dd>
               <dt>Tiempo propuesto</dt>
-              <dd>{ticket.tiempo_propuesto_horas ? `${ticket.tiempo_propuesto_horas} h` : 'Sin definir'}</dd>
+              <dd>{formatearTiempo(ticket.tiempo_propuesto_horas)}</dd>
               <dt>Tiempo ejecutado</dt>
-              <dd>{ticket.tiempo_ejecutado_horas ? `${ticket.tiempo_ejecutado_horas} h` : 'Sin definir'}</dd>
+              <dd>{formatearTiempo(ticket.tiempo_ejecutado_horas)}</dd>
             </>
           )}
         </dl>
@@ -233,28 +252,33 @@ export function TicketDetalleModal({
             )}
 
             <div className="ticket-form__row">
-              <label>
-                Tiempo propuesto (horas)
+              <fieldset>
+                <legend>Tiempo propuesto</legend>
                 <input
                   type="number"
                   min="0"
-                  step="0.5"
-                  value={tiempoPropuesto}
-                  onChange={(e) => setTiempoPropuesto(e.target.value)}
-                  placeholder="ej. 2"
+                  step="1"
+                  value={tiempoPropuestoHoras}
+                  onChange={(e) => setTiempoPropuestoHoras(e.target.value)}
+                  placeholder="Horas"
+                  aria-label="Horas propuestas"
                 />
-              </label>
-              <label>
-                Tiempo ejecutado (horas)
                 <input
                   type="number"
                   min="0"
-                  step="0.5"
-                  value={tiempoEjecutado}
-                  onChange={(e) => setTiempoEjecutado(e.target.value)}
-                  placeholder="ej. 3.5"
+                  max="59"
+                  step="1"
+                  value={tiempoPropuestoMinutos}
+                  onChange={(e) => setTiempoPropuestoMinutos(e.target.value)}
+                  placeholder="Minutos"
+                  aria-label="Minutos propuestos"
                 />
-              </label>
+              </fieldset>
+              <fieldset>
+                <legend>Tiempo ejecutado</legend>
+                <input type="number" min="0" step="1" value={tiempoEjecutadoHoras} onChange={(e) => setTiempoEjecutadoHoras(e.target.value)} placeholder="Horas" aria-label="Horas ejecutadas" />
+                <input type="number" min="0" max="59" step="1" value={tiempoEjecutadoMinutos} onChange={(e) => setTiempoEjecutadoMinutos(e.target.value)} placeholder="Minutos" aria-label="Minutos ejecutados" />
+              </fieldset>
             </div>
             {error && <p className="auth-error">{error}</p>}
             <button type="submit" disabled={guardando}>

@@ -1,6 +1,5 @@
 // Edge Function: invite-user
-// Valida un correo contra la whitelist (allowed_emails) y los 3 dominios
-// corporativos permitidos. Si es válido, genera el link de invitación con
+// Valida un correo contra la whitelist (allowed_emails). Si es válido, genera el link de invitación con
 // Supabase Auth (sin usar su SMTP) y lo envía por correo usando Microsoft
 // Graph API (OAuth2 client credentials) — necesario porque el tenant de
 // Microsoft 365 no permite SMTP AUTH básico.
@@ -11,8 +10,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, enviarCorreo } from '../_shared/graph.ts'
 import { plantillaCorreo } from '../_shared/email-template.ts'
-
-const DOMINIOS_PERMITIDOS = ['inteegra.net.co', 'triangulum.net.co', 'netcol.net.co']
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -35,14 +32,6 @@ Deno.serve(async (req) => {
     }
 
     const correo = email.trim().toLowerCase()
-    const dominio = correo.split('@')[1]
-
-    if (!DOMINIOS_PERMITIDOS.includes(dominio)) {
-      return new Response(JSON.stringify({ ok: true }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
     const { data: whitelistRow, error: whitelistError } = await supabaseAdmin
       .from('allowed_emails')
       .select('email, used_at')

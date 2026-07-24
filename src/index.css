@@ -569,6 +569,24 @@ label {
   padding-top: 1rem;
 }
 
+.modal-tiempos-form fieldset {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.modal-tiempos-form legend {
+  grid-column: 1 / -1;
+  margin-bottom: 0.35rem;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 .modal-checkbox {
   flex-direction: row;
   align-items: center;

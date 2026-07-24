@@ -14,6 +14,13 @@ function formatearFechaCorta(iso: string | null): string {
   return new Date(iso).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
+function formatearTiempo(horas: number): string {
+  const minutosTotales = Math.round(horas * 60)
+  const horasEnteras = Math.floor(minutosTotales / 60)
+  const minutos = minutosTotales % 60
+  return [horasEnteras ? `${horasEnteras}h` : '', minutos ? `${minutos}min` : ''].filter(Boolean).join(' ') || '0min'
+}
+
 interface TicketCardProps {
   ticket: TicketConRelaciones
   onClick?: () => void
@@ -53,8 +60,8 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true }: TicketCar
       {(ticket.fecha_requerida || ticket.tiempo_propuesto_horas || ticket.tiempo_ejecutado_horas) && (
         <div className="ticket-card__tiempos">
           {ticket.fecha_requerida && <span>Para: {formatearFechaCorta(ticket.fecha_requerida)}</span>}
-          {ticket.tiempo_propuesto_horas != null && <span>Propuesto: {ticket.tiempo_propuesto_horas}h</span>}
-          {ticket.tiempo_ejecutado_horas != null && <span>Ejecutado: {ticket.tiempo_ejecutado_horas}h</span>}
+          {ticket.tiempo_propuesto_horas != null && <span>Propuesto: {formatearTiempo(ticket.tiempo_propuesto_horas)}</span>}
+          {ticket.tiempo_ejecutado_horas != null && <span>Ejecutado: {formatearTiempo(ticket.tiempo_ejecutado_horas)}</span>}
         </div>
       )}
       <div className="ticket-card__footer">

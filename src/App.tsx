@@ -1,20 +1,23 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Layout } from './components/Layout'
-import { LoginPage } from './pages/LoginPage'
-import { RequestAccessPage } from './pages/RequestAccessPage'
-import { CreatePasswordPage } from './pages/CreatePasswordPage'
-import { NewTicketPage } from './pages/NewTicketPage'
-import { BoardPage } from './pages/BoardPage'
-import { StatsPage } from './pages/StatsPage'
-import { AdminWhitelistPage } from './pages/AdminWhitelistPage'
+
+const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })))
+const RequestAccessPage = lazy(() => import('./pages/RequestAccessPage').then((m) => ({ default: m.RequestAccessPage })))
+const CreatePasswordPage = lazy(() => import('./pages/CreatePasswordPage').then((m) => ({ default: m.CreatePasswordPage })))
+const NewTicketPage = lazy(() => import('./pages/NewTicketPage').then((m) => ({ default: m.NewTicketPage })))
+const BoardPage = lazy(() => import('./pages/BoardPage').then((m) => ({ default: m.BoardPage })))
+const StatsPage = lazy(() => import('./pages/StatsPage').then((m) => ({ default: m.StatsPage })))
+const AdminWhitelistPage = lazy(() => import('./pages/AdminWhitelistPage').then((m) => ({ default: m.AdminWhitelistPage })))
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <Suspense fallback={<div className="pantalla-carga">Cargando...</div>}>
+          <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/solicitar-acceso" element={<RequestAccessPage />} />
           <Route path="/crear-password" element={<CreatePasswordPage />} />
@@ -37,7 +40,8 @@ export default function App() {
 
           <Route path="/" element={<Navigate to="/nueva-solicitud" replace />} />
           <Route path="*" element={<Navigate to="/nueva-solicitud" replace />} />
-        </Routes>
+          </Routes>
+        </Suspense>
       </AuthProvider>
     </BrowserRouter>
   )
