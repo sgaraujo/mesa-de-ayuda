@@ -97,6 +97,22 @@ export function AdminWhitelistPage() {
       setMensajeAccion({ email, texto: 'No se pudo guardar el cambio.' })
       return
     }
+
+    const registro = emails.find((e) => e.email === email)
+    if (registro?.used_at) {
+      const { error: errorPerfil } = await supabase
+        .from('profiles')
+        .update({ role: editRole, area_id: editAreaId || null })
+        .eq('email', email)
+
+      if (errorPerfil) {
+        setMensajeAccion({ email, texto: 'Se guardó en la whitelist pero no se pudo actualizar el perfil activo.' })
+        setEditandoEmail(null)
+        cargar()
+        return
+      }
+    }
+
     setEditandoEmail(null)
     cargar()
   }

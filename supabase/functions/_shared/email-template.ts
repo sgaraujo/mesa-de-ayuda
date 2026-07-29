@@ -13,6 +13,7 @@ interface PlantillaCorreoOptions {
   preheader?: string
   etiqueta?: string
   items?: string[]
+  parrafosPie?: string[]
 }
 
 export function escaparHtml(texto: string): string {
@@ -21,9 +22,13 @@ export function escaparHtml(texto: string): string {
   })[caracter]!)
 }
 
-export function plantillaCorreo({ titulo, parrafos, botonTexto, botonUrl, preheader, etiqueta, items = [] }: PlantillaCorreoOptions): string {
+export function plantillaCorreo({ titulo, parrafos, botonTexto, botonUrl, preheader, etiqueta, items = [], parrafosPie = [] }: PlantillaCorreoOptions): string {
   const parrafosHtml = parrafos
     .map((p) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:${TEXTO_SECUNDARIO};">${p}</p>`)
+    .join('')
+
+  const parrafosPieHtml = parrafosPie
+    .map((p) => `<p style="margin:16px 0 0;font-size:13px;line-height:1.55;color:${TEXTO_MUTED};">${p}</p>`)
     .join('')
 
   const itemsHtml = items.length
@@ -70,7 +75,7 @@ export function plantillaCorreo({ titulo, parrafos, botonTexto, botonUrl, prehea
           <tr><td style="padding:38px 36px 32px;">
             ${etiqueta ? `<p style="margin:0 0 10px;color:${VERDE_MARCA};font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">${etiqueta}</p>` : ''}
             <h1 style="margin:0 0 18px;font-size:26px;line-height:1.25;color:${TEXTO_PRIMARIO};font-family:'Segoe UI',Arial,sans-serif;">${titulo}</h1>
-            ${parrafosHtml}${itemsHtml}${botonHtml}
+            ${parrafosHtml}${itemsHtml}${botonHtml}${parrafosPieHtml}
           </td></tr>
           <tr><td style="padding:22px 36px;border-top:1px solid #eeeeea;background-color:#fafaf8;border-radius:0 0 14px 14px;">
             <p style="margin:0;font-size:12px;line-height:1.5;color:${TEXTO_MUTED};">Este es un mensaje automático de Mesa de Ayuda. Si no esperabas este correo, puedes ignorarlo.</p>

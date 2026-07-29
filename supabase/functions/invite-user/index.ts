@@ -88,15 +88,22 @@ Deno.serve(async (req) => {
         console.log('Enviando invitación a', correo, 'vía Microsoft Graph')
         await enviarCorreo(
           correo,
-          'Invitación a Mesa de Ayuda',
+          'Te invitaron a Mesa de Ayuda — crea tu contraseña',
           plantillaCorreo({
             titulo: 'Te invitaron a Mesa de Ayuda',
+            etiqueta: 'Invitación',
+            preheader: 'Crea tu contraseña para activar tu acceso a Mesa de Ayuda.',
             parrafos: [
-              'Ya casi quedas dentro. Solo falta que crees tu contraseña para poder entrar a la plataforma de solicitudes y tickets del equipo.',
-              'Este enlace es personal y expira después de un tiempo, así que créala pronto.',
+              'Ya te dieron acceso a <strong>Mesa de Ayuda</strong>, la plataforma para crear solicitudes y hacer seguimiento a los tickets del equipo. Solo te falta un paso: crear tu contraseña.',
+            ],
+            items: [
+              '<strong>Crea tu contraseña</strong> con el botón de abajo para activar tu cuenta.',
+              '<strong>Ingresa</strong> con tu correo y esa contraseña cada vez que quieras entrar.',
+              '<strong>Empieza a trabajar:</strong> crea solicitudes y sigue su estado desde el tablero.',
             ],
             botonTexto: 'Crear mi contraseña',
             botonUrl: actionLink,
+            parrafosPie: ['Este enlace es personal e intransferible y expira después de un tiempo, así que créala pronto.'],
           }),
         )
       } catch (graphErr) {
