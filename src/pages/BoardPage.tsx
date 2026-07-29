@@ -43,6 +43,7 @@ export function BoardPage() {
   const [ticketSeleccionado, setTicketSeleccionado] = useState<TicketConRelaciones | null>(null)
   const [mostrarNuevaTarea, setMostrarNuevaTarea] = useState(false)
   const boardChannel = useRef<RealtimeChannel | null>(null)
+  const idsPendientes = useRef<Set<string>>(new Set())
   const recargaPendiente = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const sensors = useSensors(
@@ -59,45 +60,72 @@ export function BoardPage() {
     setLoading(false)
   }, [])
 
-  const notificarCambio = useCallback(async () => {
+  const notificarCambio = useCallback(async (ticketId?: string) => {
     await boardChannel.current?.send({
       type: 'broadcast',
       event: 'tickets_changed',
-      payload: {},
+      payload: { ticketId },
     })
   }, [])
 
-  const programarRecarga = useCallback(() => {
+  // Solo se refresca el/los tickets que realmente cambiaron (no todo el
+  // tablero), agrupando en una sola consulta los que lleguen en la misma
+  // ráfaga. Antes cualquier cambio de cualquier persona recargaba la lista
+  // completa, lo que hacía que el tablero pareciera "recargarse" todo el
+  // tiempo.
+  const programarActualizacion = useCallback((ticketId?: string) => {
+    if (!ticketId) return
+    idsPendientes.current.add(ticketId)
     if (recargaPendiente.current) clearTimeout(recargaPendiente.current)
-    recargaPendiente.current = setTimeout(() => {
+    recargaPendiente.current = setTimeout(async () => {
+      const ids = Array.from(idsPendientes.current)
+      idsPendientes.current.clear()
       recargaPendiente.current = null
-      void cargarTickets()
-    }, 150)
-  }, [cargarTickets])
+      if (ids.length === 0) return
+
+      const { data } = await supabase.from('tickets').select(TICKET_SELECT).in('id', ids)
+      const actualizados = new Map(
+        ((data as unknown as TicketConRelaciones[]) ?? []).map((t) => [t.id, t]),
+      )
+
+      setTickets((prev) => {
+        const siguen = prev
+          .filter((t) => !ids.includes(t.id) || actualizados.has(t.id))
+          .map((t) => actualizados.get(t.id) ?? t)
+        const nuevos = ids
+          .filter((id) => !prev.some((t) => t.id === id) && actualizados.has(id))
+          .map((id) => actualizados.get(id)!)
+        return [...nuevos, ...siguen]
+      })
+    }, 400)
+  }, [])
 
   useEffect(() => {
     void cargarTickets(true)
 
     const channel = supabase
       .channel(BOARD_CHANNEL)
-      .on('broadcast', { event: 'tickets_changed' }, () => {
-        programarRecarga()
+      .on('broadcast', { event: 'tickets_changed' }, ({ payload }) => {
+        programarActualizacion((payload as { ticketId?: string } | undefined)?.ticketId)
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
-        programarRecarga()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, (payload) => {
+        const fila = (payload.new ?? payload.old) as { id?: string } | null
+        programarActualizacion(fila?.id)
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_asignados' }, () => {
-        programarRecarga()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_asignados' }, (payload) => {
+        const fila = (payload.new ?? payload.old) as { ticket_id?: string } | null
+        programarActualizacion(fila?.ticket_id)
       })
       .subscribe()
     boardChannel.current = channel
 
     return () => {
       if (recargaPendiente.current) clearTimeout(recargaPendiente.current)
+      idsPendientes.current.clear()
       boardChannel.current = null
       void supabase.removeChannel(channel)
     }
-  }, [cargarTickets, programarRecarga])
+  }, [cargarTickets, programarActualizacion])
 
   const ticketsFiltrados = useMemo(() => {
     return tickets.filter((t) => !filtroArea || t.area_id === filtroArea)
@@ -141,7 +169,7 @@ export function BoardPage() {
         estado: nuevoEstado,
         changed_by: profile?.id ?? null,
       })
-      await notificarCambio()
+      await notificarCambio(ticketId)
       return
     }
 
@@ -150,7 +178,7 @@ export function BoardPage() {
       if (ticket.asignado_a === null) return
       setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, asignado_a: null } : t)))
       await supabase.from('tickets').update({ asignado_a: null }).eq('id', ticketId)
-      await notificarCambio()
+      await notificarCambio(ticketId)
       return
     }
 
@@ -177,7 +205,7 @@ export function BoardPage() {
         changed_by: profile?.id ?? null,
       })
     }
-    await notificarCambio()
+    await notificarCambio(ticketId)
   }
 
   if (loading) return <div className="pantalla-carga">Cargando tablero...</div>
@@ -225,7 +253,7 @@ export function BoardPage() {
           onGuardado={(actualizado) => {
             setTickets((prev) => prev.map((t) => (t.id === actualizado.id ? { ...t, ...actualizado } : t)))
             setTicketSeleccionado(null)
-            void notificarCambio()
+            void notificarCambio(actualizado.id)
           }}
         />
       )}
@@ -236,7 +264,6 @@ export function BoardPage() {
           onCreado={() => {
             setMostrarNuevaTarea(false)
             void cargarTickets()
-            void notificarCambio()
           }}
         />
       )}
