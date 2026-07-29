@@ -324,6 +324,14 @@ label {
   gap: 1rem;
 }
 
+.ticket-form__imagen-preview {
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+
 /* ---- Board ---- */
 
 .board-page__toolbar {
@@ -541,6 +549,19 @@ label {
   color: var(--text-secondary);
   font-size: 0.9rem;
   margin: 0 0 1rem;
+}
+
+.modal-imagen-link {
+  display: block;
+  margin: 0 0 1.2rem;
+}
+
+.modal-imagen {
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  object-fit: contain;
 }
 
 .modal-detalles {

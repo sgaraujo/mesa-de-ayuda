@@ -162,6 +162,12 @@ export function TicketDetalleModal({
         <h2>{ticket.titulo}</h2>
         <p className="modal-descripcion">{ticket.descripcion}</p>
 
+        {ticket.imagen_url && (
+          <a href={ticket.imagen_url} target="_blank" rel="noreferrer" className="modal-imagen-link">
+            <img src={ticket.imagen_url} alt="Adjunto de la solicitud" className="modal-imagen" />
+          </a>
+        )}
+
         <dl className="modal-detalles">
           <dt>Solicitante</dt>
           <dd>{ticket.solicitante?.full_name ?? ticket.solicitante?.email ?? '—'}</dd>
