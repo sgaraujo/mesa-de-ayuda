@@ -17,14 +17,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [sesionLista, setSesionLista] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
+      setSesionLista(true)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession)
+      setSesionLista(true)
     })
 
     return () => listener.subscription.unsubscribe()
@@ -37,7 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(data ?? null)
   }
 
+  // Esperamos a que getSession() resuelva antes de decidir si hay perfil o no:
+  // si apagábamos loading en cuanto userId era undefined (estado inicial),
+  // ProtectedRoute redirigía un instante a /login y luego de vuelta al tablero,
+  // duplicando la carga de chunks lazy en cada entrada a la plataforma.
   useEffect(() => {
+    if (!sesionLista) return
+
     let cancelled = false
 
     if (!userId) {
@@ -46,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    setLoading(true)
     supabase
       .from('profiles')
       .select('*')
@@ -61,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [userId])
+  }, [userId, sesionLista])
 
   async function signOut() {
     await supabase.auth.signOut()

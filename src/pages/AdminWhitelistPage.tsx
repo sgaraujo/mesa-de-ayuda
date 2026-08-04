@@ -146,7 +146,12 @@ export function AdminWhitelistPage() {
     const enEdicion = editandoEmail === e.email
     return (
       <tr key={e.email}>
-        <td>{e.email}</td>
+        <td>
+          <div className="admin-persona">
+            <span className="admin-persona__avatar">{e.email.charAt(0).toUpperCase()}</span>
+            {e.email}
+          </div>
+        </td>
         <td>
           {enEdicion ? (
             <select value={editRole} onChange={(ev) => setEditRole(ev.target.value as Role)}>
@@ -155,7 +160,7 @@ export function AdminWhitelistPage() {
               <option value="admin">Admin</option>
             </select>
           ) : (
-            e.role
+            <span className="admin-table__texto-sutil">{e.role}</span>
           )}
         </td>
         <td>
@@ -169,11 +174,13 @@ export function AdminWhitelistPage() {
               ))}
             </select>
           ) : (
-            areas.find((a) => a.id === e.area_id)?.nombre ?? '—'
+            <span className="admin-table__texto-sutil">
+              {areas.find((a) => a.id === e.area_id)?.nombre ?? '—'}
+            </span>
           )}
         </td>
         <td>
-          <span className={`badge ${e.used_at ? 'badge--usado' : 'badge--pendiente'}`}>
+          <span className={`estado-punto ${e.used_at ? 'estado-punto--usado' : 'estado-punto--pendiente'}`}>
             {e.used_at ? 'Registrado' : 'Pendiente'}
           </span>
         </td>
@@ -181,7 +188,7 @@ export function AdminWhitelistPage() {
           <div className="admin-table__acciones">
             {enEdicion ? (
               <>
-                <button type="button" onClick={() => guardarEdicion(e.email)}>
+                <button type="button" className="admin-table__accion-primaria" onClick={() => guardarEdicion(e.email)}>
                   Guardar
                 </button>
                 <button
@@ -223,9 +230,9 @@ export function AdminWhitelistPage() {
 
   function renderPanel(titulo: string, lista: AllowedEmail[]) {
     return (
-      <div className="chart-card admin-panel">
+      <div className="admin-panel">
         <h2>
-          {titulo} <span className="kanban-column__count">{lista.length}</span>
+          {titulo} <span className="admin-panel__contador">{lista.length}</span>
         </h2>
         <div className="admin-table-scroll">
           <table className="admin-table">
@@ -256,47 +263,53 @@ export function AdminWhitelistPage() {
 
   return (
     <div className="admin-page">
-      <h1>Whitelist de correos autorizados</h1>
-      <p className="auth-hint">
-        Solo los correos aquí listados pueden solicitar acceso en /solicitar-acceso. CSV esperado:
-        <code> correo,rol,area</code> (rol: admin, agente o solicitante).
-      </p>
+      <div className="admin-header">
+        <h1>Whitelist de correos autorizados</h1>
+        <p className="auth-hint">
+          Solo los correos aquí listados pueden solicitar acceso en /solicitar-acceso. CSV esperado:
+          <code> correo,rol,area</code> (rol: admin, agente o solicitante).
+        </p>
+      </div>
 
-      <form className="admin-form" onSubmit={agregarCorreo}>
-        <label>
-          Correo
-          <input
-            type="email"
-            required
-            value={nuevoEmail}
-            onChange={(e) => setNuevoEmail(e.target.value)}
-            placeholder="nombre@ejemplo.com"
-          />
-        </label>
-        <label>
-          Rol
-          <select value={nuevoRole} onChange={(e) => setNuevoRole(e.target.value as Role)}>
-            <option value="solicitante">Solicitante</option>
-            <option value="agente">Agente</option>
-            <option value="admin">Admin</option>
-          </select>
-        </label>
-        <label>
-          Área
-          <select value={nuevaArea} onChange={(e) => setNuevaArea(e.target.value)}>
-            <option value="">Sin definir</option>
-            {areas.map((area) => (
-              <option key={area.id} value={area.id}>
-                {area.nombre}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="submit">Agregar</button>
-        <label>
-          Cargar CSV
-          <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCsv} />
-        </label>
+      <form className="admin-toolbar" onSubmit={agregarCorreo}>
+        <div className="admin-toolbar__campos">
+          <label>
+            Correo
+            <input
+              type="email"
+              required
+              value={nuevoEmail}
+              onChange={(e) => setNuevoEmail(e.target.value)}
+              placeholder="nombre@ejemplo.com"
+            />
+          </label>
+          <label>
+            Rol
+            <select value={nuevoRole} onChange={(e) => setNuevoRole(e.target.value as Role)}>
+              <option value="solicitante">Solicitante</option>
+              <option value="agente">Agente</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <label>
+            Área
+            <select value={nuevaArea} onChange={(e) => setNuevaArea(e.target.value)}>
+              <option value="">Sin definir</option>
+              {areas.map((area) => (
+                <option key={area.id} value={area.id}>
+                  {area.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="admin-toolbar__acciones">
+          <label className="admin-toolbar__csv">
+            Cargar CSV
+            <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCsv} />
+          </label>
+          <button type="submit">Agregar correo</button>
+        </div>
       </form>
 
       {error && <p className="auth-error">{error}</p>}
