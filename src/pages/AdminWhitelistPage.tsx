@@ -12,6 +12,8 @@ export function AdminWhitelistPage() {
   const [nuevoRole, setNuevoRole] = useState<Role>('solicitante')
   const [nuevaArea, setNuevaArea] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [resultadoCsv, setResultadoCsv] = useState<string | null>(null)
+  const [cargandoCsv, setCargandoCsv] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [editandoEmail, setEditandoEmail] = useState<string | null>(null)
@@ -69,27 +71,68 @@ export function AdminWhitelistPage() {
   async function handleCsv(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    const texto = await file.text()
+    setCargandoCsv(true)
+    setError(null)
+    setResultadoCsv(null)
 
-    const filas = texto
-      .split('\n')
-      .map((linea) => linea.trim())
-      .filter(Boolean)
-      .map((linea) => linea.split(','))
+    try {
+      const texto = await file.text()
+      const lineas = texto.split(/\r?\n/).map((linea) => linea.trim()).filter(Boolean)
+      const separador = (lineas[0]?.match(/;/g)?.length ?? 0) > (lineas[0]?.match(/,/g)?.length ?? 0) ? ';' : ','
+      const limpiar = (valor = '') => valor.trim().replace(/^['"]|['"]$/g, '')
+      const rolesValidos = new Set<Role>(['admin', 'agente', 'solicitante'])
+      let filasInvalidas = 0
+      let areasNoEncontradas = 0
 
-    const registros = filas
-      .map(([email, role, areaNombre]) => ({
-        email: email?.trim().toLowerCase(),
-        role: (role?.trim() as Role) || 'solicitante',
-        area_id: areas.find((a) => a.nombre.toLowerCase() === areaNombre?.trim().toLowerCase())?.id ?? null,
-      }))
-      .filter((r) => r.email)
+      const registros = lineas
+        .filter((linea, indice) => {
+          if (indice !== 0) return true
+          const primeraColumna = limpiar(linea.split(separador)[0]).toLowerCase()
+          return primeraColumna !== 'correo' && primeraColumna !== 'email'
+        })
+        .map((linea) => linea.split(separador).map(limpiar))
+        .map(([emailOriginal, roleOriginal, areaNombre]) => {
+          const email = emailOriginal?.toLowerCase()
+          const role = (roleOriginal?.toLowerCase() || 'solicitante') as Role
+          if (!email || !email.includes('@') || !rolesValidos.has(role)) {
+            filasInvalidas += 1
+            return null
+          }
 
-    if (registros.length > 0) {
-      await supabase.from('allowed_emails').upsert(registros)
-      cargar()
+          const area = areaNombre
+            ? areas.find((item) => item.nombre.toLowerCase() === areaNombre.toLowerCase())
+            : null
+          if (areaNombre && !area) areasNoEncontradas += 1
+
+          return { email, role, area_id: area?.id ?? null }
+        })
+        .filter((registro): registro is { email: string; role: Role; area_id: string | null } => registro !== null)
+
+      const unicos = [...new Map(registros.map((registro) => [registro.email, registro])).values()]
+      if (unicos.length === 0) {
+        setError('El archivo no contiene correos válidos. Descarga la plantilla y revisa el formato.')
+        return
+      }
+
+      const { error: errorCarga } = await supabase.from('allowed_emails').upsert(unicos)
+      if (errorCarga) {
+        setError(`No se pudo cargar el archivo: ${errorCarga.message}`)
+        return
+      }
+
+      const detalles = [
+        `${unicos.length} correo${unicos.length === 1 ? '' : 's'} cargado${unicos.length === 1 ? '' : 's'}`,
+        filasInvalidas > 0 ? `${filasInvalidas} fila${filasInvalidas === 1 ? '' : 's'} inválida${filasInvalidas === 1 ? '' : 's'} omitida${filasInvalidas === 1 ? '' : 's'}` : '',
+        areasNoEncontradas > 0 ? `${areasNoEncontradas} área${areasNoEncontradas === 1 ? '' : 's'} no encontrada${areasNoEncontradas === 1 ? '' : 's'} (quedó sin definir)` : '',
+      ].filter(Boolean)
+      setResultadoCsv(`${detalles.join(' · ')}.`)
+      await cargar()
+    } catch {
+      setError('No se pudo leer el archivo. Verifica que sea un CSV válido.')
+    } finally {
+      setCargandoCsv(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
-    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   function iniciarEdicion(e: AllowedEmail) {
@@ -391,14 +434,18 @@ export function AdminWhitelistPage() {
         </div>
         <div className="admin-toolbar__acciones">
           <label className="admin-toolbar__csv">
-            Cargar CSV
-            <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCsv} />
+            {cargandoCsv ? 'Cargando...' : 'Cargar CSV'}
+            <input ref={fileInputRef} type="file" accept=".csv,text/csv" onChange={handleCsv} disabled={cargandoCsv} />
           </label>
+          <a className="admin-toolbar__plantilla" href="/whitelist-ejemplo.csv" download>
+            Descargar ejemplo
+          </a>
           <button type="submit">Agregar correo</button>
         </div>
       </form>
 
       {error && <p className="auth-error">{error}</p>}
+      {resultadoCsv && <p className="auth-success" role="status">{resultadoCsv}</p>}
 
       <div className="admin-envio-bienvenida">
         <div>

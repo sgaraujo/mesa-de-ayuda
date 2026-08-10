@@ -1176,6 +1176,19 @@ label {
   color: var(--brand-text);
 }
 
+.admin-toolbar__plantilla {
+  padding: 0.55rem 0.2rem;
+  color: var(--brand-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.admin-toolbar__plantilla:hover {
+  text-decoration: underline;
+}
+
 .admin-toolbar__csv input {
   position: absolute;
   inset: 0;
