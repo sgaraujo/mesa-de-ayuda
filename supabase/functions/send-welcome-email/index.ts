@@ -87,20 +87,21 @@ Deno.serve(async (req) => {
     try {
       await enviarCorreo(
         correo,
-        '¡Bienvenido a Mesa de Ayuda!',
+        '¡Bienvenido a la Mesa de Ayuda de Transformación Digital!',
         plantillaCorreo({
-          titulo: 'Tu cuenta ya está lista',
-          etiqueta: 'Bienvenido al equipo',
-          preheader: 'Ya puedes ingresar, crear tareas y hacer seguimiento desde Mesa de Ayuda.',
+          titulo: 'Mesa de Ayuda de Transformación Digital',
+          etiqueta: 'Bienvenido',
+          preheader: 'Ya puedes enviar solicitudes al equipo de Transformación Digital y hacerles seguimiento.',
           parrafos: [
-            `${saludo} te damos la bienvenida a <strong>Mesa de Ayuda</strong>. Ingresa a la aplicación para registrar las tareas y solicitudes que necesites gestionar.`,
+            `${saludo} te damos la bienvenida a la <strong>Mesa de Ayuda de Transformación Digital</strong>. Desde esta aplicación puedes registrar las tareas y solicitudes que requieran la atención de nuestro equipo.`,
+            'Todas las solicitudes que registres por este medio serán recibidas y gestionadas por el <strong>equipo de Transformación Digital</strong>.',
           ],
           items: [
-            '<strong>Crea tareas y solicitudes</strong> y consulta su estado en cualquier momento.',
+            '<strong>Envía tus tareas y solicitudes</strong> al equipo de Transformación Digital.',
             '<strong>Haz seguimiento</strong> a las tareas y tiempos de ejecución.',
-            '<strong>Colabora con el equipo</strong> desde el tablero según tu rol.',
+            '<strong>Consulta el avance</strong> de cada solicitud desde el tablero.',
           ],
-          botonTexto: 'Ingresar a Mesa de Ayuda',
+          botonTexto: 'Ingresar a la Mesa de Ayuda',
           botonUrl: siteUrl,
         }),
       )
