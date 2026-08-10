@@ -51,6 +51,7 @@ export function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </label>
+        <Link className="auth-forgot-link" to="/olvide-password">¿Olvidaste tu contraseña?</Link>
         {error && <p className="auth-error">{error}</p>}
         <button type="submit" disabled={enviando}>
           {enviando ? 'Ingresando...' : 'Ingresar'}

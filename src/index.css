@@ -290,6 +290,30 @@ label {
   margin: 0;
 }
 
+.auth-forgot-link {
+  align-self: flex-end;
+  margin-top: -0.55rem;
+  color: var(--brand-text);
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+.auth-forgot-link:hover {
+  text-decoration: underline;
+}
+
+.auth-link-button {
+  display: block;
+  padding: 0.6rem 1.1rem;
+  border-radius: 8px;
+  background: var(--brand);
+  color: white;
+  font-size: 0.87rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+
 /* ---- Forms ---- */
 
 .page-form {
