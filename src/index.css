@@ -495,9 +495,20 @@ label {
   gap: 0.8rem;
 }
 
+.board-page__toolbar h1 {
+  margin: 0;
+}
+
+.board-page__subtitulo {
+  margin: 0.2rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
 .board-page__filtros {
   display: flex;
   gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .kanban-board {
@@ -509,6 +520,19 @@ label {
 
 .kanban-board--4 {
   grid-template-columns: repeat(4, 1fr);
+}
+
+.kanban-board--1 {
+  grid-template-columns: minmax(280px, 1fr);
+}
+
+.ticket-card__finalizado {
+  margin-top: 0.5rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--border);
+  color: var(--estado-finalizado);
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .kanban-board--2 {

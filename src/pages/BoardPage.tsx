@@ -4,6 +4,7 @@ import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } f
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useAreas } from '../hooks/useAreas'
+import { useAgentes } from '../hooks/useAgentes'
 import { KanbanColumn, type ColumnaId } from '../components/KanbanColumn'
 import { TicketDetalleModal } from '../components/TicketDetalleModal'
 import { NuevaTareaModal } from '../components/NuevaTareaModal'
@@ -22,6 +23,8 @@ const COLUMNAS_SOLICITANTE: { id: ColumnaId; titulo: string }[] = [
   { id: 'finalizado', titulo: 'Finalizadas' },
 ]
 
+const DIAS_FINALIZADOS_EN_TABLERO = 30
+
 const TICKET_SELECT = `
   *,
   solicitante:profiles!tickets_solicitante_id_fkey(id, full_name, email),
@@ -36,10 +39,14 @@ const BOARD_CHANNEL = 'ticket-board'
 export function BoardPage() {
   const { profile } = useAuth()
   const esSolicitante = profile?.role === 'solicitante'
+  const esAdmin = profile?.role === 'admin'
   const { areas } = useAreas()
+  const { agentes } = useAgentes()
   const [tickets, setTickets] = useState<TicketConRelaciones[]>([])
   const [loading, setLoading] = useState(true)
   const [filtroArea, setFiltroArea] = useState('')
+  const [filtroAgente, setFiltroAgente] = useState('')
+  const [vistaHistorial, setVistaHistorial] = useState(false)
   const [ticketSeleccionado, setTicketSeleccionado] = useState<TicketConRelaciones | null>(null)
   const [mostrarNuevaTarea, setMostrarNuevaTarea] = useState(false)
   const boardChannel = useRef<RealtimeChannel | null>(null)
@@ -128,10 +135,29 @@ export function BoardPage() {
   }, [cargarTickets, programarActualizacion])
 
   const ticketsFiltrados = useMemo(() => {
-    return tickets.filter((t) => !filtroArea || t.area_id === filtroArea)
-  }, [tickets, filtroArea])
+    const limiteFinalizados = Date.now() - DIAS_FINALIZADOS_EN_TABLERO * 24 * 60 * 60 * 1000
+
+    return tickets.filter((t) => {
+      if (filtroArea && t.area_id !== filtroArea) return false
+
+      if (filtroAgente === 'sin_asignar' && !estaSinAsignar(t)) return false
+      if (
+        filtroAgente &&
+        filtroAgente !== 'sin_asignar' &&
+        t.asignado_a !== filtroAgente &&
+        !t.asignados.some((asignado) => asignado.profile.id === filtroAgente)
+      ) return false
+
+      const esFinalizadoAntiguo = t.estado === 'finalizado'
+        && t.finalizado_at !== null
+        && new Date(t.finalizado_at).getTime() < limiteFinalizados
+
+      return vistaHistorial ? esFinalizadoAntiguo : !esFinalizadoAntiguo
+    })
+  }, [tickets, filtroArea, filtroAgente, vistaHistorial])
 
   function ticketsParaColumna(id: ColumnaId) {
+    if (vistaHistorial) return id === 'finalizado' ? ticketsFiltrados : []
     if (esSolicitante) {
       if (id === 'pendiente') return ticketsFiltrados.filter((t) => t.estado !== 'finalizado')
       if (id === 'finalizado') return ticketsFiltrados.filter((t) => t.estado === 'finalizado')
@@ -156,12 +182,15 @@ export function BoardPage() {
     if (ticket.es_grupal) {
       if (destino === 'tareas' || ticket.estado === destino) return
       const nuevoEstado = destino as Estado
-      setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, estado: nuevoEstado } : t)))
+      const finalizadoAt = nuevoEstado === 'finalizado' ? new Date().toISOString() : null
+      setTickets((prev) => prev.map((t) => (
+        t.id === ticketId ? { ...t, estado: nuevoEstado, finalizado_at: finalizadoAt } : t
+      )))
       await supabase
         .from('tickets')
         .update({
           estado: nuevoEstado,
-          finalizado_at: nuevoEstado === 'finalizado' ? new Date().toISOString() : null,
+          finalizado_at: finalizadoAt,
         })
         .eq('id', ticketId)
       await supabase.from('ticket_status_history').insert({
@@ -213,7 +242,10 @@ export function BoardPage() {
   return (
     <div className="board-page">
       <div className="board-page__toolbar">
-        <h1>{esSolicitante ? 'Mis solicitudes' : 'Tablero'}</h1>
+        <div>
+          <h1>{vistaHistorial ? 'Historial de finalizadas' : esSolicitante ? 'Mis solicitudes' : 'Tablero'}</h1>
+          {vistaHistorial && <p className="board-page__subtitulo">Tareas finalizadas hace más de 30 días.</p>}
+        </div>
         <div className="board-page__filtros">
           {!esSolicitante && (
             <select value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}>
@@ -225,20 +257,37 @@ export function BoardPage() {
               ))}
             </select>
           )}
+          {esAdmin && (
+            <select value={filtroAgente} onChange={(e) => setFiltroAgente(e.target.value)} aria-label="Filtrar por agente">
+              <option value="">Todas las personas</option>
+              <option value="sin_asignar">Sin asignar</option>
+              {agentes.map((agente) => (
+                <option key={agente.id} value={agente.id}>
+                  {agente.full_name ?? agente.email} ({agente.role === 'admin' ? 'Admin' : 'Agente'})
+                </option>
+              ))}
+            </select>
+          )}
+          {esAdmin && (
+            <select value={vistaHistorial ? 'historial' : 'actual'} onChange={(e) => setVistaHistorial(e.target.value === 'historial')} aria-label="Cambiar vista del tablero">
+              <option value="actual">Tablero actual</option>
+              <option value="historial">Historial (+30 días)</option>
+            </select>
+          )}
           <button type="button" onClick={() => setMostrarNuevaTarea(true)}>
             + Nueva tarea
           </button>
         </div>
       </div>
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className={`kanban-board ${esSolicitante ? 'kanban-board--2' : 'kanban-board--4'}`}>
-          {(esSolicitante ? COLUMNAS_SOLICITANTE : COLUMNAS).map((columna) => (
+        <div className={`kanban-board ${vistaHistorial ? 'kanban-board--1' : esSolicitante ? 'kanban-board--2' : 'kanban-board--4'}`}>
+          {(vistaHistorial ? [{ id: 'finalizado' as const, titulo: 'Finalizadas archivadas' }] : esSolicitante ? COLUMNAS_SOLICITANTE : COLUMNAS).map((columna) => (
             <KanbanColumn
               key={columna.id}
               id={columna.id}
               titulo={columna.titulo}
               tickets={ticketsParaColumna(columna.id)}
-              puedeArrastrar={!esSolicitante}
+              puedeArrastrar={!esSolicitante && !vistaHistorial}
               onTicketClick={setTicketSeleccionado}
             />
           ))}

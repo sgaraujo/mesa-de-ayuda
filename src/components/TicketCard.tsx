@@ -64,6 +64,11 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true }: TicketCar
           {ticket.tiempo_ejecutado_horas != null && <span>Ejecutado: {formatearTiempo(ticket.tiempo_ejecutado_horas)}</span>}
         </div>
       )}
+      {ticket.estado === 'finalizado' && ticket.finalizado_at && (
+        <div className="ticket-card__finalizado">
+          Finalizada: {formatearFechaCorta(ticket.finalizado_at)}
+        </div>
+      )}
       <div className="ticket-card__footer">
         <span>{ticket.empresa_solicitante}</span>
         <span>{nombresAsignados(ticket).join(', ') || 'Bandeja general'}</span>
