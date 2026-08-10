@@ -1231,6 +1231,39 @@ label {
   flex-basis: 100%;
 }
 
+.admin-envio-bienvenida .admin-envio-bienvenida__secundario {
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+}
+
+.admin-paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.admin-paginacion label,
+.admin-paginacion__acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.admin-paginacion select {
+  width: auto;
+  padding: 0.35rem 1.8rem 0.35rem 0.55rem;
+}
+
+.admin-paginacion__acciones button {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.78rem;
+}
+
 .admin-panel {
   background: transparent;
 }

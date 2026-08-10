@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAreas } from '../hooks/useAreas'
 import type { AllowedEmail, Role } from '../types/database'
@@ -8,6 +8,9 @@ export function AdminWhitelistPage() {
   const { areas } = useAreas()
   const [emails, setEmails] = useState<AllowedEmail[]>([])
   const [loading, setLoading] = useState(true)
+  const [pagina, setPagina] = useState(0)
+  const [limite, setLimite] = useState(25)
+  const [totalEmails, setTotalEmails] = useState(0)
   const [nuevoEmail, setNuevoEmail] = useState('')
   const [nuevoRole, setNuevoRole] = useState<Role>('solicitante')
   const [nuevaArea, setNuevaArea] = useState('')
@@ -24,29 +27,33 @@ export function AdminWhitelistPage() {
   const [enviandoBienvenida, setEnviandoBienvenida] = useState<string | null>(null)
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
   const [enviandoSeleccionados, setEnviandoSeleccionados] = useState(false)
+  const [enviandoInvitaciones, setEnviandoInvitaciones] = useState(false)
   const [mensajeMasivo, setMensajeMasivo] = useState<string | null>(null)
   const [emailPorEliminar, setEmailPorEliminar] = useState<string | null>(null)
   const [eliminando, setEliminando] = useState(false)
   const [mensajeAccion, setMensajeAccion] = useState<{ email: string; texto: string } | null>(null)
 
-  async function cargar() {
+  const cargar = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
+    const offset = pagina * limite
+    const { data, count, error: errorCarga } = await supabase
       .from('allowed_emails')
-      .select('*')
-      .order('invited_at', { ascending: false })
+      .select('*', { count: 'exact' })
+      .order('invited_at', { ascending: false, nullsFirst: true })
+      .order('email', { ascending: true })
+      .range(offset, offset + limite - 1)
     const registros = data ?? []
     setEmails(registros)
-    setSeleccionados((actuales) => {
-      const correosDisponibles = new Set(registros.filter((registro) => registro.used_at).map((registro) => registro.email))
-      return new Set([...actuales].filter((email) => correosDisponibles.has(email)))
-    })
+    setTotalEmails(count ?? 0)
+    if (errorCarga) setError('No se pudo cargar la whitelist.')
     setLoading(false)
-  }
+  }, [limite, pagina])
 
   useEffect(() => {
-    cargar()
-  }, [])
+    setSeleccionados(new Set())
+    setMensajeMasivo(null)
+    void cargar()
+  }, [cargar])
 
   async function agregarCorreo(e: FormEvent) {
     e.preventDefault()
@@ -65,7 +72,7 @@ export function AdminWhitelistPage() {
     }
 
     setNuevoEmail('')
-    cargar()
+    void cargar()
   }
 
   async function handleCsv(e: ChangeEvent<HTMLInputElement>) {
@@ -126,7 +133,8 @@ export function AdminWhitelistPage() {
         areasNoEncontradas > 0 ? `${areasNoEncontradas} área${areasNoEncontradas === 1 ? '' : 's'} no encontrada${areasNoEncontradas === 1 ? '' : 's'} (quedó sin definir)` : '',
       ].filter(Boolean)
       setResultadoCsv(`${detalles.join(' · ')}.`)
-      await cargar()
+      if (pagina !== 0) setPagina(0)
+      else await cargar()
     } catch {
       setError('No se pudo leer el archivo. Verifica que sea un CSV válido.')
     } finally {
@@ -163,13 +171,13 @@ export function AdminWhitelistPage() {
       if (errorPerfil) {
         setMensajeAccion({ email, texto: 'Se guardó en la whitelist pero no se pudo actualizar el perfil activo.' })
         setEditandoEmail(null)
-        cargar()
+        void cargar()
         return
       }
     }
 
     setEditandoEmail(null)
-    cargar()
+    void cargar()
   }
 
   async function eliminarCorreo(email: string) {
@@ -188,7 +196,8 @@ export function AdminWhitelistPage() {
     })
     setMensajeMasivo(null)
     setEmailPorEliminar(null)
-    cargar()
+    if (emails.length === 1 && pagina > 0) setPagina((actual) => actual - 1)
+    else void cargar()
   }
 
   async function reenviarCorreo(email: string) {
@@ -200,7 +209,7 @@ export function AdminWhitelistPage() {
       email,
       texto: error ? 'No se pudo reenviar. Intenta de nuevo.' : 'Correo reenviado.',
     })
-    cargar()
+    void cargar()
   }
 
   async function enviarBienvenida(email: string) {
@@ -225,17 +234,19 @@ export function AdminWhitelistPage() {
   }
 
   async function enviarBienvenidasSeleccionadas() {
-    if (seleccionados.size === 0) return
+    const destinos = emails.filter((email) => email.used_at && seleccionados.has(email.email)).map((email) => email.email)
+    if (destinos.length === 0) return
     setEnviandoSeleccionados(true)
     setMensajeMasivo(null)
 
-    const destinos = [...seleccionados]
-    const resultados = await Promise.all(
-      destinos.map(async (email) => {
+    const resultados: { email: string; error: unknown }[] = []
+    for (let indice = 0; indice < destinos.length; indice += 5) {
+      const lote = await Promise.all(destinos.slice(indice, indice + 5).map(async (email) => {
         const { error } = await supabase.functions.invoke('send-welcome-email', { body: { email } })
         return { email, error }
-      }),
-    )
+      }))
+      resultados.push(...lote)
+    }
     const fallidos = resultados.filter((resultado) => resultado.error)
 
     setEnviandoSeleccionados(false)
@@ -246,6 +257,43 @@ export function AdminWhitelistPage() {
       setMensajeMasivo(`Se enviaron ${destinos.length - fallidos.length} de ${destinos.length}. Revisa los correos que fallaron.`)
       setSeleccionados(new Set(fallidos.map((resultado) => resultado.email)))
     }
+  }
+
+  async function enviarInvitacionesSeleccionadas() {
+    const destinos = emails.filter((email) => !email.used_at && seleccionados.has(email.email)).map((email) => email.email)
+    if (destinos.length === 0) return
+    setEnviandoInvitaciones(true)
+    setMensajeMasivo(null)
+
+    const resultados: { email: string; error: unknown }[] = []
+    for (let indice = 0; indice < destinos.length; indice += 5) {
+      const lote = await Promise.all(destinos.slice(indice, indice + 5).map(async (email) => {
+        const { error } = await supabase.functions.invoke('invite-user', { body: { email } })
+        return { email, error }
+      }))
+      resultados.push(...lote)
+    }
+    const fallidos = resultados.filter((resultado) => resultado.error)
+
+    setEnviandoInvitaciones(false)
+    if (fallidos.length === 0) {
+      setMensajeMasivo(`Se enviaron ${destinos.length} invitación${destinos.length === 1 ? '' : 'es'}.`)
+      setSeleccionados(new Set())
+    } else {
+      setMensajeMasivo(`Se enviaron ${destinos.length - fallidos.length} de ${destinos.length} invitaciones. Reintenta las seleccionadas.`)
+      setSeleccionados(new Set(fallidos.map((resultado) => resultado.email)))
+    }
+    void cargar()
+  }
+
+  const pendientesSeleccionados = emails.filter((email) => !email.used_at && seleccionados.has(email.email)).length
+  const registradosSeleccionados = emails.filter((email) => email.used_at && seleccionados.has(email.email)).length
+  const todosPaginaSeleccionados = emails.length > 0 && emails.every((email) => seleccionados.has(email.email))
+  const totalPaginas = Math.max(1, Math.ceil(totalEmails / limite))
+
+  function alternarPaginaCompleta() {
+    setSeleccionados(todosPaginaSeleccionados ? new Set() : new Set(emails.map((email) => email.email)))
+    setMensajeMasivo(null)
   }
 
   if (loading) return <div className="pantalla-carga">Cargando whitelist...</div>
@@ -259,9 +307,9 @@ export function AdminWhitelistPage() {
             type="checkbox"
             aria-label={`Seleccionar ${e.email}`}
             checked={seleccionados.has(e.email)}
-            disabled={!e.used_at || enviandoSeleccionados}
+            disabled={enviandoSeleccionados || enviandoInvitaciones}
             onChange={() => alternarSeleccion(e.email)}
-            title={e.used_at ? 'Seleccionar para enviar bienvenida' : 'Primero debe completar el registro'}
+            title={e.used_at ? 'Seleccionar para enviar bienvenida' : 'Seleccionar para enviar invitación'}
           />
         </td>
         <td>
@@ -327,7 +375,7 @@ export function AdminWhitelistPage() {
                     type="button"
                     className="admin-table__accion-secundaria"
                     onClick={() => reenviarCorreo(e.email)}
-                    disabled={reenviando === e.email}
+                    disabled={reenviando === e.email || enviandoInvitaciones}
                   >
                     {reenviando === e.email ? 'Enviando...' : 'Reenviar correo'}
                   </button>
@@ -337,7 +385,7 @@ export function AdminWhitelistPage() {
                     type="button"
                     className="admin-table__accion-secundaria"
                     onClick={() => enviarBienvenida(e.email)}
-                    disabled={enviandoBienvenida === e.email || enviandoSeleccionados}
+                    disabled={enviandoBienvenida === e.email || enviandoSeleccionados || enviandoInvitaciones}
                   >
                     {enviandoBienvenida === e.email ? 'Enviando...' : 'Enviar bienvenida'}
                   </button>
@@ -449,17 +497,27 @@ export function AdminWhitelistPage() {
 
       <div className="admin-envio-bienvenida">
         <div>
-          <strong>Correo de bienvenida</strong>
-          <span>Selecciona personas registradas para invitarlas a crear y seguir tareas en la aplicación.</span>
+          <strong>Envíos masivos</strong>
+          <span>Las personas pendientes reciben su invitación; las registradas reciben la bienvenida.</span>
         </div>
+        <button type="button" className="admin-envio-bienvenida__secundario" onClick={alternarPaginaCompleta} disabled={enviandoSeleccionados || enviandoInvitaciones || emails.length === 0}>
+          {todosPaginaSeleccionados ? 'Quitar selección' : 'Seleccionar página'}
+        </button>
+        <button
+          type="button"
+          onClick={enviarInvitacionesSeleccionadas}
+          disabled={pendientesSeleccionados === 0 || enviandoInvitaciones || enviandoSeleccionados}
+        >
+          {enviandoInvitaciones ? 'Enviando...' : `Enviar invitación (${pendientesSeleccionados})`}
+        </button>
         <button
           type="button"
           onClick={enviarBienvenidasSeleccionadas}
-          disabled={seleccionados.size === 0 || enviandoSeleccionados}
+          disabled={registradosSeleccionados === 0 || enviandoSeleccionados || enviandoInvitaciones}
         >
           {enviandoSeleccionados
             ? 'Enviando...'
-            : `Enviar a seleccionados${seleccionados.size > 0 ? ` (${seleccionados.size})` : ''}`}
+            : `Enviar bienvenida (${registradosSeleccionados})`}
         </button>
         {mensajeMasivo && <span className="admin-envio-bienvenida__mensaje">{mensajeMasivo}</span>}
       </div>
@@ -468,6 +526,36 @@ export function AdminWhitelistPage() {
         {renderPanel('Administradores', emails.filter((e) => e.role === 'admin'))}
         {renderPanel('Agentes', emails.filter((e) => e.role === 'agente'))}
         {renderPanel('Solicitantes', emails.filter((e) => e.role === 'solicitante'))}
+      </div>
+
+      <div className="admin-paginacion">
+        <span>
+          {totalEmails === 0 ? 'Sin registros' : `${pagina * limite + 1}–${Math.min((pagina + 1) * limite, totalEmails)} de ${totalEmails}`}
+        </span>
+        <label>
+          Filas por página
+          <select
+            value={limite}
+            onChange={(e) => {
+              setLimite(Number(e.target.value))
+              setPagina(0)
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+        </label>
+        <div className="admin-paginacion__acciones">
+          <button type="button" className="admin-table__accion-secundaria" onClick={() => setPagina((actual) => actual - 1)} disabled={pagina === 0}>
+            Anterior
+          </button>
+          <span>Página {pagina + 1} de {totalPaginas}</span>
+          <button type="button" className="admin-table__accion-secundaria" onClick={() => setPagina((actual) => actual + 1)} disabled={pagina + 1 >= totalPaginas}>
+            Siguiente
+          </button>
+        </div>
       </div>
 
       <ConfirmDialog
