@@ -18,6 +18,10 @@ export function AdminWhitelistPage() {
   const [editAreaId, setEditAreaId] = useState('')
 
   const [reenviando, setReenviando] = useState<string | null>(null)
+  const [enviandoBienvenida, setEnviandoBienvenida] = useState<string | null>(null)
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
+  const [enviandoSeleccionados, setEnviandoSeleccionados] = useState(false)
+  const [mensajeMasivo, setMensajeMasivo] = useState<string | null>(null)
   const [mensajeAccion, setMensajeAccion] = useState<{ email: string; texto: string } | null>(null)
 
   async function cargar() {
@@ -140,12 +144,67 @@ export function AdminWhitelistPage() {
     cargar()
   }
 
+  async function enviarBienvenida(email: string) {
+    setEnviandoBienvenida(email)
+    setMensajeAccion(null)
+    const { error } = await supabase.functions.invoke('send-welcome-email', { body: { email } })
+    setEnviandoBienvenida(null)
+    setMensajeAccion({
+      email,
+      texto: error ? 'No se pudo enviar la bienvenida.' : 'Bienvenida enviada.',
+    })
+  }
+
+  function alternarSeleccion(email: string) {
+    setSeleccionados((actuales) => {
+      const siguientes = new Set(actuales)
+      if (siguientes.has(email)) siguientes.delete(email)
+      else siguientes.add(email)
+      return siguientes
+    })
+    setMensajeMasivo(null)
+  }
+
+  async function enviarBienvenidasSeleccionadas() {
+    if (seleccionados.size === 0) return
+    setEnviandoSeleccionados(true)
+    setMensajeMasivo(null)
+
+    const destinos = [...seleccionados]
+    const resultados = await Promise.all(
+      destinos.map(async (email) => {
+        const { error } = await supabase.functions.invoke('send-welcome-email', { body: { email } })
+        return { email, error }
+      }),
+    )
+    const fallidos = resultados.filter((resultado) => resultado.error)
+
+    setEnviandoSeleccionados(false)
+    if (fallidos.length === 0) {
+      setMensajeMasivo(`Se enviaron ${destinos.length} correo${destinos.length === 1 ? '' : 's'} de bienvenida.`)
+      setSeleccionados(new Set())
+    } else {
+      setMensajeMasivo(`Se enviaron ${destinos.length - fallidos.length} de ${destinos.length}. Revisa los correos que fallaron.`)
+      setSeleccionados(new Set(fallidos.map((resultado) => resultado.email)))
+    }
+  }
+
   if (loading) return <div className="pantalla-carga">Cargando whitelist...</div>
 
   function renderFila(e: AllowedEmail) {
     const enEdicion = editandoEmail === e.email
     return (
       <tr key={e.email}>
+        <td className="admin-table__seleccion">
+          <input
+            type="checkbox"
+            aria-label={`Seleccionar ${e.email}`}
+            checked={seleccionados.has(e.email)}
+            disabled={!e.used_at || enviandoSeleccionados}
+            onChange={() => alternarSeleccion(e.email)}
+            title={e.used_at ? 'Seleccionar para enviar bienvenida' : 'Primero debe completar el registro'}
+          />
+        </td>
         <td>
           <div className="admin-persona">
             <span className="admin-persona__avatar">{e.email.charAt(0).toUpperCase()}</span>
@@ -214,6 +273,16 @@ export function AdminWhitelistPage() {
                     {reenviando === e.email ? 'Enviando...' : 'Reenviar correo'}
                   </button>
                 )}
+                {e.used_at && (
+                  <button
+                    type="button"
+                    className="admin-table__accion-secundaria"
+                    onClick={() => enviarBienvenida(e.email)}
+                    disabled={enviandoBienvenida === e.email || enviandoSeleccionados}
+                  >
+                    {enviandoBienvenida === e.email ? 'Enviando...' : 'Enviar bienvenida'}
+                  </button>
+                )}
                 <button type="button" className="admin-table__accion-eliminar" onClick={() => eliminarCorreo(e.email)}>
                   Eliminar
                 </button>
@@ -238,6 +307,7 @@ export function AdminWhitelistPage() {
           <table className="admin-table">
             <thead>
               <tr>
+                <th className="admin-table__seleccion" aria-label="Seleccionar" />
                 <th>Correo</th>
                 <th>Rol</th>
                 <th>Área</th>
@@ -249,7 +319,7 @@ export function AdminWhitelistPage() {
               {lista.map(renderFila)}
               {lista.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="chart-card__vacio">
+                  <td colSpan={6} className="chart-card__vacio">
                     Sin correos en este rol
                   </td>
                 </tr>
@@ -313,6 +383,23 @@ export function AdminWhitelistPage() {
       </form>
 
       {error && <p className="auth-error">{error}</p>}
+
+      <div className="admin-envio-bienvenida">
+        <div>
+          <strong>Correo de bienvenida</strong>
+          <span>Selecciona personas registradas para invitarlas a crear y seguir tareas en la aplicación.</span>
+        </div>
+        <button
+          type="button"
+          onClick={enviarBienvenidasSeleccionadas}
+          disabled={seleccionados.size === 0 || enviandoSeleccionados}
+        >
+          {enviandoSeleccionados
+            ? 'Enviando...'
+            : `Enviar a seleccionados${seleccionados.size > 0 ? ` (${seleccionados.size})` : ''}`}
+        </button>
+        {mensajeMasivo && <span className="admin-envio-bienvenida__mensaje">{mensajeMasivo}</span>}
+      </div>
 
       <div className="admin-panels">
         {renderPanel('Administradores', emails.filter((e) => e.role === 'admin'))}

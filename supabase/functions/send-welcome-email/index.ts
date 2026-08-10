@@ -30,6 +30,35 @@ Deno.serve(async (req) => {
 
     const correo = email.trim().toLowerCase()
 
+    const authorization = req.headers.get('Authorization')
+    const token = authorization?.replace(/^Bearer\s+/i, '')
+    const { data: authData, error: authError } = token
+      ? await supabaseAdmin.auth.getUser(token)
+      : { data: { user: null }, error: new Error('Falta autorización') }
+
+    if (authError || !authData.user?.email) {
+      return new Response(JSON.stringify({ ok: false, message: 'No autorizado' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const correoSolicitante = authData.user.email.toLowerCase()
+    if (correoSolicitante !== correo) {
+      const { data: perfilSolicitante } = await supabaseAdmin
+        .from('profiles')
+        .select('role')
+        .eq('id', authData.user.id)
+        .maybeSingle()
+
+      if (perfilSolicitante?.role !== 'admin') {
+        return new Response(JSON.stringify({ ok: false, message: 'No autorizado' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
     const { data: perfil, error: perfilError } = await supabaseAdmin
       .from('profiles')
       .select('email, full_name')
@@ -62,12 +91,12 @@ Deno.serve(async (req) => {
         plantillaCorreo({
           titulo: 'Tu cuenta ya está lista',
           etiqueta: 'Bienvenido al equipo',
-          preheader: 'Ya puedes ingresar, crear solicitudes y hacer seguimiento desde Mesa de Ayuda.',
+          preheader: 'Ya puedes ingresar, crear tareas y hacer seguimiento desde Mesa de Ayuda.',
           parrafos: [
-            `${saludo} activamos correctamente tu acceso a <strong>Mesa de Ayuda</strong>. Ya puedes ingresar y empezar a trabajar desde un solo lugar.`,
+            `${saludo} te damos la bienvenida a <strong>Mesa de Ayuda</strong>. Ingresa a la aplicación para registrar las tareas y solicitudes que necesites gestionar.`,
           ],
           items: [
-            '<strong>Crea solicitudes</strong> y consulta su estado en cualquier momento.',
+            '<strong>Crea tareas y solicitudes</strong> y consulta su estado en cualquier momento.',
             '<strong>Haz seguimiento</strong> a las tareas y tiempos de ejecución.',
             '<strong>Colabora con el equipo</strong> desde el tablero según tu rol.',
           ],

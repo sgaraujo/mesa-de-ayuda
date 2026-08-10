@@ -963,6 +963,35 @@ label {
   gap: 1.1rem;
 }
 
+.admin-envio-bienvenida {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.9rem 1.1rem;
+  background: var(--brand-soft);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.admin-envio-bienvenida > div {
+  display: flex;
+  flex: 1;
+  min-width: 240px;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.admin-envio-bienvenida > div span,
+.admin-envio-bienvenida__mensaje {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.admin-envio-bienvenida__mensaje {
+  flex-basis: 100%;
+}
+
 .admin-panel {
   background: transparent;
 }
@@ -1010,6 +1039,18 @@ label {
   padding: 0.7rem 1rem;
   border-bottom: 1px solid var(--border);
   font-size: 0.87rem;
+}
+
+.admin-table th.admin-table__seleccion,
+.admin-table td.admin-table__seleccion {
+  width: 36px;
+  padding-right: 0;
+}
+
+.admin-table__seleccion input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--brand);
 }
 
 .admin-table tbody tr:last-child td {
