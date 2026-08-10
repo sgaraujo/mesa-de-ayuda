@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useAreas } from '../hooks/useAreas'
@@ -21,6 +21,7 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
   const [prioridad, setPrioridad] = useState<Prioridad>('media')
   const [imagen, setImagen] = useState<File | null>(null)
   const [imagenPreview, setImagenPreview] = useState<string | null>(null)
+  const [arrastrandoImagen, setArrastrandoImagen] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exito, setExito] = useState(false)
@@ -36,8 +37,13 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
     return () => URL.revokeObjectURL(url)
   }, [imagen])
 
-  function handleImagenChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null
+  function seleccionarImagen(file: File | null) {
+    if (file && !file.type.startsWith('image/')) {
+      setError('El archivo debe ser una imagen.')
+      if (imagenInputRef.current) imagenInputRef.current.value = ''
+      setImagen(null)
+      return
+    }
     if (file && file.size > IMAGEN_MAX_MB * 1024 * 1024) {
       setError(`La imagen no puede pesar más de ${IMAGEN_MAX_MB} MB.`)
       if (imagenInputRef.current) imagenInputRef.current.value = ''
@@ -46,6 +52,28 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
     }
     setError(null)
     setImagen(file)
+  }
+
+  function handleImagenChange(e: ChangeEvent<HTMLInputElement>) {
+    seleccionarImagen(e.target.files?.[0] ?? null)
+  }
+
+  function handleImagenDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault()
+    setArrastrandoImagen(false)
+    seleccionarImagen(e.dataTransfer.files?.[0] ?? null)
+  }
+
+  function quitarImagen() {
+    setImagen(null)
+    setError(null)
+    if (imagenInputRef.current) imagenInputRef.current.value = ''
+  }
+
+  function pesoLegible(bytes: number) {
+    return bytes < 1024 * 1024
+      ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+      : `${(bytes / 1024 / 1024).toFixed(1)} MB`
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -133,18 +161,55 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
           </select>
         </label>
       </div>
-      <label>
-        Imagen (opcional)
+      <div className="ticket-form__attachment-field">
+        <span className="ticket-form__attachment-label">Adjuntar imagen <small>Opcional</small></span>
         <input
           ref={imagenInputRef}
           type="file"
           accept="image/*"
           onChange={handleImagenChange}
+          className="ticket-form__file-input"
+          tabIndex={-1}
         />
-      </label>
-      {imagenPreview && (
-        <img src={imagenPreview} alt="Vista previa" className="ticket-form__imagen-preview" />
-      )}
+        {!imagen ? (
+          <div
+            className={`ticket-form__dropzone${arrastrandoImagen ? ' ticket-form__dropzone--activo' : ''}`}
+            onDragEnter={(e) => {
+              e.preventDefault()
+              setArrastrandoImagen(true)
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) setArrastrandoImagen(false)
+            }}
+            onDrop={handleImagenDrop}
+          >
+            <div className="ticket-form__attachment-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
+              </svg>
+            </div>
+            <div>
+              <p>Arrastra una imagen aquí o</p>
+              <button type="button" className="ticket-form__file-button" onClick={() => imagenInputRef.current?.click()}>
+                Seleccionar imagen
+              </button>
+            </div>
+            <span>PNG, JPG, WEBP o GIF · máximo {IMAGEN_MAX_MB} MB</span>
+          </div>
+        ) : (
+          <div className="ticket-form__attachment-file">
+            {imagenPreview && <img src={imagenPreview} alt="Vista previa" className="ticket-form__imagen-preview" />}
+            <div className="ticket-form__attachment-info">
+              <strong title={imagen.name}>{imagen.name}</strong>
+              <span>{pesoLegible(imagen.size)}</span>
+            </div>
+            <button type="button" className="ticket-form__attachment-remove" onClick={quitarImagen} aria-label={`Quitar ${imagen.name}`}>
+              ×
+            </button>
+          </div>
+        )}
+      </div>
       {error && <p className="auth-error">{error}</p>}
       {exito && <p className="auth-success">Solicitud creada correctamente.</p>}
       <button type="submit" disabled={enviando}>

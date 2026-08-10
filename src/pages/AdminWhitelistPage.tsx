@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'r
 import { supabase } from '../lib/supabase'
 import { useAreas } from '../hooks/useAreas'
 import type { AllowedEmail, Role } from '../types/database'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 export function AdminWhitelistPage() {
   const { areas } = useAreas()
@@ -22,6 +23,8 @@ export function AdminWhitelistPage() {
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
   const [enviandoSeleccionados, setEnviandoSeleccionados] = useState(false)
   const [mensajeMasivo, setMensajeMasivo] = useState<string | null>(null)
+  const [emailPorEliminar, setEmailPorEliminar] = useState<string | null>(null)
+  const [eliminando, setEliminando] = useState(false)
   const [mensajeAccion, setMensajeAccion] = useState<{ email: string; texto: string } | null>(null)
 
   async function cargar() {
@@ -127,11 +130,12 @@ export function AdminWhitelistPage() {
   }
 
   async function eliminarCorreo(email: string) {
-    if (!confirm(`¿Eliminar ${email} de la whitelist?`)) return
-
+    setEliminando(true)
     const { error } = await supabase.from('allowed_emails').delete().eq('email', email)
+    setEliminando(false)
     if (error) {
       setMensajeAccion({ email, texto: 'No se pudo eliminar.' })
+      setEmailPorEliminar(null)
       return
     }
     setSeleccionados((actuales) => {
@@ -140,6 +144,7 @@ export function AdminWhitelistPage() {
       return siguientes
     })
     setMensajeMasivo(null)
+    setEmailPorEliminar(null)
     cargar()
   }
 
@@ -294,7 +299,7 @@ export function AdminWhitelistPage() {
                     {enviandoBienvenida === e.email ? 'Enviando...' : 'Enviar bienvenida'}
                   </button>
                 )}
-                <button type="button" className="admin-table__accion-eliminar" onClick={() => eliminarCorreo(e.email)}>
+                <button type="button" className="admin-table__accion-eliminar" onClick={() => setEmailPorEliminar(e.email)}>
                   Eliminar
                 </button>
               </>
@@ -417,6 +422,16 @@ export function AdminWhitelistPage() {
         {renderPanel('Agentes', emails.filter((e) => e.role === 'agente'))}
         {renderPanel('Solicitantes', emails.filter((e) => e.role === 'solicitante'))}
       </div>
+
+      <ConfirmDialog
+        abierto={emailPorEliminar !== null}
+        titulo="Eliminar correo de la whitelist"
+        descripcion={`¿Quieres eliminar ${emailPorEliminar ?? ''}? Esta persona perderá la autorización para solicitar acceso.`}
+        textoConfirmar="Eliminar correo"
+        procesando={eliminando}
+        onCancelar={() => setEmailPorEliminar(null)}
+        onConfirmar={() => emailPorEliminar && eliminarCorreo(emailPorEliminar)}
+      />
     </div>
   )
 }

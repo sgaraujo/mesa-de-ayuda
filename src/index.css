@@ -324,12 +324,149 @@ label {
   gap: 1rem;
 }
 
-.ticket-form__imagen-preview {
-  max-width: 220px;
-  max-height: 220px;
+.ticket-form__attachment-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ticket-form__attachment-label {
+  font-size: 0.87rem;
+  font-weight: 600;
+}
+
+.ticket-form__attachment-label small {
+  margin-left: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.ticket-form__file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.ticket-form__dropzone {
+  display: flex;
+  min-height: 150px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 1.25rem;
+  border: 1px dashed var(--baseline);
   border-radius: 10px;
+  background: var(--surface-page);
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.ticket-form__dropzone--activo {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.ticket-form__attachment-icon {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-1);
+  color: var(--text-secondary);
+}
+
+.ticket-form__attachment-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.ticket-form__dropzone p {
+  display: inline;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+}
+
+.ticket-form__dropzone > span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.ticket-form__file-button {
+  display: inline;
+  padding: 0;
+  background: transparent;
+  color: var(--brand-text);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.ticket-form__file-button:hover:not(:disabled) {
+  filter: none;
+  text-decoration: underline;
+}
+
+.ticket-form__attachment-file {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-page);
+}
+
+.ticket-form__imagen-preview {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 7px;
   border: 1px solid var(--border);
   object-fit: cover;
+}
+
+.ticket-form__attachment-info {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.ticket-form__attachment-info strong {
+  overflow: hidden;
+  font-size: 0.84rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ticket-form__attachment-info span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+.ticket-form__attachment-remove {
+  flex-shrink: 0;
+  width: 1.8rem;
+  height: 1.8rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.ticket-form__attachment-remove:hover:not(:disabled) {
+  color: var(--prioridad-urgente);
+  filter: none;
 }
 
 /* ---- Board ---- */
@@ -523,6 +660,56 @@ label {
   max-height: 90vh;
   overflow-y: auto;
   text-align: left;
+}
+
+.confirm-dialog {
+  width: 100%;
+  max-width: 430px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-1);
+  box-shadow: var(--shadow-md);
+}
+
+.confirm-dialog__icono {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-bottom: 0.9rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--prioridad-urgente) 14%, transparent);
+  color: var(--prioridad-urgente);
+  font-weight: 800;
+}
+
+.confirm-dialog h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.confirm-dialog p {
+  margin: 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.confirm-dialog__acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 1.4rem;
+}
+
+.confirm-dialog__cancelar {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.confirm-dialog__confirmar {
+  background: var(--prioridad-urgente);
 }
 
 .modal-panel h2 {
