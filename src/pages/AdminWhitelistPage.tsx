@@ -40,17 +40,31 @@ export function AdminWhitelistPage() {
   const cargar = useCallback(async () => {
     setLoading(true)
     const offset = pagina * limite
-    let consulta = supabase
+    let consultaEquipo = supabase
+      .from('allowed_emails')
+      .select('*')
+      .in('role', ['admin', 'agente'])
+      .order('role', { ascending: true })
+      .order('email', { ascending: true })
+    let consultaSolicitantes = supabase
       .from('allowed_emails')
       .select('*', { count: 'exact' })
+      .eq('role', 'solicitante')
       .order('invited_at', { ascending: false, nullsFirst: true })
       .order('email', { ascending: true })
-    if (busquedaAplicada) consulta = consulta.ilike('email', `%${busquedaAplicada}%`)
-    const { data, count, error: errorCarga } = await consulta.range(offset, offset + limite - 1)
-    const registros = data ?? []
+    if (busquedaAplicada) {
+      consultaEquipo = consultaEquipo.ilike('email', `%${busquedaAplicada}%`)
+      consultaSolicitantes = consultaSolicitantes.ilike('email', `%${busquedaAplicada}%`)
+    }
+
+    const [resultadoEquipo, resultadoSolicitantes] = await Promise.all([
+      consultaEquipo,
+      consultaSolicitantes.range(offset, offset + limite - 1),
+    ])
+    const registros = [...(resultadoEquipo.data ?? []), ...(resultadoSolicitantes.data ?? [])]
     setEmails(registros)
-    setTotalEmails(count ?? 0)
-    if (errorCarga) setError('No se pudo cargar la whitelist.')
+    setTotalEmails(resultadoSolicitantes.count ?? 0)
+    if (resultadoEquipo.error || resultadoSolicitantes.error) setError('No se pudo cargar la whitelist.')
     setLoading(false)
   }, [busquedaAplicada, limite, pagina])
 
@@ -585,10 +599,10 @@ export function AdminWhitelistPage() {
 
       <div className="admin-paginacion">
         <span>
-          {totalEmails === 0 ? 'Sin registros' : `${pagina * limite + 1}–${Math.min((pagina + 1) * limite, totalEmails)} de ${totalEmails}`}
+          {totalEmails === 0 ? 'Sin solicitantes' : `Solicitantes ${pagina * limite + 1}–${Math.min((pagina + 1) * limite, totalEmails)} de ${totalEmails}`}
         </span>
         <label>
-          Filas por página
+          Solicitantes por página
           <select
             value={limite}
             onChange={(e) => {
