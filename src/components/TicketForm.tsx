@@ -174,6 +174,16 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
         {!imagen ? (
           <div
             className={`ticket-form__dropzone${arrastrandoImagen ? ' ticket-form__dropzone--activo' : ''}`}
+            role="button"
+            tabIndex={0}
+            aria-label="Seleccionar una imagen para adjuntar"
+            onClick={() => imagenInputRef.current?.click()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                imagenInputRef.current?.click()
+              }
+            }}
             onDragEnter={(e) => {
               e.preventDefault()
               setArrastrandoImagen(true)
@@ -191,9 +201,7 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
             </div>
             <div>
               <p>Arrastra una imagen aquí o</p>
-              <button type="button" className="ticket-form__file-button" onClick={() => imagenInputRef.current?.click()}>
-                Seleccionar imagen
-              </button>
+              <span className="ticket-form__file-button">Seleccionar imagen</span>
             </div>
             <span>PNG, JPG, WEBP o GIF · máximo {IMAGEN_MAX_MB} MB</span>
           </div>
