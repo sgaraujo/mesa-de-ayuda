@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { PasswordInput } from '../components/PasswordInput'
 
 export function CreatePasswordPage() {
   const navigate = useNavigate()
@@ -58,20 +59,20 @@ export function CreatePasswordPage() {
         <h1>Crea tu contraseña</h1>
         <label>
           Nueva contraseña
-          <input
-            type="password"
+          <PasswordInput
             required
             minLength={8}
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </label>
         <label>
           Confirmar contraseña
-          <input
-            type="password"
+          <PasswordInput
             required
             minLength={8}
+            autoComplete="new-password"
             value={confirmacion}
             onChange={(e) => setConfirmacion(e.target.value)}
           />

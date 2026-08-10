@@ -61,8 +61,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select('*')
       .eq('id', userId)
       .single()
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         if (!cancelled) {
+          if (data?.activo === false) {
+            await supabase.auth.signOut({ scope: 'local' })
+            setSession(null)
+            setProfile(null)
+            setLoading(false)
+            return
+          }
           setProfile(data ?? null)
           setLoading(false)
         }

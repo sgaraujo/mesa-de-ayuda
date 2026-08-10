@@ -314,6 +314,41 @@ label {
   text-decoration: none;
 }
 
+.password-input {
+  position: relative;
+}
+
+.password-input input {
+  padding-right: 2.75rem;
+}
+
+.password-input__toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  padding: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  transform: translateY(-50%);
+}
+
+.password-input__toggle:hover:not(:disabled),
+.password-input__toggle:focus-visible {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  filter: none;
+}
+
+.password-input__toggle svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
 /* ---- Forms ---- */
 
 .page-form {
@@ -1224,6 +1259,22 @@ label {
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
+}
+
+.admin-busqueda {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-busqueda label {
+  width: min(100%, 420px);
+}
+
+.admin-busqueda .admin-table__accion-eliminar {
+  padding: 0.58rem 0.9rem;
+  border-color: var(--prioridad-urgente);
 }
 
 .admin-envio-bienvenida {

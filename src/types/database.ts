@@ -19,6 +19,7 @@ export interface Profile {
   full_name: string | null
   area_id: string | null
   role: Role
+  activo: boolean
   empresa: string
   created_at: string
 }

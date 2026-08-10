@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { PasswordInput } from '../components/PasswordInput'
 
 export function ResetPasswordPage() {
   const navigate = useNavigate()
@@ -40,11 +41,11 @@ export function ResetPasswordPage() {
         <p className="auth-hint">Crea una contraseña de al menos 8 caracteres.</p>
         <label>
           Nueva contraseña
-          <input type="password" required minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput required minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
         <label>
           Confirmar contraseña
-          <input type="password" required minLength={8} autoComplete="new-password" value={confirmacion} onChange={(e) => setConfirmacion(e.target.value)} />
+          <PasswordInput required minLength={8} autoComplete="new-password" value={confirmacion} onChange={(e) => setConfirmacion(e.target.value)} />
         </label>
         {error && <p className="auth-error">{error}</p>}
         <button type="submit" disabled={guardando}>{guardando ? 'Guardando...' : 'Cambiar contraseña'}</button>

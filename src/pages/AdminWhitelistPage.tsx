@@ -11,6 +11,8 @@ export function AdminWhitelistPage() {
   const [pagina, setPagina] = useState(0)
   const [limite, setLimite] = useState(25)
   const [totalEmails, setTotalEmails] = useState(0)
+  const [busqueda, setBusqueda] = useState('')
+  const [busquedaAplicada, setBusquedaAplicada] = useState('')
   const [nuevoEmail, setNuevoEmail] = useState('')
   const [nuevoRole, setNuevoRole] = useState<Role>('solicitante')
   const [nuevaArea, setNuevaArea] = useState('')
@@ -31,23 +33,34 @@ export function AdminWhitelistPage() {
   const [mensajeMasivo, setMensajeMasivo] = useState<string | null>(null)
   const [emailPorEliminar, setEmailPorEliminar] = useState<string | null>(null)
   const [eliminando, setEliminando] = useState(false)
+  const [emailPorRevocar, setEmailPorRevocar] = useState<string | null>(null)
+  const [revocando, setRevocando] = useState(false)
   const [mensajeAccion, setMensajeAccion] = useState<{ email: string; texto: string } | null>(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
     const offset = pagina * limite
-    const { data, count, error: errorCarga } = await supabase
+    let consulta = supabase
       .from('allowed_emails')
       .select('*', { count: 'exact' })
       .order('invited_at', { ascending: false, nullsFirst: true })
       .order('email', { ascending: true })
-      .range(offset, offset + limite - 1)
+    if (busquedaAplicada) consulta = consulta.ilike('email', `%${busquedaAplicada}%`)
+    const { data, count, error: errorCarga } = await consulta.range(offset, offset + limite - 1)
     const registros = data ?? []
     setEmails(registros)
     setTotalEmails(count ?? 0)
     if (errorCarga) setError('No se pudo cargar la whitelist.')
     setLoading(false)
-  }, [limite, pagina])
+  }, [busquedaAplicada, limite, pagina])
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setPagina(0)
+      setBusquedaAplicada(busqueda.trim().toLowerCase())
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [busqueda])
 
   useEffect(() => {
     setSeleccionados(new Set())
@@ -198,6 +211,25 @@ export function AdminWhitelistPage() {
     setEmailPorEliminar(null)
     if (emails.length === 1 && pagina > 0) setPagina((actual) => actual - 1)
     else void cargar()
+  }
+
+  async function revocarAcceso(email: string) {
+    setRevocando(true)
+    setError(null)
+    const { error: errorRevocacion } = await supabase.functions.invoke('revoke-user', { body: { email } })
+    setRevocando(false)
+    setEmailPorRevocar(null)
+    if (errorRevocacion) {
+      setError('No se pudo revocar el acceso. Verifica que el correo tenga una cuenta registrada.')
+      return
+    }
+    setResultadoCsv(`Se revocó el acceso de ${email}. Sus tareas históricas se conservaron.`)
+    setSeleccionados((actuales) => {
+      const siguientes = new Set(actuales)
+      siguientes.delete(email)
+      return siguientes
+    })
+    void cargar()
   }
 
   async function reenviarCorreo(email: string) {
@@ -390,9 +422,15 @@ export function AdminWhitelistPage() {
                     {enviandoBienvenida === e.email ? 'Enviando...' : 'Enviar bienvenida'}
                   </button>
                 )}
-                <button type="button" className="admin-table__accion-eliminar" onClick={() => setEmailPorEliminar(e.email)}>
-                  Eliminar
-                </button>
+                {e.used_at ? (
+                  <button type="button" className="admin-table__accion-eliminar" onClick={() => setEmailPorRevocar(e.email)}>
+                    Revocar acceso
+                  </button>
+                ) : (
+                  <button type="button" className="admin-table__accion-eliminar" onClick={() => setEmailPorEliminar(e.email)}>
+                    Eliminar
+                  </button>
+                )}
               </>
             )}
             {mensajeAccion?.email === e.email && (
@@ -495,6 +533,23 @@ export function AdminWhitelistPage() {
       {error && <p className="auth-error">{error}</p>}
       {resultadoCsv && <p className="auth-success" role="status">{resultadoCsv}</p>}
 
+      <div className="admin-busqueda">
+        <label>
+          Buscar persona por correo
+          <input
+            type="search"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="jguzman@netcol.net.co"
+          />
+        </label>
+        {busqueda.trim().includes('@') && (
+          <button type="button" className="admin-table__accion-eliminar" onClick={() => setEmailPorRevocar(busqueda.trim().toLowerCase())}>
+            Revocar este correo
+          </button>
+        )}
+      </div>
+
       <div className="admin-envio-bienvenida">
         <div>
           <strong>Envíos masivos</strong>
@@ -566,6 +621,15 @@ export function AdminWhitelistPage() {
         procesando={eliminando}
         onCancelar={() => setEmailPorEliminar(null)}
         onConfirmar={() => emailPorEliminar && eliminarCorreo(emailPorEliminar)}
+      />
+      <ConfirmDialog
+        abierto={emailPorRevocar !== null}
+        titulo="Revocar acceso"
+        descripcion={`¿Quieres revocar el acceso de ${emailPorRevocar ?? ''}? Ya no podrá iniciar sesión, pero sus tareas históricas se conservarán.`}
+        textoConfirmar="Revocar acceso"
+        procesando={revocando}
+        onCancelar={() => setEmailPorRevocar(null)}
+        onConfirmar={() => emailPorRevocar && revocarAcceso(emailPorRevocar)}
       />
     </div>
   )
