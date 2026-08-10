@@ -30,7 +30,12 @@ export function AdminWhitelistPage() {
       .from('allowed_emails')
       .select('*')
       .order('invited_at', { ascending: false })
-    setEmails(data ?? [])
+    const registros = data ?? []
+    setEmails(registros)
+    setSeleccionados((actuales) => {
+      const correosDisponibles = new Set(registros.filter((registro) => registro.used_at).map((registro) => registro.email))
+      return new Set([...actuales].filter((email) => correosDisponibles.has(email)))
+    })
     setLoading(false)
   }
 
@@ -129,6 +134,12 @@ export function AdminWhitelistPage() {
       setMensajeAccion({ email, texto: 'No se pudo eliminar.' })
       return
     }
+    setSeleccionados((actuales) => {
+      const siguientes = new Set(actuales)
+      siguientes.delete(email)
+      return siguientes
+    })
+    setMensajeMasivo(null)
     cargar()
   }
 
