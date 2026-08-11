@@ -4,6 +4,8 @@ import { useAreas } from '../hooks/useAreas'
 import type { AllowedEmail, Role } from '../types/database'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 
+const TAMANO_BLOQUE_EQUIPO = 1000
+
 export function AdminWhitelistPage() {
   const { areas } = useAreas()
   const [emails, setEmails] = useState<AllowedEmail[]>([])
@@ -40,12 +42,6 @@ export function AdminWhitelistPage() {
   const cargar = useCallback(async () => {
     setLoading(true)
     const offset = pagina * limite
-    let consultaEquipo = supabase
-      .from('allowed_emails')
-      .select('*')
-      .in('role', ['admin', 'agente'])
-      .order('role', { ascending: true })
-      .order('email', { ascending: true })
     let consultaSolicitantes = supabase
       .from('allowed_emails')
       .select('*', { count: 'exact' })
@@ -53,15 +49,38 @@ export function AdminWhitelistPage() {
       .order('invited_at', { ascending: false, nullsFirst: true })
       .order('email', { ascending: true })
     if (busquedaAplicada) {
-      consultaEquipo = consultaEquipo.ilike('email', `%${busquedaAplicada}%`)
       consultaSolicitantes = consultaSolicitantes.ilike('email', `%${busquedaAplicada}%`)
     }
 
+    const cargarEquipoCompleto = async () => {
+      const equipo: AllowedEmail[] = []
+      let desde = 0
+
+      while (true) {
+        let consulta = supabase
+          .from('allowed_emails')
+          .select('*')
+          .in('role', ['admin', 'agente'])
+          .order('role', { ascending: true })
+          .order('email', { ascending: true })
+
+        if (busquedaAplicada) consulta = consulta.ilike('email', `%${busquedaAplicada}%`)
+
+        const resultado = await consulta.range(desde, desde + TAMANO_BLOQUE_EQUIPO - 1)
+        if (resultado.error) return { equipo, error: true }
+
+        const bloque = (resultado.data ?? []) as AllowedEmail[]
+        equipo.push(...bloque)
+        if (bloque.length < TAMANO_BLOQUE_EQUIPO) return { equipo, error: false }
+        desde += TAMANO_BLOQUE_EQUIPO
+      }
+    }
+
     const [resultadoEquipo, resultadoSolicitantes] = await Promise.all([
-      consultaEquipo,
+      cargarEquipoCompleto(),
       consultaSolicitantes.range(offset, offset + limite - 1),
     ])
-    const registros = [...(resultadoEquipo.data ?? []), ...(resultadoSolicitantes.data ?? [])]
+    const registros = [...resultadoEquipo.equipo, ...(resultadoSolicitantes.data ?? [])]
     setEmails(registros)
     setTotalEmails(resultadoSolicitantes.count ?? 0)
     if (resultadoEquipo.error || resultadoSolicitantes.error) setError('No se pudo cargar la whitelist.')
