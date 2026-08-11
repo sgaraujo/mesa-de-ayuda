@@ -11,6 +11,7 @@ export function useAgentes() {
       .from('profiles')
       .select('*')
       .in('role', ['agente', 'admin'])
+      .eq('activo', true)
       .order('full_name')
       .then(({ data }) => {
         setAgentes(data ?? [])

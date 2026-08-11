@@ -38,7 +38,12 @@ Deno.serve(async (req) => {
       .select('id, email')
       .eq('email', correo)
       .maybeSingle()
-    if (perfilError || !perfil) return json({ ok: false, message: 'Usuario no encontrado' }, 404)
+    if (perfilError) return json({ ok: false, message: 'No se pudo consultar el usuario' }, 500)
+    if (!perfil) {
+      const { error: eliminarError } = await supabaseAdmin.from('allowed_emails').delete().eq('email', correo)
+      if (eliminarError) return json({ ok: false, message: 'No se pudo eliminar el correo' }, 500)
+      return json({ ok: true, revoked: false })
+    }
     if (perfil.id === authData.user.id) return json({ ok: false, message: 'No puedes revocar tu propio acceso' }, 400)
 
     const { error: desactivarError } = await supabaseAdmin.from('profiles').update({ activo: false }).eq('id', perfil.id)
@@ -52,8 +57,9 @@ Deno.serve(async (req) => {
       return json({ ok: false, message: 'No se pudo bloquear la cuenta' }, 500)
     }
 
-    await supabaseAdmin.from('allowed_emails').delete().eq('email', correo)
-    return json({ ok: true })
+    const { error: eliminarError } = await supabaseAdmin.from('allowed_emails').delete().eq('email', correo)
+    if (eliminarError) return json({ ok: false, message: 'La cuenta se bloqueó, pero no se pudo eliminar el correo' }, 500)
+    return json({ ok: true, revoked: true })
   } catch (error) {
     console.error('Error al revocar usuario:', (error as Error).message)
     return json({ ok: false, message: 'Error interno' }, 500)

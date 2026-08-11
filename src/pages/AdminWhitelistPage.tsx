@@ -234,10 +234,11 @@ export function AdminWhitelistPage() {
 
   async function eliminarCorreo(email: string) {
     setEliminando(true)
-    const { error } = await supabase.from('allowed_emails').delete().eq('email', email)
+    setError(null)
+    const { error } = await supabase.functions.invoke('revoke-user', { body: { email } })
     setEliminando(false)
     if (error) {
-      setMensajeAccion({ email, texto: 'No se pudo eliminar.' })
+      setError('No se pudo eliminar el acceso. Intenta nuevamente.')
       setEmailPorEliminar(null)
       return
     }
@@ -246,6 +247,7 @@ export function AdminWhitelistPage() {
       siguientes.delete(email)
       return siguientes
     })
+    setResultadoCsv(`Se eliminó el acceso de ${email}. Si tenía una cuenta registrada, también quedó bloqueada.`)
     setMensajeMasivo(null)
     setEmailPorEliminar(null)
     if (emails.length === 1 && pagina > 0) setPagina((actual) => actual - 1)
@@ -654,9 +656,9 @@ export function AdminWhitelistPage() {
 
       <ConfirmDialog
         abierto={emailPorEliminar !== null}
-        titulo="Eliminar correo de la whitelist"
-        descripcion={`¿Quieres eliminar ${emailPorEliminar ?? ''}? Esta persona perderá la autorización para solicitar acceso.`}
-        textoConfirmar="Eliminar correo"
+        titulo="Eliminar acceso"
+        descripcion={`¿Quieres eliminar el acceso de ${emailPorEliminar ?? ''}? Si ya tiene una cuenta, también quedará bloqueada. Sus tareas históricas se conservarán.`}
+        textoConfirmar="Eliminar acceso"
         procesando={eliminando}
         onCancelar={() => setEmailPorEliminar(null)}
         onConfirmar={() => emailPorEliminar && eliminarCorreo(emailPorEliminar)}
