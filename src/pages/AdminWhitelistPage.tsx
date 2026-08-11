@@ -38,9 +38,12 @@ export function AdminWhitelistPage() {
   const [emailPorRevocar, setEmailPorRevocar] = useState<string | null>(null)
   const [revocando, setRevocando] = useState(false)
   const [mensajeAccion, setMensajeAccion] = useState<{ email: string; texto: string } | null>(null)
+  const cargaInicialRef = useRef(true)
+  const cargaIdRef = useRef(0)
 
   const cargar = useCallback(async () => {
-    setLoading(true)
+    const cargaId = ++cargaIdRef.current
+    if (cargaInicialRef.current) setLoading(true)
     const offset = pagina * limite
     let consultaSolicitantes = supabase
       .from('allowed_emails')
@@ -80,10 +83,13 @@ export function AdminWhitelistPage() {
       cargarEquipoCompleto(),
       consultaSolicitantes.range(offset, offset + limite - 1),
     ])
+    if (cargaId !== cargaIdRef.current) return
+
     const registros = [...resultadoEquipo.equipo, ...(resultadoSolicitantes.data ?? [])]
     setEmails(registros)
     setTotalEmails(resultadoSolicitantes.count ?? 0)
     if (resultadoEquipo.error || resultadoSolicitantes.error) setError('No se pudo cargar la whitelist.')
+    cargaInicialRef.current = false
     setLoading(false)
   }, [busquedaAplicada, limite, pagina])
 
