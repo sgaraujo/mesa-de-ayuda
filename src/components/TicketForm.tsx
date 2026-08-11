@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useAreas } from '../hooks/useAreas'
 import type { Prioridad } from '../types/database'
+import { notificarAsignacion, notificarNuevaTarea } from '../lib/notificaciones'
 
 const IMAGEN_MAX_MB = 5
 
@@ -97,22 +98,32 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
       imagenUrl = supabase.storage.from('ticket-imagenes').getPublicUrl(ruta).data.publicUrl
     }
 
-    const { error } = await supabase.from('tickets').insert({
-      titulo,
-      descripcion,
-      solicitante_id: profile.id,
-      empresa_solicitante: profile.empresa,
-      area_id: areaId || null,
-      asignado_a: puedeAutoasignarse ? asignadoAPorDefecto || null : null,
-      prioridad,
-      estado: 'pendiente',
-      imagen_url: imagenUrl,
-    })
+    const asignadoA = puedeAutoasignarse ? asignadoAPorDefecto || null : null
+    const { data: ticketCreado, error } = await supabase
+      .from('tickets')
+      .insert({
+        titulo,
+        descripcion,
+        solicitante_id: profile.id,
+        empresa_solicitante: profile.empresa,
+        area_id: areaId || null,
+        asignado_a: asignadoA,
+        prioridad,
+        estado: 'pendiente',
+        imagen_url: imagenUrl,
+      })
+      .select('id')
+      .single()
 
     setEnviando(false)
     if (error) {
       setError('No se pudo crear la solicitud. Intenta de nuevo.')
       return
+    }
+
+    if (ticketCreado) {
+      if (asignadoA) void notificarAsignacion(ticketCreado.id, [asignadoA])
+      else void notificarNuevaTarea(ticketCreado.id)
     }
 
     setExito(true)

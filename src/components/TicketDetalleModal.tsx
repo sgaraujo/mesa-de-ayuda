@@ -4,6 +4,7 @@ import { useAreas } from '../hooks/useAreas'
 import { useProyectos } from '../hooks/useProyectos'
 import { useAgentes } from '../hooks/useAgentes'
 import { nombresAsignados } from '../lib/ticket'
+import { notificarAsignacion } from '../lib/notificaciones'
 import type { TicketConRelaciones } from '../types/database'
 
 const PRIORIDAD_LABEL: Record<string, string> = {
@@ -124,6 +125,10 @@ export function TicketDetalleModal({
         .from('ticket_asignados')
         .insert(miembros.map((profile_id) => ({ ticket_id: ticket.id, profile_id })))
     }
+
+    const miembrosAnteriores = new Set(ticket.asignados.map((asignado) => asignado.profile.id))
+    const miembrosNuevos = esGrupal ? miembros.filter((id) => !miembrosAnteriores.has(id)) : []
+    if (miembrosNuevos.length > 0) void notificarAsignacion(ticket.id, miembrosNuevos)
 
     setGuardando(false)
 

@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useAreas } from '../hooks/useAreas'
 import { useAgentes } from '../hooks/useAgentes'
+import { notificarAsignacion } from '../lib/notificaciones'
 import { KanbanColumn, type ColumnaId } from '../components/KanbanColumn'
 import { TicketDetalleModal } from '../components/TicketDetalleModal'
 import { NuevaTareaModal } from '../components/NuevaTareaModal'
@@ -226,6 +227,8 @@ export function BoardPage() {
 
     setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, ...cambios } : t)))
     await supabase.from('tickets').update(cambios).eq('id', ticketId)
+
+    if (estabaSinAsignar && profile?.id) void notificarAsignacion(ticketId, [profile.id])
 
     if (ticket.estado !== nuevoEstado) {
       await supabase.from('ticket_status_history').insert({
