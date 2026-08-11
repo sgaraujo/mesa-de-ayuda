@@ -81,6 +81,7 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
     if (!profile) return
     setError(null)
     setEnviando(true)
+    const puedeAutoasignarse = profile.role === 'agente' || profile.role === 'admin'
 
     let imagenUrl: string | null = null
     if (imagen) {
@@ -102,7 +103,7 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
       solicitante_id: profile.id,
       empresa_solicitante: profile.empresa,
       area_id: areaId || null,
-      asignado_a: asignadoAPorDefecto || null,
+      asignado_a: puedeAutoasignarse ? asignadoAPorDefecto || null : null,
       prioridad,
       estado: 'pendiente',
       imagen_url: imagenUrl,

@@ -8,6 +8,9 @@ interface NuevaTareaModalProps {
 
 export function NuevaTareaModal({ onClose, onCreado }: NuevaTareaModalProps) {
   const { profile } = useAuth()
+  const asignadoAPorDefecto = profile?.role === 'agente' || profile?.role === 'admin'
+    ? profile.id
+    : undefined
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -18,7 +21,7 @@ export function NuevaTareaModal({ onClose, onCreado }: NuevaTareaModalProps) {
             ×
           </button>
         </div>
-        <TicketForm asignadoAPorDefecto={profile?.id} onCreado={onCreado} />
+        <TicketForm asignadoAPorDefecto={asignadoAPorDefecto} onCreado={onCreado} />
       </div>
     </div>
   )
