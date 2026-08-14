@@ -815,6 +815,33 @@ label {
   font-size: 1.15rem;
 }
 
+.set-password__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.set-password__generar {
+  align-self: flex-start;
+}
+
+.set-password__resultado {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--surface-page);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.set-password__resultado code {
+  flex: 1;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
 .modal-panel__header {
   display: flex;
   align-items: center;

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAreas } from '../hooks/useAreas'
 import type { AllowedEmail, Role } from '../types/database'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { SetPasswordDialog } from '../components/SetPasswordDialog'
 
 const TAMANO_BLOQUE_EQUIPO = 1000
 
@@ -52,6 +53,10 @@ export function AdminWhitelistPage() {
   const [revocando, setRevocando] = useState(false)
   const [mensajeAccion, setMensajeAccion] = useState<{ email: string; texto: string; tipo: 'exito' | 'error' } | null>(null)
   const [actualizando, setActualizando] = useState(false)
+  const [emailParaPassword, setEmailParaPassword] = useState<string | null>(null)
+  const [asignandoPassword, setAsignandoPassword] = useState(false)
+  const [errorPassword, setErrorPassword] = useState<string | null>(null)
+  const [passwordAsignada, setPasswordAsignada] = useState<string | null>(null)
   const cargaInicialRef = useRef(true)
   const cargaIdRef = useRef(0)
 
@@ -316,6 +321,34 @@ export function AdminWhitelistPage() {
     }
   }
 
+  function abrirAsignarPassword(email: string) {
+    setEmailParaPassword(email)
+    setErrorPassword(null)
+    setPasswordAsignada(null)
+  }
+
+  function cerrarAsignarPassword() {
+    setEmailParaPassword(null)
+    setErrorPassword(null)
+    setPasswordAsignada(null)
+  }
+
+  async function confirmarAsignarPassword(password: string) {
+    if (!emailParaPassword) return
+    setAsignandoPassword(true)
+    setErrorPassword(null)
+    const { error } = await supabase.functions.invoke('admin-set-password', {
+      body: { email: emailParaPassword, password },
+    })
+    setAsignandoPassword(false)
+    if (error) {
+      setErrorPassword(await mensajeDeErrorFuncion(error, 'No se pudo asignar la contraseña.'))
+      return
+    }
+    setPasswordAsignada(password)
+    void cargar()
+  }
+
   function alternarSeleccion(email: string) {
     setSeleccionados((actuales) => {
       const siguientes = new Set(actuales)
@@ -491,6 +524,14 @@ export function AdminWhitelistPage() {
                     {enviandoBienvenida === e.email ? 'Enviando...' : 'Enviar bienvenida'}
                   </button>
                 )}
+                <button
+                  type="button"
+                  className="admin-table__accion-secundaria"
+                  onClick={() => abrirAsignarPassword(e.email)}
+                  title="Asignarle una contraseña directamente, sin enviar correo"
+                >
+                  Asignar contraseña
+                </button>
                 {e.used_at ? (
                   <button type="button" className="admin-table__accion-eliminar" onClick={() => setEmailPorRevocar(e.email)}>
                     Revocar acceso
@@ -706,6 +747,14 @@ export function AdminWhitelistPage() {
         procesando={revocando}
         onCancelar={() => setEmailPorRevocar(null)}
         onConfirmar={() => emailPorRevocar && revocarAcceso(emailPorRevocar)}
+      />
+      <SetPasswordDialog
+        email={emailParaPassword}
+        procesando={asignandoPassword}
+        error={errorPassword}
+        contrasenaAsignada={passwordAsignada}
+        onConfirmar={confirmarAsignarPassword}
+        onCerrar={cerrarAsignarPassword}
       />
     </div>
   )

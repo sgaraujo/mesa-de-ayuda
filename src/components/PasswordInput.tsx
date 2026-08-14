@@ -1,13 +1,13 @@
-import { useState, type InputHTMLAttributes } from 'react'
+import { forwardRef, useState, type InputHTMLAttributes } from 'react'
 
 type PasswordInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>
 
-export function PasswordInput(props: PasswordInputProps) {
+export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(function PasswordInput(props, ref) {
   const [visible, setVisible] = useState(false)
 
   return (
     <div className="password-input">
-      <input {...props} type={visible ? 'text' : 'password'} />
+      <input {...props} ref={ref} type={visible ? 'text' : 'password'} />
       <button
         type="button"
         className="password-input__toggle"
@@ -29,4 +29,4 @@ export function PasswordInput(props: PasswordInputProps) {
       </button>
     </div>
   )
-}
+})
