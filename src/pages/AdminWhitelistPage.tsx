@@ -6,6 +6,19 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 
 const TAMANO_BLOQUE_EQUIPO = 1000
 
+async function mensajeDeErrorFuncion(error: unknown, fallback: string): Promise<string> {
+  const contexto = (error as { context?: Response } | null)?.context
+  if (contexto && typeof contexto.json === 'function') {
+    try {
+      const cuerpo = await contexto.clone().json()
+      if (typeof cuerpo?.message === 'string' && cuerpo.message.trim()) return cuerpo.message
+    } catch {
+      // La respuesta no era JSON o ya se había leído: usamos el mensaje genérico.
+    }
+  }
+  return fallback
+}
+
 export function AdminWhitelistPage() {
   const { areas } = useAreas()
   const [emails, setEmails] = useState<AllowedEmail[]>([])
@@ -32,18 +45,20 @@ export function AdminWhitelistPage() {
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
   const [enviandoSeleccionados, setEnviandoSeleccionados] = useState(false)
   const [enviandoInvitaciones, setEnviandoInvitaciones] = useState(false)
-  const [mensajeMasivo, setMensajeMasivo] = useState<string | null>(null)
+  const [mensajeMasivo, setMensajeMasivo] = useState<{ texto: string; tipo: 'exito' | 'error' } | null>(null)
   const [emailPorEliminar, setEmailPorEliminar] = useState<string | null>(null)
   const [eliminando, setEliminando] = useState(false)
   const [emailPorRevocar, setEmailPorRevocar] = useState<string | null>(null)
   const [revocando, setRevocando] = useState(false)
-  const [mensajeAccion, setMensajeAccion] = useState<{ email: string; texto: string } | null>(null)
+  const [mensajeAccion, setMensajeAccion] = useState<{ email: string; texto: string; tipo: 'exito' | 'error' } | null>(null)
+  const [actualizando, setActualizando] = useState(false)
   const cargaInicialRef = useRef(true)
   const cargaIdRef = useRef(0)
 
   const cargar = useCallback(async () => {
     const cargaId = ++cargaIdRef.current
     if (cargaInicialRef.current) setLoading(true)
+    else setActualizando(true)
     const offset = pagina * limite
     let consultaSolicitantes = supabase
       .from('allowed_emails')
@@ -91,6 +106,7 @@ export function AdminWhitelistPage() {
     if (resultadoEquipo.error || resultadoSolicitantes.error) setError('No se pudo cargar la whitelist.')
     cargaInicialRef.current = false
     setLoading(false)
+    setActualizando(false)
   }, [busquedaAplicada, limite, pagina])
 
   useEffect(() => {
@@ -209,7 +225,7 @@ export function AdminWhitelistPage() {
       .eq('email', email)
 
     if (error) {
-      setMensajeAccion({ email, texto: 'No se pudo guardar el cambio.' })
+      setMensajeAccion({ email, texto: 'No se pudo guardar el cambio.', tipo: 'error' })
       return
     }
 
@@ -221,7 +237,7 @@ export function AdminWhitelistPage() {
         .eq('email', email)
 
       if (errorPerfil) {
-        setMensajeAccion({ email, texto: 'Se guardó en la whitelist pero no se pudo actualizar el perfil activo.' })
+        setMensajeAccion({ email, texto: 'Se guardó en la whitelist pero no se pudo actualizar el perfil activo.', tipo: 'error' })
         setEditandoEmail(null)
         void cargar()
         return
@@ -278,10 +294,12 @@ export function AdminWhitelistPage() {
     setMensajeAccion(null)
     const { error } = await supabase.functions.invoke('invite-user', { body: { email } })
     setReenviando(null)
-    setMensajeAccion({
-      email,
-      texto: error ? 'No se pudo reenviar. Intenta de nuevo.' : 'Correo reenviado.',
-    })
+    if (error) {
+      const texto = await mensajeDeErrorFuncion(error, 'No se pudo reenviar. Intenta de nuevo.')
+      setMensajeAccion({ email, texto, tipo: 'error' })
+    } else {
+      setMensajeAccion({ email, texto: 'Correo reenviado.', tipo: 'exito' })
+    }
     void cargar()
   }
 
@@ -290,10 +308,12 @@ export function AdminWhitelistPage() {
     setMensajeAccion(null)
     const { error } = await supabase.functions.invoke('send-welcome-email', { body: { email } })
     setEnviandoBienvenida(null)
-    setMensajeAccion({
-      email,
-      texto: error ? 'No se pudo enviar la bienvenida.' : 'Bienvenida enviada.',
-    })
+    if (error) {
+      const texto = await mensajeDeErrorFuncion(error, 'No se pudo enviar la bienvenida.')
+      setMensajeAccion({ email, texto, tipo: 'error' })
+    } else {
+      setMensajeAccion({ email, texto: 'Bienvenida enviada.', tipo: 'exito' })
+    }
   }
 
   function alternarSeleccion(email: string) {
@@ -324,10 +344,14 @@ export function AdminWhitelistPage() {
 
     setEnviandoSeleccionados(false)
     if (fallidos.length === 0) {
-      setMensajeMasivo(`Se enviaron ${destinos.length} correo${destinos.length === 1 ? '' : 's'} de bienvenida.`)
+      setMensajeMasivo({ texto: `Se enviaron ${destinos.length} correo${destinos.length === 1 ? '' : 's'} de bienvenida.`, tipo: 'exito' })
       setSeleccionados(new Set())
     } else {
-      setMensajeMasivo(`Se enviaron ${destinos.length - fallidos.length} de ${destinos.length}. Revisa los correos que fallaron.`)
+      const motivo = await mensajeDeErrorFuncion(fallidos[0].error, 'motivo desconocido')
+      setMensajeMasivo({
+        texto: `Se enviaron ${destinos.length - fallidos.length} de ${destinos.length}. ${fallidos[0].email} falló: ${motivo}${fallidos.length > 1 ? ` (y ${fallidos.length - 1} más)` : ''}.`,
+        tipo: 'error',
+      })
       setSeleccionados(new Set(fallidos.map((resultado) => resultado.email)))
     }
   }
@@ -350,10 +374,14 @@ export function AdminWhitelistPage() {
 
     setEnviandoInvitaciones(false)
     if (fallidos.length === 0) {
-      setMensajeMasivo(`Se enviaron ${destinos.length} invitación${destinos.length === 1 ? '' : 'es'}.`)
+      setMensajeMasivo({ texto: `Se enviaron ${destinos.length} invitación${destinos.length === 1 ? '' : 'es'}.`, tipo: 'exito' })
       setSeleccionados(new Set())
     } else {
-      setMensajeMasivo(`Se enviaron ${destinos.length - fallidos.length} de ${destinos.length} invitaciones. Reintenta las seleccionadas.`)
+      const motivo = await mensajeDeErrorFuncion(fallidos[0].error, 'motivo desconocido')
+      setMensajeMasivo({
+        texto: `Se enviaron ${destinos.length - fallidos.length} de ${destinos.length}. ${fallidos[0].email} falló: ${motivo}${fallidos.length > 1 ? ` (y ${fallidos.length - 1} más)` : ''}.`,
+        tipo: 'error',
+      })
       setSeleccionados(new Set(fallidos.map((resultado) => resultado.email)))
     }
     void cargar()
@@ -475,7 +503,9 @@ export function AdminWhitelistPage() {
               </>
             )}
             {mensajeAccion?.email === e.email && (
-              <span className="admin-table__mensaje">{mensajeAccion.texto}</span>
+              <span className={`admin-table__mensaje admin-table__mensaje--${mensajeAccion.tipo}`} role="status">
+                {mensajeAccion.texto}
+              </span>
             )}
           </div>
         </td>
@@ -584,6 +614,7 @@ export function AdminWhitelistPage() {
             placeholder="jguzman@netcol.net.co"
           />
         </label>
+        {actualizando && <span className="admin-busqueda__estado">Actualizando…</span>}
         {busqueda.trim().includes('@') && (
           <button type="button" className="admin-table__accion-eliminar" onClick={() => setEmailPorRevocar(busqueda.trim().toLowerCase())}>
             Revocar este correo
@@ -615,7 +646,11 @@ export function AdminWhitelistPage() {
             ? 'Enviando...'
             : `Enviar bienvenida (${registradosSeleccionados})`}
         </button>
-        {mensajeMasivo && <span className="admin-envio-bienvenida__mensaje">{mensajeMasivo}</span>}
+        {mensajeMasivo && (
+          <span className={`admin-envio-bienvenida__mensaje admin-envio-bienvenida__mensaje--${mensajeMasivo.tipo}`} role="status">
+            {mensajeMasivo.texto}
+          </span>
+        )}
       </div>
 
       <div className="admin-panels">

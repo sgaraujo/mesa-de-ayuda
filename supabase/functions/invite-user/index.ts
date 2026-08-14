@@ -109,7 +109,10 @@ Deno.serve(async (req) => {
       } catch (graphErr) {
         console.error('Envío por Graph falló para', correo, ':', (graphErr as Error).message)
         return new Response(
-          JSON.stringify({ ok: false, message: 'No se pudo enviar el correo. Intenta más tarde.' }),
+          JSON.stringify({
+            ok: false,
+            message: `No se pudo enviar el correo: ${(graphErr as Error).message}`,
+          }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         )
       }
