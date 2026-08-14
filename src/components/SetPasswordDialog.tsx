@@ -27,12 +27,14 @@ export function SetPasswordDialog({
 }: SetPasswordDialogProps) {
   const [password, setPassword] = useState('')
   const [copiado, setCopiado] = useState(false)
+  const [errorLocal, setErrorLocal] = useState<string | null>(null)
   const primerCampoRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!email) return
     setPassword('')
     setCopiado(false)
+    setErrorLocal(null)
     primerCampoRef.current?.focus()
   }, [email])
 
@@ -96,7 +98,12 @@ export function SetPasswordDialog({
             className="set-password__form"
             onSubmit={(event) => {
               event.preventDefault()
-              if (password.length >= 8) onConfirmar(password)
+              if (password.length < 8) {
+                setErrorLocal('La contraseña debe tener al menos 8 caracteres.')
+                return
+              }
+              setErrorLocal(null)
+              onConfirmar(password)
             }}
           >
             <p className="modal-descripcion">
@@ -107,27 +114,31 @@ export function SetPasswordDialog({
               Contraseña
               <PasswordInput
                 ref={primerCampoRef}
-                required
-                minLength={8}
                 autoComplete="new-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  setErrorLocal(null)
+                }}
                 placeholder="Mínimo 8 caracteres"
               />
             </label>
             <button
               type="button"
               className="admin-table__accion-secundaria set-password__generar"
-              onClick={() => setPassword(generarPassword())}
+              onClick={() => {
+                setPassword(generarPassword())
+                setErrorLocal(null)
+              }}
             >
               Generar una segura
             </button>
-            {error && <p className="auth-error">{error}</p>}
+            {(errorLocal || error) && <p className="auth-error">{errorLocal ?? error}</p>}
             <div className="confirm-dialog__acciones">
               <button type="button" className="confirm-dialog__cancelar" onClick={onCerrar} disabled={procesando}>
                 Cancelar
               </button>
-              <button type="submit" disabled={procesando || password.length < 8}>
+              <button type="submit" disabled={procesando}>
                 {procesando ? 'Asignando...' : 'Asignar contraseña'}
               </button>
             </div>
