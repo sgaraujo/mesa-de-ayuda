@@ -4,8 +4,19 @@ import { useAreas } from '../hooks/useAreas'
 import type { AllowedEmail, Role } from '../types/database'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { SetPasswordDialog } from '../components/SetPasswordDialog'
+import { RowActionsMenu } from '../components/RowActionsMenu'
 
 const TAMANO_BLOQUE_EQUIPO = 1000
+
+const ETIQUETAS_ROL: Record<Role, string> = {
+  admin: 'Admin',
+  agente: 'Agente',
+  solicitante: 'Solicitante',
+}
+
+function etiquetaRol(role: Role) {
+  return ETIQUETAS_ROL[role]
+}
 
 async function mensajeDeErrorFuncion(error: unknown, fallback: string): Promise<string> {
   const contexto = (error as { context?: Response } | null)?.context
@@ -460,7 +471,7 @@ export function AdminWhitelistPage() {
               <option value="admin">Admin</option>
             </select>
           ) : (
-            <span className="admin-table__texto-sutil">{e.role}</span>
+            <span className={`rol-badge rol-badge--${e.role}`}>{etiquetaRol(e.role)}</span>
           )}
         </td>
         <td>
@@ -504,43 +515,59 @@ export function AdminWhitelistPage() {
                 <button type="button" className="admin-table__accion-secundaria" onClick={() => iniciarEdicion(e)}>
                   Editar
                 </button>
-                {!e.used_at && (
+                <RowActionsMenu>
+                  {!e.used_at && (
+                    <button
+                      type="button"
+                      className="row-menu__item"
+                      role="menuitem"
+                      onClick={() => reenviarCorreo(e.email)}
+                      disabled={reenviando === e.email || enviandoInvitaciones}
+                    >
+                      {reenviando === e.email ? 'Enviando...' : 'Reenviar correo'}
+                    </button>
+                  )}
+                  {e.used_at && (
+                    <button
+                      type="button"
+                      className="row-menu__item"
+                      role="menuitem"
+                      onClick={() => enviarBienvenida(e.email)}
+                      disabled={enviandoBienvenida === e.email || enviandoSeleccionados || enviandoInvitaciones}
+                    >
+                      {enviandoBienvenida === e.email ? 'Enviando...' : 'Enviar bienvenida'}
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className="admin-table__accion-secundaria"
-                    onClick={() => reenviarCorreo(e.email)}
-                    disabled={reenviando === e.email || enviandoInvitaciones}
+                    className="row-menu__item"
+                    role="menuitem"
+                    onClick={() => abrirAsignarPassword(e.email)}
+                    title="Asignarle una contraseña directamente, sin enviar correo"
                   >
-                    {reenviando === e.email ? 'Enviando...' : 'Reenviar correo'}
+                    Asignar contraseña
                   </button>
-                )}
-                {e.used_at && (
-                  <button
-                    type="button"
-                    className="admin-table__accion-secundaria"
-                    onClick={() => enviarBienvenida(e.email)}
-                    disabled={enviandoBienvenida === e.email || enviandoSeleccionados || enviandoInvitaciones}
-                  >
-                    {enviandoBienvenida === e.email ? 'Enviando...' : 'Enviar bienvenida'}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="admin-table__accion-secundaria"
-                  onClick={() => abrirAsignarPassword(e.email)}
-                  title="Asignarle una contraseña directamente, sin enviar correo"
-                >
-                  Asignar contraseña
-                </button>
-                {e.used_at ? (
-                  <button type="button" className="admin-table__accion-eliminar" onClick={() => setEmailPorRevocar(e.email)}>
-                    Revocar acceso
-                  </button>
-                ) : (
-                  <button type="button" className="admin-table__accion-eliminar" onClick={() => setEmailPorEliminar(e.email)}>
-                    Eliminar
-                  </button>
-                )}
+                  <div className="row-menu__separador" role="separator" />
+                  {e.used_at ? (
+                    <button
+                      type="button"
+                      className="row-menu__item row-menu__item--peligro"
+                      role="menuitem"
+                      onClick={() => setEmailPorRevocar(e.email)}
+                    >
+                      Revocar acceso
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="row-menu__item row-menu__item--peligro"
+                      role="menuitem"
+                      onClick={() => setEmailPorEliminar(e.email)}
+                    >
+                      Eliminar
+                    </button>
+                  )}
+                </RowActionsMenu>
               </>
             )}
             {mensajeAccion?.email === e.email && (
@@ -592,53 +619,56 @@ export function AdminWhitelistPage() {
     <div className="admin-page">
       <div className="admin-header">
         <h1>Whitelist de correos autorizados</h1>
-        <p className="auth-hint">
-          Solo los correos aquí listados pueden solicitar acceso en /solicitar-acceso. CSV esperado:
-          <code> correo,rol,area</code> (rol: admin, agente o solicitante).
-        </p>
+        <p className="auth-hint">Solo los correos aquí listados pueden solicitar acceso en /solicitar-acceso.</p>
       </div>
 
       <form className="admin-toolbar" onSubmit={agregarCorreo}>
-        <div className="admin-toolbar__campos">
-          <label>
-            Correo
-            <input
-              type="email"
-              required
-              value={nuevoEmail}
-              onChange={(e) => setNuevoEmail(e.target.value)}
-              placeholder="nombre@ejemplo.com"
-            />
-          </label>
-          <label>
-            Rol
-            <select value={nuevoRole} onChange={(e) => setNuevoRole(e.target.value as Role)}>
-              <option value="solicitante">Solicitante</option>
-              <option value="agente">Agente</option>
-              <option value="admin">Admin</option>
-            </select>
-          </label>
-          <label>
-            Área
-            <select value={nuevaArea} onChange={(e) => setNuevaArea(e.target.value)}>
-              <option value="">Sin definir</option>
-              {areas.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
+        <h2 className="admin-toolbar__titulo">Agregar acceso</h2>
+        <div className="admin-toolbar__fila">
+          <div className="admin-toolbar__campos">
+            <label>
+              Correo
+              <input
+                type="email"
+                required
+                value={nuevoEmail}
+                onChange={(e) => setNuevoEmail(e.target.value)}
+                placeholder="nombre@ejemplo.com"
+              />
+            </label>
+            <label>
+              Rol
+              <select value={nuevoRole} onChange={(e) => setNuevoRole(e.target.value as Role)}>
+                <option value="solicitante">Solicitante</option>
+                <option value="agente">Agente</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+            <label>
+              Área
+              <select value={nuevaArea} onChange={(e) => setNuevaArea(e.target.value)}>
+                <option value="">Sin definir</option>
+                {areas.map((area) => (
+                  <option key={area.id} value={area.id}>
+                    {area.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <button type="submit">Agregar correo</button>
         </div>
-        <div className="admin-toolbar__acciones">
+        <div className="admin-toolbar__csv-fila">
           <label className="admin-toolbar__csv">
             {cargandoCsv ? 'Cargando...' : 'Cargar CSV'}
             <input ref={fileInputRef} type="file" accept=".csv,text/csv" onChange={handleCsv} disabled={cargandoCsv} />
           </label>
+          <span className="admin-toolbar__csv-formato">
+            Formato: <code>correo,rol,area</code>
+          </span>
           <a className="admin-toolbar__plantilla" href="/whitelist-ejemplo.csv" download>
             Descargar ejemplo
           </a>
-          <button type="submit">Agregar correo</button>
         </div>
       </form>
 

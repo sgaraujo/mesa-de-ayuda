@@ -1197,7 +1197,6 @@ label {
 /* ---- Admin ---- */
 
 .admin-page {
-  max-width: 1000px;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -1215,15 +1214,30 @@ label {
 
 .admin-toolbar {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.9rem;
   padding: 1.1rem 1.2rem;
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: var(--shadow-sm);
+}
+
+.admin-toolbar__titulo {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.admin-toolbar__fila {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .admin-toolbar__campos {
@@ -1237,10 +1251,22 @@ label {
   min-width: 170px;
 }
 
-.admin-toolbar__acciones {
+.admin-toolbar__csv-fila {
   display: flex;
-  align-items: flex-end;
-  gap: 0.7rem;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+
+.admin-toolbar__csv-formato {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.admin-toolbar__csv-formato code {
+  color: var(--text-secondary);
 }
 
 .admin-toolbar__csv {
@@ -1248,7 +1274,7 @@ label {
   overflow: hidden;
   justify-content: center;
   align-items: center;
-  padding: 0.55rem 0.9rem;
+  padding: 0.5rem 0.85rem;
   border-radius: 8px;
   border: 1px dashed var(--border);
   color: var(--text-muted);
@@ -1263,12 +1289,12 @@ label {
 }
 
 .admin-toolbar__plantilla {
-  padding: 0.55rem 0.2rem;
   color: var(--brand-text);
   font-size: 0.82rem;
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
+  margin-left: auto;
 }
 
 .admin-toolbar__plantilla:hover {
@@ -1293,6 +1319,11 @@ label {
   align-items: flex-end;
   gap: 0.75rem;
   flex-wrap: wrap;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
 }
 
 .admin-busqueda label {
@@ -1466,6 +1497,30 @@ label {
   text-transform: capitalize;
 }
 
+.rol-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.rol-badge--admin {
+  background: color-mix(in srgb, var(--prioridad-urgente) 14%, transparent);
+  color: var(--prioridad-urgente);
+}
+
+.rol-badge--agente {
+  background: color-mix(in srgb, var(--series-1) 14%, transparent);
+  color: var(--series-1);
+}
+
+.rol-badge--solicitante {
+  background: var(--gridline);
+  color: var(--text-secondary);
+}
+
 .admin-persona {
   display: flex;
   align-items: center;
@@ -1558,6 +1613,72 @@ label {
   color: var(--prioridad-urgente);
 }
 
+.row-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.row-menu__disparador {
+  padding: 0.32rem 0.55rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.row-menu__disparador[aria-expanded='true'] {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+  color: var(--brand-text);
+}
+
+.row-menu__lista {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  padding: 0.35rem;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+}
+
+.row-menu__item {
+  justify-content: flex-start;
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.row-menu__item:hover:not(:disabled) {
+  background: var(--brand-soft);
+  filter: none;
+}
+
+.row-menu__item--peligro {
+  color: var(--prioridad-urgente);
+}
+
+.row-menu__item--peligro:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--prioridad-urgente) 12%, transparent);
+}
+
+.row-menu__separador {
+  height: 1px;
+  margin: 0.3rem 0.2rem;
+  background: var(--border);
+}
+
 /* ---- Mobile ---- */
 
 @media (max-width: 720px) {
@@ -1608,7 +1729,7 @@ label {
     min-height: 0;
   }
 
-  .admin-toolbar {
+  .admin-toolbar__fila {
     flex-direction: column;
     align-items: stretch;
   }
@@ -1618,8 +1739,16 @@ label {
     width: 100%;
   }
 
-  .admin-toolbar__acciones {
+  .admin-toolbar__fila > button {
+    width: 100%;
+  }
+
+  .admin-toolbar__csv-fila {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .admin-toolbar__plantilla {
+    margin-left: 0;
   }
 }

@@ -65,9 +65,18 @@ Deno.serve(async (req) => {
       const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(perfil.id, {
         password,
         email_confirm: true,
+        ban_duration: 'none',
       })
       if (updateError) {
         return json({ ok: false, message: 'No se pudo asignar la contraseña: ' + updateError.message }, 500)
+      }
+
+      const { error: reactivarError } = await supabaseAdmin
+        .from('profiles')
+        .update({ activo: true })
+        .eq('id', perfil.id)
+      if (reactivarError) {
+        return json({ ok: false, message: 'La contraseña se asignó, pero no se pudo reactivar el perfil: ' + reactivarError.message }, 500)
       }
     } else {
       const { error: createError } = await supabaseAdmin.auth.admin.createUser({
