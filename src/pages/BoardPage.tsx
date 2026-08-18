@@ -301,11 +301,17 @@ export function BoardPage() {
         <TicketDetalleModal
           ticket={ticketSeleccionado}
           puedeEditarTiempos={profile?.role === 'agente' || profile?.role === 'admin'}
+          puedeEliminar={esAdmin}
           onClose={() => setTicketSeleccionado(null)}
           onGuardado={(actualizado) => {
             setTickets((prev) => prev.map((t) => (t.id === actualizado.id ? { ...t, ...actualizado } : t)))
             setTicketSeleccionado(null)
             void notificarCambio(actualizado.id)
+          }}
+          onEliminado={(ticketId) => {
+            setTickets((prev) => prev.filter((t) => t.id !== ticketId))
+            setTicketSeleccionado(null)
+            void notificarCambio(ticketId)
           }}
         />
       )}

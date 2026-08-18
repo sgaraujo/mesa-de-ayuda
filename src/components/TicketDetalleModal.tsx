@@ -44,15 +44,19 @@ function formatearTiempo(horas: number | null): string {
 interface TicketDetalleModalProps {
   ticket: TicketConRelaciones
   puedeEditarTiempos: boolean
+  puedeEliminar: boolean
   onClose: () => void
   onGuardado: (ticket: TicketConRelaciones) => void
+  onEliminado: (ticketId: string) => void
 }
 
 export function TicketDetalleModal({
   ticket,
   puedeEditarTiempos,
+  puedeEliminar,
   onClose,
   onGuardado,
+  onEliminado,
 }: TicketDetalleModalProps) {
   const { areas } = useAreas()
   const { proyectos, recargar: recargarProyectos } = useProyectos()
@@ -70,6 +74,7 @@ export function TicketDetalleModal({
   const [tiempoEjecutadoHoras, setTiempoEjecutadoHoras] = useState(ejecutadoInicialHoras)
   const [tiempoEjecutadoMinutos, setTiempoEjecutadoMinutos] = useState(ejecutadoInicialMinutos)
   const [guardando, setGuardando] = useState(false)
+  const [eliminando, setEliminando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function alternarMiembro(id: string) {
@@ -152,6 +157,22 @@ export function TicketDetalleModal({
     })
   }
 
+  async function handleEliminar() {
+    if (!confirm('¿Eliminar esta solicitud de forma permanente? Esta acción no se puede deshacer.')) return
+    setError(null)
+    setEliminando(true)
+
+    const { error: errorEliminar } = await supabase.from('tickets').delete().eq('id', ticket.id)
+
+    if (errorEliminar) {
+      setEliminando(false)
+      setError('No se pudo eliminar. Intenta de nuevo.')
+      return
+    }
+
+    onEliminado(ticket.id)
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
@@ -159,9 +180,21 @@ export function TicketDetalleModal({
           <span className={`badge badge--prioridad-${ticket.prioridad}`}>
             {PRIORIDAD_LABEL[ticket.prioridad]}
           </span>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Cerrar">
-            ×
-          </button>
+          <div className="modal-panel__header-acciones">
+            {puedeEliminar && (
+              <button
+                type="button"
+                className="modal-eliminar"
+                onClick={handleEliminar}
+                disabled={eliminando}
+              >
+                {eliminando ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            )}
+            <button type="button" className="modal-close" onClick={onClose} aria-label="Cerrar">
+              ×
+            </button>
+          </div>
         </div>
 
         <h2>{ticket.titulo}</h2>
