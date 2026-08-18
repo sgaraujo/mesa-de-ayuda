@@ -51,6 +51,7 @@ function claveFecha(fecha: Date, agrupacion: Agrupacion): string {
 export function serieTemporal(
   tickets: { created_at: string; finalizado_at: string | null }[],
   agrupacion: Agrupacion,
+  rango: RangoFecha = 'todo',
 ): PuntoSerieTemporal[] {
   const mapa = new Map<string, { creados: number; resueltos: number }>()
 
@@ -61,8 +62,10 @@ export function serieTemporal(
   }
 
   for (const t of tickets) {
-    sumar(claveFecha(new Date(t.created_at), agrupacion), 'creados')
-    if (t.finalizado_at) {
+    if (dentroDeRango(t.created_at, rango)) {
+      sumar(claveFecha(new Date(t.created_at), agrupacion), 'creados')
+    }
+    if (t.finalizado_at && dentroDeRango(t.finalizado_at, rango)) {
       sumar(claveFecha(new Date(t.finalizado_at), agrupacion), 'resueltos')
     }
   }

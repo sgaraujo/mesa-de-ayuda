@@ -100,7 +100,7 @@ export function StatsPage() {
   const porProyecto = contarPor(ticketsFiltrados, (t) => t.proyecto?.nombre ?? null)
   const porPersonaResuelto = contarPorPersonaAsignada(ticketsBase.filter((t) => t.estado === 'finalizado'))
   const agrupacionTendencia: Agrupacion = filtroRango === 'todo' ? 'mes' : 'dia'
-  const tendencia = serieTemporal(ticketsBase, agrupacionTendencia)
+  const tendencia = serieTemporal(ticketsBase, agrupacionTendencia, filtroRango)
 
   return (
     <div className="stats-page">
