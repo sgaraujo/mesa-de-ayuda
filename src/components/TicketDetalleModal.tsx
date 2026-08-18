@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAreas } from '../hooks/useAreas'
 import { useProyectos } from '../hooks/useProyectos'
 import { useAgentes } from '../hooks/useAgentes'
-import { nombresAsignados } from '../lib/ticket'
+import { esImagenAdjunta, nombresAsignados } from '../lib/ticket'
 import { notificarAsignacion } from '../lib/notificaciones'
 import type { TicketConRelaciones } from '../types/database'
 
@@ -200,10 +200,20 @@ export function TicketDetalleModal({
         <h2>{ticket.titulo}</h2>
         <p className="modal-descripcion">{ticket.descripcion}</p>
 
-        {ticket.imagen_url && (
-          <a href={ticket.imagen_url} target="_blank" rel="noreferrer" className="modal-imagen-link">
-            <img src={ticket.imagen_url} alt="Adjunto de la solicitud" className="modal-imagen" />
-          </a>
+        {ticket.archivo_url && (
+          esImagenAdjunta(ticket.archivo_url) ? (
+            <a href={ticket.archivo_url} target="_blank" rel="noreferrer" className="modal-archivo-link">
+              <img src={ticket.archivo_url} alt="Adjunto de la solicitud" className="modal-archivo-imagen" />
+            </a>
+          ) : (
+            <a href={ticket.archivo_url} target="_blank" rel="noreferrer" className="modal-archivo-documento">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                <path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+                <path d="M14 3v5h5" />
+              </svg>
+              Ver archivo adjunto
+            </a>
+          )
         )}
 
         <dl className="modal-detalles">

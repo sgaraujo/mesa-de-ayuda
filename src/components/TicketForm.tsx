@@ -5,7 +5,15 @@ import { useAreas } from '../hooks/useAreas'
 import type { Prioridad } from '../types/database'
 import { notificarAsignacion, notificarNuevaTarea } from '../lib/notificaciones'
 
-const IMAGEN_MAX_MB = 5
+const ARCHIVO_MAX_MB = 10
+const EXTENSIONES_PERMITIDAS = [
+  'png', 'jpg', 'jpeg', 'webp', 'gif',
+  'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'zip',
+]
+
+function extensionDe(nombreArchivo: string): string {
+  return nombreArchivo.includes('.') ? nombreArchivo.split('.').pop()!.toLowerCase() : ''
+}
 
 interface TicketFormProps {
   asignadoAPorDefecto?: string
@@ -21,55 +29,55 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
   const [descripcion, setDescripcion] = useState('')
   const [areaId, setAreaId] = useState('')
   const [prioridad, setPrioridad] = useState<Prioridad>('media')
-  const [imagen, setImagen] = useState<File | null>(null)
-  const [imagenPreview, setImagenPreview] = useState<string | null>(null)
-  const [arrastrandoImagen, setArrastrandoImagen] = useState(false)
+  const [archivo, setArchivo] = useState<File | null>(null)
+  const [archivoPreview, setArchivoPreview] = useState<string | null>(null)
+  const [arrastrandoArchivo, setArrastrandoArchivo] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exito, setExito] = useState(false)
-  const imagenInputRef = useRef<HTMLInputElement>(null)
+  const archivoInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!imagen) {
-      setImagenPreview(null)
+    if (!archivo || !archivo.type.startsWith('image/')) {
+      setArchivoPreview(null)
       return
     }
-    const url = URL.createObjectURL(imagen)
-    setImagenPreview(url)
+    const url = URL.createObjectURL(archivo)
+    setArchivoPreview(url)
     return () => URL.revokeObjectURL(url)
-  }, [imagen])
+  }, [archivo])
 
-  function seleccionarImagen(file: File | null) {
-    if (file && !file.type.startsWith('image/')) {
-      setError('El archivo debe ser una imagen.')
-      if (imagenInputRef.current) imagenInputRef.current.value = ''
-      setImagen(null)
+  function seleccionarArchivo(file: File | null) {
+    if (file && !EXTENSIONES_PERMITIDAS.includes(extensionDe(file.name))) {
+      setError('Formato no permitido. Usa imagen, PDF, Word, Excel, PowerPoint, TXT, CSV o ZIP.')
+      if (archivoInputRef.current) archivoInputRef.current.value = ''
+      setArchivo(null)
       return
     }
-    if (file && file.size > IMAGEN_MAX_MB * 1024 * 1024) {
-      setError(`La imagen no puede pesar más de ${IMAGEN_MAX_MB} MB.`)
-      if (imagenInputRef.current) imagenInputRef.current.value = ''
-      setImagen(null)
+    if (file && file.size > ARCHIVO_MAX_MB * 1024 * 1024) {
+      setError(`El archivo no puede pesar más de ${ARCHIVO_MAX_MB} MB.`)
+      if (archivoInputRef.current) archivoInputRef.current.value = ''
+      setArchivo(null)
       return
     }
     setError(null)
-    setImagen(file)
+    setArchivo(file)
   }
 
-  function handleImagenChange(e: ChangeEvent<HTMLInputElement>) {
-    seleccionarImagen(e.target.files?.[0] ?? null)
+  function handleArchivoChange(e: ChangeEvent<HTMLInputElement>) {
+    seleccionarArchivo(e.target.files?.[0] ?? null)
   }
 
-  function handleImagenDrop(e: DragEvent<HTMLDivElement>) {
+  function handleArchivoDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault()
-    setArrastrandoImagen(false)
-    seleccionarImagen(e.dataTransfer.files?.[0] ?? null)
+    setArrastrandoArchivo(false)
+    seleccionarArchivo(e.dataTransfer.files?.[0] ?? null)
   }
 
-  function quitarImagen() {
-    setImagen(null)
+  function quitarArchivo() {
+    setArchivo(null)
     setError(null)
-    if (imagenInputRef.current) imagenInputRef.current.value = ''
+    if (archivoInputRef.current) archivoInputRef.current.value = ''
   }
 
   function pesoLegible(bytes: number) {
@@ -85,18 +93,17 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
     setEnviando(true)
     const puedeAutoasignarse = profile.role === 'agente' || profile.role === 'admin'
 
-    let imagenUrl: string | null = null
-    if (imagen) {
-      const extension = imagen.name.includes('.') ? imagen.name.split('.').pop() : 'jpg'
-      const ruta = `${crypto.randomUUID()}.${extension}`
-      const { error: errorSubida } = await supabase.storage.from('ticket-imagenes').upload(ruta, imagen)
+    let archivoUrl: string | null = null
+    if (archivo) {
+      const ruta = `${crypto.randomUUID()}.${extensionDe(archivo.name)}`
+      const { error: errorSubida } = await supabase.storage.from('ticket-imagenes').upload(ruta, archivo)
 
       if (errorSubida) {
         setEnviando(false)
-        setError('No se pudo subir la imagen. Intenta de nuevo.')
+        setError('No se pudo subir el archivo. Intenta de nuevo.')
         return
       }
-      imagenUrl = supabase.storage.from('ticket-imagenes').getPublicUrl(ruta).data.publicUrl
+      archivoUrl = supabase.storage.from('ticket-imagenes').getPublicUrl(ruta).data.publicUrl
     }
 
     const asignadoA = puedeAutoasignarse ? asignadoAPorDefecto || null : null
@@ -111,7 +118,7 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
         asignado_a: asignadoA,
         prioridad,
         estado: 'pendiente',
-        imagen_url: imagenUrl,
+        archivo_url: archivoUrl,
       })
       .select('id')
       .single()
@@ -132,8 +139,8 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
     setDescripcion('')
     setAreaId('')
     setPrioridad('media')
-    setImagen(null)
-    if (imagenInputRef.current) imagenInputRef.current.value = ''
+    setArchivo(null)
+    if (archivoInputRef.current) archivoInputRef.current.value = ''
     setTimeout(() => onCreado?.(), 900)
   }
 
@@ -177,37 +184,37 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
         </label>
       </div>
       <div className="ticket-form__attachment-field">
-        <span className="ticket-form__attachment-label">Adjuntar imagen <small>Opcional</small></span>
+        <span className="ticket-form__attachment-label">Adjuntar archivo <small>Opcional</small></span>
         <input
-          ref={imagenInputRef}
+          ref={archivoInputRef}
           type="file"
-          accept="image/*"
-          onChange={handleImagenChange}
+          accept={EXTENSIONES_PERMITIDAS.map((ext) => `.${ext}`).join(',')}
+          onChange={handleArchivoChange}
           className="ticket-form__file-input"
           tabIndex={-1}
         />
-        {!imagen ? (
+        {!archivo ? (
           <div
-            className={`ticket-form__dropzone${arrastrandoImagen ? ' ticket-form__dropzone--activo' : ''}`}
+            className={`ticket-form__dropzone${arrastrandoArchivo ? ' ticket-form__dropzone--activo' : ''}`}
             role="button"
             tabIndex={0}
-            aria-label="Seleccionar una imagen para adjuntar"
-            onClick={() => imagenInputRef.current?.click()}
+            aria-label="Seleccionar un archivo para adjuntar"
+            onClick={() => archivoInputRef.current?.click()}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
-                imagenInputRef.current?.click()
+                archivoInputRef.current?.click()
               }
             }}
             onDragEnter={(e) => {
               e.preventDefault()
-              setArrastrandoImagen(true)
+              setArrastrandoArchivo(true)
             }}
             onDragOver={(e) => e.preventDefault()}
             onDragLeave={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) setArrastrandoImagen(false)
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) setArrastrandoArchivo(false)
             }}
-            onDrop={handleImagenDrop}
+            onDrop={handleArchivoDrop}
           >
             <div className="ticket-form__attachment-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -215,19 +222,28 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
               </svg>
             </div>
             <div>
-              <p>Arrastra una imagen aquí o</p>
-              <span className="ticket-form__file-button">Seleccionar imagen</span>
+              <p>Arrastra un archivo aquí o</p>
+              <span className="ticket-form__file-button">Seleccionar archivo</span>
             </div>
-            <span>PNG, JPG, WEBP o GIF · máximo {IMAGEN_MAX_MB} MB</span>
+            <span>Imagen, PDF, Word, Excel, PowerPoint, TXT, CSV o ZIP · máximo {ARCHIVO_MAX_MB} MB</span>
           </div>
         ) : (
           <div className="ticket-form__attachment-file">
-            {imagenPreview && <img src={imagenPreview} alt="Vista previa" className="ticket-form__imagen-preview" />}
+            {archivoPreview ? (
+              <img src={archivoPreview} alt="Vista previa" className="ticket-form__archivo-preview" />
+            ) : (
+              <div className="ticket-form__archivo-icono" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                  <path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+                  <path d="M14 3v5h5" />
+                </svg>
+              </div>
+            )}
             <div className="ticket-form__attachment-info">
-              <strong title={imagen.name}>{imagen.name}</strong>
-              <span>{pesoLegible(imagen.size)}</span>
+              <strong title={archivo.name}>{archivo.name}</strong>
+              <span>{pesoLegible(archivo.size)}</span>
             </div>
-            <button type="button" className="ticket-form__attachment-remove" onClick={quitarImagen} aria-label={`Quitar ${imagen.name}`}>
+            <button type="button" className="ticket-form__attachment-remove" onClick={quitarArchivo} aria-label={`Quitar ${archivo.name}`}>
               ×
             </button>
           </div>

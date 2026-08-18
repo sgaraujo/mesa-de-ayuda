@@ -13,3 +13,10 @@ export function nombresAsignados(ticket: TicketConRelaciones): string[] {
 export function estaSinAsignar(ticket: TicketConRelaciones): boolean {
   return !ticket.es_grupal && ticket.asignado_a === null
 }
+
+const EXTENSIONES_IMAGEN = ['png', 'jpg', 'jpeg', 'webp', 'gif']
+
+export function esImagenAdjunta(url: string): boolean {
+  const extension = url.split('?')[0].split('.').pop()?.toLowerCase() ?? ''
+  return EXTENSIONES_IMAGEN.includes(extension)
+}

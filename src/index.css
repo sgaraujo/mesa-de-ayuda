@@ -503,13 +503,30 @@ label {
   background: var(--surface-page);
 }
 
-.ticket-form__imagen-preview {
+.ticket-form__archivo-preview {
   flex-shrink: 0;
   width: 52px;
   height: 52px;
   border-radius: 7px;
   border: 1px solid var(--border);
   object-fit: cover;
+}
+
+.ticket-form__archivo-icono {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+}
+
+.ticket-form__archivo-icono svg {
+  width: 1.4rem;
+  height: 1.4rem;
 }
 
 .ticket-form__attachment-info {
@@ -889,17 +906,37 @@ label {
   margin: 0 0 1rem;
 }
 
-.modal-imagen-link {
+.modal-archivo-link {
   display: block;
   margin: 0 0 1.2rem;
 }
 
-.modal-imagen {
+.modal-archivo-imagen {
   max-width: 100%;
   max-height: 320px;
   border-radius: 10px;
   border: 1px solid var(--border);
   object-fit: contain;
+}
+
+.modal-archivo-documento {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1.2rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-page);
+  color: var(--brand-text);
+  font-size: 0.87rem;
+  font-weight: 600;
+}
+
+.modal-archivo-documento svg {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex-shrink: 0;
 }
 
 .modal-detalles {
