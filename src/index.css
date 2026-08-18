@@ -336,6 +336,11 @@ label {
   background: transparent;
   color: var(--text-muted);
   transform: translateY(-50%);
+  transition: none;
+}
+
+.password-input__toggle:active:not(:disabled) {
+  transform: translateY(-50%);
 }
 
 .password-input__toggle:hover:not(:disabled),
