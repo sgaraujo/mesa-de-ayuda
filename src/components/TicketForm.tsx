@@ -15,6 +15,7 @@ interface TicketFormProps {
 export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormProps) {
   const { profile } = useAuth()
   const { areas } = useAreas()
+  const esSolicitante = profile?.role === 'solicitante'
 
   const [titulo, setTitulo] = useState('')
   const [descripcion, setDescripcion] = useState('')
@@ -152,17 +153,19 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
         />
       </label>
       <div className="ticket-form__row">
-        <label>
-          Área responsable
-          <select value={areaId} onChange={(e) => setAreaId(e.target.value)}>
-            <option value="">Sin definir</option>
-            {areas.map((area) => (
-              <option key={area.id} value={area.id}>
-                {area.nombre}
-              </option>
-            ))}
-          </select>
-        </label>
+        {!esSolicitante && (
+          <label>
+            Área responsable
+            <select value={areaId} onChange={(e) => setAreaId(e.target.value)}>
+              <option value="">Sin definir</option>
+              {areas.map((area) => (
+                <option key={area.id} value={area.id}>
+                  {area.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
           Prioridad
           <select value={prioridad} onChange={(e) => setPrioridad(e.target.value as Prioridad)}>
