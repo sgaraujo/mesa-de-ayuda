@@ -854,6 +854,12 @@ label {
   justify-content: space-between;
 }
 
+.modal-panel__header-acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .modal-close {
   background: transparent;
   color: var(--text-muted);
@@ -861,6 +867,20 @@ label {
   padding: 0.1rem 0.5rem;
   font-size: 1.3rem;
   line-height: 1;
+}
+
+.modal-eliminar {
+  background: transparent;
+  color: #dc2626;
+  border: 1px solid #dc2626;
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.modal-eliminar:disabled {
+  opacity: 0.6;
 }
 
 .modal-descripcion {
