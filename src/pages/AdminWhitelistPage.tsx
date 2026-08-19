@@ -32,7 +32,10 @@ async function mensajeDeErrorFuncion(error: unknown, fallback: string): Promise<
 }
 
 export function AdminWhitelistPage() {
-  const { areas } = useAreas()
+  const { areas, recargar: recargarAreas } = useAreas()
+  const [nuevaAreaNombre, setNuevaAreaNombre] = useState('')
+  const [creandoArea, setCreandoArea] = useState(false)
+  const [errorArea, setErrorArea] = useState<string | null>(null)
   const [emails, setEmails] = useState<AllowedEmail[]>([])
   const [loading, setLoading] = useState(true)
   const [pagina, setPagina] = useState(0)
@@ -157,6 +160,26 @@ export function AdminWhitelistPage() {
 
     setNuevoEmail('')
     void cargar()
+  }
+
+  async function agregarArea(e: FormEvent) {
+    e.preventDefault()
+    setErrorArea(null)
+    const nombre = nuevaAreaNombre.trim()
+    if (!nombre) return
+
+    setCreandoArea(true)
+    const siguienteOrden = areas.reduce((max, area) => Math.max(max, area.orden), 0) + 1
+    const { error } = await supabase.from('areas').insert({ nombre, orden: siguienteOrden })
+    setCreandoArea(false)
+
+    if (error) {
+      setErrorArea(error.code === '23505' ? 'Ya existe un área con ese nombre.' : 'No se pudo crear el área.')
+      return
+    }
+
+    setNuevaAreaNombre('')
+    void recargarAreas()
   }
 
   async function handleCsv(e: ChangeEvent<HTMLInputElement>) {
@@ -621,6 +644,28 @@ export function AdminWhitelistPage() {
         <h1>Whitelist de correos autorizados</h1>
         <p className="auth-hint">Solo los correos aquí listados pueden solicitar acceso en /solicitar-acceso.</p>
       </div>
+
+      <form className="admin-toolbar" onSubmit={agregarArea}>
+        <h2 className="admin-toolbar__titulo">Agregar área</h2>
+        <div className="admin-toolbar__fila">
+          <div className="admin-toolbar__campos">
+            <label>
+              Nombre del área
+              <input
+                required
+                value={nuevaAreaNombre}
+                onChange={(e) => setNuevaAreaNombre(e.target.value)}
+                placeholder="Ej. Mercadeo"
+                maxLength={80}
+              />
+            </label>
+          </div>
+          <button type="submit" disabled={creandoArea}>
+            {creandoArea ? 'Creando...' : 'Agregar área'}
+          </button>
+        </div>
+        {errorArea && <p className="auth-error">{errorArea}</p>}
+      </form>
 
       <form className="admin-toolbar" onSubmit={agregarCorreo}>
         <h2 className="admin-toolbar__titulo">Agregar acceso</h2>
