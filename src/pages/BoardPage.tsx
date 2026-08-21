@@ -5,10 +5,11 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useAreas } from '../hooks/useAreas'
 import { useAgentes } from '../hooks/useAgentes'
-import { notificarAsignacion } from '../lib/notificaciones'
+import { notificarAsignacion, notificarFinalizacion } from '../lib/notificaciones'
 import { KanbanColumn, type ColumnaId } from '../components/KanbanColumn'
 import { TicketDetalleModal } from '../components/TicketDetalleModal'
 import { NuevaTareaModal } from '../components/NuevaTareaModal'
+import { FinalizarTicketModal } from '../components/FinalizarTicketModal'
 import { estaSinAsignar } from '../lib/ticket'
 import type { Estado, TicketConRelaciones } from '../types/database'
 
@@ -50,6 +51,14 @@ export function BoardPage() {
   const [vistaHistorial, setVistaHistorial] = useState(false)
   const [ticketSeleccionado, setTicketSeleccionado] = useState<TicketConRelaciones | null>(null)
   const [mostrarNuevaTarea, setMostrarNuevaTarea] = useState(false)
+  const [ticketAFinalizar, setTicketAFinalizar] = useState<{
+    ticketId: string
+    titulo: string
+    cambios: Record<string, unknown>
+    estadoAnterior: Estado
+  } | null>(null)
+  const [finalizando, setFinalizando] = useState(false)
+  const [errorFinalizar, setErrorFinalizar] = useState<string | null>(null)
   const boardChannel = useRef<RealtimeChannel | null>(null)
   const idsPendientes = useRef<Set<string>>(new Set())
   const recargaPendiente = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -183,16 +192,24 @@ export function BoardPage() {
     if (ticket.es_grupal) {
       if (destino === 'tareas' || ticket.estado === destino) return
       const nuevoEstado = destino as Estado
-      const finalizadoAt = nuevoEstado === 'finalizado' ? new Date().toISOString() : null
+
+      if (nuevoEstado === 'finalizado') {
+        setErrorFinalizar(null)
+        setTicketAFinalizar({
+          ticketId,
+          titulo: ticket.titulo,
+          cambios: { estado: nuevoEstado, finalizado_at: new Date().toISOString() },
+          estadoAnterior: ticket.estado,
+        })
+        return
+      }
+
       setTickets((prev) => prev.map((t) => (
-        t.id === ticketId ? { ...t, estado: nuevoEstado, finalizado_at: finalizadoAt } : t
+        t.id === ticketId ? { ...t, estado: nuevoEstado, finalizado_at: null } : t
       )))
       await supabase
         .from('tickets')
-        .update({
-          estado: nuevoEstado,
-          finalizado_at: finalizadoAt,
-        })
+        .update({ estado: nuevoEstado, finalizado_at: null })
         .eq('id', ticketId)
       await supabase.from('ticket_status_history').insert({
         ticket_id: ticketId,
@@ -225,6 +242,12 @@ export function BoardPage() {
     // Soltar un ticket de "Tareas" en cualquier columna lo asigna a quien lo tomó.
     if (estabaSinAsignar) cambios.asignado_a = profile?.id ?? null
 
+    if (nuevoEstado === 'finalizado') {
+      setErrorFinalizar(null)
+      setTicketAFinalizar({ ticketId, titulo: ticket.titulo, cambios, estadoAnterior: ticket.estado })
+      return
+    }
+
     setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, ...cambios } : t)))
     await supabase.from('tickets').update(cambios).eq('id', ticketId)
 
@@ -238,6 +261,38 @@ export function BoardPage() {
       })
     }
     await notificarCambio(ticketId)
+  }
+
+  async function confirmarFinalizacion(nota: string) {
+    if (!ticketAFinalizar) return
+    const { ticketId, cambios, estadoAnterior } = ticketAFinalizar
+    setFinalizando(true)
+    setErrorFinalizar(null)
+
+    const cambiosFinales = { ...cambios, nota_finalizacion: nota || null }
+    const { error } = await supabase.from('tickets').update(cambiosFinales).eq('id', ticketId)
+
+    if (error) {
+      setFinalizando(false)
+      setErrorFinalizar('No se pudo finalizar la tarea. Intenta de nuevo.')
+      return
+    }
+
+    setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, ...cambiosFinales } : t)))
+
+    if (cambios.asignado_a && profile?.id) void notificarAsignacion(ticketId, [profile.id])
+    if (estadoAnterior !== 'finalizado') {
+      await supabase.from('ticket_status_history').insert({
+        ticket_id: ticketId,
+        estado: 'finalizado',
+        changed_by: profile?.id ?? null,
+      })
+    }
+    void notificarFinalizacion(ticketId)
+    await notificarCambio(ticketId)
+
+    setFinalizando(false)
+    setTicketAFinalizar(null)
   }
 
   if (loading) return <div className="pantalla-carga">Cargando tablero...</div>
@@ -322,6 +377,20 @@ export function BoardPage() {
           onCreado={() => {
             setMostrarNuevaTarea(false)
             void cargarTickets()
+          }}
+        />
+      )}
+
+      {ticketAFinalizar && (
+        <FinalizarTicketModal
+          tituloTicket={ticketAFinalizar.titulo}
+          guardando={finalizando}
+          error={errorFinalizar}
+          onConfirmar={(nota) => void confirmarFinalizacion(nota)}
+          onCancelar={() => {
+            if (finalizando) return
+            setTicketAFinalizar(null)
+            setErrorFinalizar(null)
           }}
         />
       )}

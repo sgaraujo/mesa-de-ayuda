@@ -43,6 +43,7 @@ export interface Ticket {
   tiempo_propuesto_horas: number | null
   tiempo_ejecutado_horas: number | null
   archivo_url: string | null
+  nota_finalizacion: string | null
 }
 
 export interface TicketConRelaciones extends Ticket {

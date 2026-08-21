@@ -229,6 +229,13 @@ export function TicketDetalleModal({
           <dt>Para cuándo se necesita</dt>
           <dd>{formatearFecha(ticket.fecha_requerida)}</dd>
 
+          {ticket.estado === 'finalizado' && ticket.nota_finalizacion && (
+            <>
+              <dt>Nota de finalización</dt>
+              <dd>{ticket.nota_finalizacion}</dd>
+            </>
+          )}
+
           {!puedeEditarTiempos && (
             <>
               <dt>Área</dt>

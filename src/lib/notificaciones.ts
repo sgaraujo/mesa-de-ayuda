@@ -18,3 +18,11 @@ export async function notificarNuevaTarea(ticketId: string) {
 
   if (error) console.error('No se pudo enviar la notificación de nueva tarea:', error.message)
 }
+
+export async function notificarFinalizacion(ticketId: string) {
+  const { error } = await supabase.functions.invoke('notify-finalizacion', {
+    body: { ticketId },
+  })
+
+  if (error) console.error('No se pudo enviar la notificación de finalización:', error.message)
+}
