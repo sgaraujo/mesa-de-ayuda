@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAreas } from '../hooks/useAreas'
-import type { AllowedEmail, Role } from '../types/database'
+import type { Area, AllowedEmail, Role } from '../types/database'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { SetPasswordDialog } from '../components/SetPasswordDialog'
 import { RowActionsMenu } from '../components/RowActionsMenu'
@@ -38,6 +38,9 @@ export function AdminWhitelistPage() {
   const [nuevaAreaNombre, setNuevaAreaNombre] = useState('')
   const [creandoArea, setCreandoArea] = useState(false)
   const [errorArea, setErrorArea] = useState<string | null>(null)
+  const [areaPorEliminar, setAreaPorEliminar] = useState<Area | null>(null)
+  const [eliminandoArea, setEliminandoArea] = useState(false)
+  const [errorEliminarArea, setErrorEliminarArea] = useState<string | null>(null)
   const [emails, setEmails] = useState<AllowedEmail[]>([])
   const [loading, setLoading] = useState(true)
   const [pagina, setPagina] = useState(0)
@@ -185,6 +188,25 @@ export function AdminWhitelistPage() {
     }
 
     setNuevaAreaNombre('')
+    void recargarAreas()
+  }
+
+  async function eliminarArea(area: Area) {
+    setEliminandoArea(true)
+    setErrorEliminarArea(null)
+    const { error } = await supabase.from('areas').delete().eq('id', area.id)
+    setEliminandoArea(false)
+
+    if (error) {
+      setErrorEliminarArea(
+        error.code === '23503'
+          ? `No se puede eliminar "${area.nombre}": hay correos, perfiles o tareas usando esta área.`
+          : 'No se pudo eliminar el área.',
+      )
+      return
+    }
+
+    setAreaPorEliminar(null)
     void recargarAreas()
   }
 
@@ -655,7 +677,10 @@ export function AdminWhitelistPage() {
           <button
             type="button"
             className="admin-header__accion-secundaria"
-            onClick={() => setMostrarAreas((actual) => !actual)}
+            onClick={() => {
+              setMostrarAreas((actual) => !actual)
+              setErrorEliminarArea(null)
+            }}
             aria-expanded={mostrarAreas}
           >
             Gestionar áreas
@@ -692,6 +717,24 @@ export function AdminWhitelistPage() {
             </button>
           </div>
           {errorArea && <p className="auth-error">{errorArea}</p>}
+
+          <div className="admin-areas-lista">
+            {areas.map((area) => (
+              <span key={area.id} className="admin-areas-lista__item">
+                {area.nombre}
+                <button
+                  type="button"
+                  className="admin-areas-lista__eliminar"
+                  aria-label={`Eliminar área ${area.nombre}`}
+                  onClick={() => setAreaPorEliminar(area)}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            {areas.length === 0 && <span className="admin-table__texto-sutil">No hay áreas creadas.</span>}
+          </div>
+          {errorEliminarArea && <p className="auth-error">{errorEliminarArea}</p>}
         </form>
       )}
 
@@ -906,6 +949,15 @@ export function AdminWhitelistPage() {
         procesando={revocando}
         onCancelar={() => setEmailPorRevocar(null)}
         onConfirmar={() => emailPorRevocar && revocarAcceso(emailPorRevocar)}
+      />
+      <ConfirmDialog
+        abierto={areaPorEliminar !== null}
+        titulo="Eliminar área"
+        descripcion={`¿Quieres eliminar el área "${areaPorEliminar?.nombre ?? ''}"? Esta acción no se puede deshacer.`}
+        textoConfirmar="Eliminar área"
+        procesando={eliminandoArea}
+        onCancelar={() => setAreaPorEliminar(null)}
+        onConfirmar={() => areaPorEliminar && eliminarArea(areaPorEliminar)}
       />
       <SetPasswordDialog
         email={emailParaPassword}
