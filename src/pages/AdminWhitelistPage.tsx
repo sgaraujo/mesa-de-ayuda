@@ -14,6 +14,8 @@ const ETIQUETAS_ROL: Record<Role, string> = {
   solicitante: 'Solicitante',
 }
 
+type FiltroRol = 'todos' | Role
+
 function etiquetaRol(role: Role) {
   return ETIQUETAS_ROL[role]
 }
@@ -50,6 +52,10 @@ export function AdminWhitelistPage() {
   const [resultadoCsv, setResultadoCsv] = useState<string | null>(null)
   const [cargandoCsv, setCargandoCsv] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [filtroRol, setFiltroRol] = useState<FiltroRol>('todos')
+  const [mostrarAlta, setMostrarAlta] = useState(false)
+  const [mostrarAreas, setMostrarAreas] = useState(false)
 
   const [editandoEmail, setEditandoEmail] = useState<string | null>(null)
   const [editRole, setEditRole] = useState<Role>('solicitante')
@@ -456,12 +462,46 @@ export function AdminWhitelistPage() {
 
   const pendientesSeleccionados = emails.filter((email) => !email.used_at && seleccionados.has(email.email)).length
   const registradosSeleccionados = emails.filter((email) => email.used_at && seleccionados.has(email.email)).length
-  const todosPaginaSeleccionados = emails.length > 0 && emails.every((email) => seleccionados.has(email.email))
   const totalPaginas = Math.max(1, Math.ceil(totalEmails / limite))
 
-  function alternarPaginaCompleta() {
-    setSeleccionados(todosPaginaSeleccionados ? new Set() : new Set(emails.map((email) => email.email)))
+  const totalAdmin = emails.filter((e) => e.role === 'admin').length
+  const totalAgente = emails.filter((e) => e.role === 'agente').length
+  const totalTodos = totalAdmin + totalAgente + totalEmails
+  const filasVisibles = filtroRol === 'todos' ? emails : emails.filter((e) => e.role === filtroRol)
+  const todosVisiblesSeleccionados = filasVisibles.length > 0 && filasVisibles.every((e) => seleccionados.has(e.email))
+  const algunoVisibleSeleccionado = filasVisibles.some((e) => seleccionados.has(e.email))
+
+  const pestanas: { valor: FiltroRol; etiqueta: string; contador: number }[] = [
+    { valor: 'todos', etiqueta: 'Todos', contador: totalTodos },
+    { valor: 'admin', etiqueta: 'Administradores', contador: totalAdmin },
+    { valor: 'agente', etiqueta: 'Agentes', contador: totalAgente },
+    { valor: 'solicitante', etiqueta: 'Solicitantes', contador: totalEmails },
+  ]
+
+  function alternarSeleccionVisible() {
+    setSeleccionados((actuales) => {
+      const siguientes = new Set(actuales)
+      if (todosVisiblesSeleccionados) {
+        filasVisibles.forEach((e) => siguientes.delete(e.email))
+      } else {
+        filasVisibles.forEach((e) => siguientes.add(e.email))
+      }
+      return siguientes
+    })
     setMensajeMasivo(null)
+  }
+
+  function quitarSeleccion() {
+    setSeleccionados(new Set())
+    setMensajeMasivo(null)
+  }
+
+  function mensajeVacio() {
+    if (busquedaAplicada) return 'No se encontraron personas con ese correo.'
+    if (filtroRol === 'admin') return 'No hay administradores.'
+    if (filtroRol === 'agente') return 'No hay agentes.'
+    if (filtroRol === 'solicitante') return 'No hay solicitantes.'
+    return 'No hay correos en la whitelist.'
   }
 
   if (loading) return <div className="pantalla-carga">Cargando whitelist...</div>
@@ -604,206 +644,250 @@ export function AdminWhitelistPage() {
     )
   }
 
-  function renderPanel(titulo: string, lista: AllowedEmail[]) {
-    return (
-      <div className="admin-panel">
-        <h2>
-          {titulo} <span className="admin-panel__contador">{lista.length}</span>
-        </h2>
-        <div className="admin-table-scroll">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th className="admin-table__seleccion" aria-label="Seleccionar" />
-                <th>Correo</th>
-                <th>Rol</th>
-                <th>Área</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lista.map(renderFila)}
-              {lista.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="chart-card__vacio">
-                    Sin correos en este rol
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="admin-page">
       <div className="admin-header">
-        <h1>Whitelist de correos autorizados</h1>
-        <p className="auth-hint">Solo los correos aquí listados pueden solicitar acceso en /solicitar-acceso.</p>
-      </div>
-
-      <form className="admin-toolbar" onSubmit={agregarArea}>
-        <h2 className="admin-toolbar__titulo">Agregar área</h2>
-        <div className="admin-toolbar__fila">
-          <div className="admin-toolbar__campos">
-            <label>
-              Nombre del área
-              <input
-                required
-                value={nuevaAreaNombre}
-                onChange={(e) => setNuevaAreaNombre(e.target.value)}
-                placeholder="Ej. Mercadeo"
-                maxLength={80}
-              />
-            </label>
-          </div>
-          <button type="submit" disabled={creandoArea}>
-            {creandoArea ? 'Creando...' : 'Agregar área'}
+        <div className="admin-header__texto">
+          <h1>Whitelist de correos autorizados</h1>
+          <p className="auth-hint">Solo los correos aquí listados pueden solicitar acceso en /solicitar-acceso.</p>
+        </div>
+        <div className="admin-header__acciones">
+          <button
+            type="button"
+            className="admin-header__accion-secundaria"
+            onClick={() => setMostrarAreas((actual) => !actual)}
+            aria-expanded={mostrarAreas}
+          >
+            Gestionar áreas
+          </button>
+          <button type="button" onClick={() => setMostrarAlta((actual) => !actual)} aria-expanded={mostrarAlta}>
+            + Agregar acceso
           </button>
         </div>
-        {errorArea && <p className="auth-error">{errorArea}</p>}
-      </form>
+      </div>
 
-      <form className="admin-toolbar" onSubmit={agregarCorreo}>
-        <h2 className="admin-toolbar__titulo">Agregar acceso</h2>
-        <div className="admin-toolbar__fila">
-          <div className="admin-toolbar__campos">
-            <label>
-              Correo
-              <input
-                type="email"
-                required
-                value={nuevoEmail}
-                onChange={(e) => setNuevoEmail(e.target.value)}
-                placeholder="nombre@ejemplo.com"
-              />
-            </label>
-            <label>
-              Rol
-              <select value={nuevoRole} onChange={(e) => setNuevoRole(e.target.value as Role)}>
-                <option value="solicitante">Solicitante</option>
-                <option value="agente">Agente</option>
-                <option value="admin">Admin</option>
-              </select>
-            </label>
-            <label>
-              Área
-              <select value={nuevaArea} onChange={(e) => setNuevaArea(e.target.value)}>
-                <option value="">Sin definir</option>
-                {areas.map((area) => (
-                  <option key={area.id} value={area.id}>
-                    {area.nombre}
-                  </option>
-                ))}
-              </select>
-            </label>
+      {mostrarAreas && (
+        <form className="admin-panel-flotante" onSubmit={agregarArea}>
+          <div className="admin-panel-flotante__header">
+            <h2 className="admin-panel-flotante__titulo">Agregar área</h2>
+            <button type="button" className="modal-close" aria-label="Cerrar" onClick={() => setMostrarAreas(false)}>
+              ×
+            </button>
           </div>
-          <button type="submit">Agregar correo</button>
-        </div>
-        <div className="admin-toolbar__csv-fila">
-          <label className="admin-toolbar__csv">
-            {cargandoCsv ? 'Cargando...' : 'Cargar CSV'}
-            <input ref={fileInputRef} type="file" accept=".csv,text/csv" onChange={handleCsv} disabled={cargandoCsv} />
-          </label>
-          <span className="admin-toolbar__csv-formato">
-            Formato: <code>correo,rol,area</code>
-          </span>
-          <a className="admin-toolbar__plantilla" href="/whitelist-ejemplo.csv" download>
-            Descargar ejemplo
-          </a>
-        </div>
-      </form>
+          <div className="admin-toolbar__fila">
+            <div className="admin-toolbar__campos">
+              <label>
+                Nombre del área
+                <input
+                  required
+                  value={nuevaAreaNombre}
+                  onChange={(e) => setNuevaAreaNombre(e.target.value)}
+                  placeholder="Ej. Mercadeo"
+                  maxLength={80}
+                />
+              </label>
+            </div>
+            <button type="submit" disabled={creandoArea}>
+              {creandoArea ? 'Creando...' : 'Agregar área'}
+            </button>
+          </div>
+          {errorArea && <p className="auth-error">{errorArea}</p>}
+        </form>
+      )}
+
+      {mostrarAlta && (
+        <form className="admin-panel-flotante" onSubmit={agregarCorreo}>
+          <div className="admin-panel-flotante__header">
+            <h2 className="admin-panel-flotante__titulo">Agregar acceso</h2>
+            <button type="button" className="modal-close" aria-label="Cerrar" onClick={() => setMostrarAlta(false)}>
+              ×
+            </button>
+          </div>
+          <div className="admin-toolbar__fila">
+            <div className="admin-toolbar__campos">
+              <label>
+                Correo
+                <input
+                  type="email"
+                  required
+                  value={nuevoEmail}
+                  onChange={(e) => setNuevoEmail(e.target.value)}
+                  placeholder="nombre@ejemplo.com"
+                />
+              </label>
+              <label>
+                Rol
+                <select value={nuevoRole} onChange={(e) => setNuevoRole(e.target.value as Role)}>
+                  <option value="solicitante">Solicitante</option>
+                  <option value="agente">Agente</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </label>
+              <label>
+                Área
+                <select value={nuevaArea} onChange={(e) => setNuevaArea(e.target.value)}>
+                  <option value="">Sin definir</option>
+                  {areas.map((area) => (
+                    <option key={area.id} value={area.id}>
+                      {area.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <button type="submit">Agregar correo</button>
+          </div>
+          <div className="admin-toolbar__csv-fila">
+            <label className="admin-toolbar__csv">
+              {cargandoCsv ? 'Cargando...' : 'Cargar CSV'}
+              <input ref={fileInputRef} type="file" accept=".csv,text/csv" onChange={handleCsv} disabled={cargandoCsv} />
+            </label>
+            <span className="admin-toolbar__csv-formato">
+              Formato: <code>correo,rol,area</code>
+            </span>
+            <a className="admin-toolbar__plantilla" href="/whitelist-ejemplo.csv" download>
+              Descargar ejemplo
+            </a>
+          </div>
+        </form>
+      )}
 
       {error && <p className="auth-error">{error}</p>}
       {resultadoCsv && <p className="auth-success" role="status">{resultadoCsv}</p>}
 
-      <div className="admin-busqueda">
-        <label>
-          Buscar persona por correo
-          <input
-            type="search"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="jguzman@netcol.net.co"
-          />
-        </label>
-        {actualizando && <span className="admin-busqueda__estado">Actualizando…</span>}
-        {busqueda.trim().includes('@') && (
-          <button type="button" className="admin-table__accion-eliminar" onClick={() => setEmailPorRevocar(busqueda.trim().toLowerCase())}>
-            Revocar este correo
-          </button>
-        )}
+      <div className="admin-usuarios-toolbar">
+        <div className="admin-tabs" role="tablist" aria-label="Filtrar por rol">
+          {pestanas.map((pestana) => (
+            <button
+              key={pestana.valor}
+              type="button"
+              role="tab"
+              aria-selected={filtroRol === pestana.valor}
+              className={`admin-tabs__item${filtroRol === pestana.valor ? ' admin-tabs__item--activo' : ''}`}
+              onClick={() => setFiltroRol(pestana.valor)}
+            >
+              {pestana.etiqueta}
+              <span className="admin-tabs__contador">{pestana.contador}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="admin-usuarios-toolbar__derecha">
+          {actualizando && <span className="admin-busqueda__estado">Actualizando…</span>}
+          <div className="admin-busqueda">
+            <input
+              type="search"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar por correo…"
+              aria-label="Buscar persona por correo"
+            />
+          </div>
+          {busqueda.trim().includes('@') && (
+            <button type="button" className="admin-table__accion-eliminar" onClick={() => setEmailPorRevocar(busqueda.trim().toLowerCase())}>
+              Revocar este correo
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="admin-envio-bienvenida">
-        <div>
-          <strong>Envíos masivos</strong>
-          <span>Las personas pendientes reciben su invitación; las registradas reciben la bienvenida.</span>
-        </div>
-        <button type="button" className="admin-envio-bienvenida__secundario" onClick={alternarPaginaCompleta} disabled={enviandoSeleccionados || enviandoInvitaciones || emails.length === 0}>
-          {todosPaginaSeleccionados ? 'Quitar selección' : 'Seleccionar página'}
-        </button>
-        <button
-          type="button"
-          onClick={enviarInvitacionesSeleccionadas}
-          disabled={pendientesSeleccionados === 0 || enviandoInvitaciones || enviandoSeleccionados}
-        >
-          {enviandoInvitaciones ? 'Enviando...' : `Enviar invitación (${pendientesSeleccionados})`}
-        </button>
-        <button
-          type="button"
-          onClick={enviarBienvenidasSeleccionadas}
-          disabled={registradosSeleccionados === 0 || enviandoSeleccionados || enviandoInvitaciones}
-        >
-          {enviandoSeleccionados
-            ? 'Enviando...'
-            : `Enviar bienvenida (${registradosSeleccionados})`}
-        </button>
-        {mensajeMasivo && (
-          <span className={`admin-envio-bienvenida__mensaje admin-envio-bienvenida__mensaje--${mensajeMasivo.tipo}`} role="status">
-            {mensajeMasivo.texto}
+      {seleccionados.size > 0 && (
+        <div className="admin-seleccion-barra">
+          <span className="admin-seleccion-barra__contador">
+            <strong>{seleccionados.size}</strong> seleccionado{seleccionados.size === 1 ? '' : 's'}
           </span>
-        )}
-      </div>
-
-      <div className="admin-panels">
-        {renderPanel('Administradores', emails.filter((e) => e.role === 'admin'))}
-        {renderPanel('Agentes', emails.filter((e) => e.role === 'agente'))}
-        {renderPanel('Solicitantes', emails.filter((e) => e.role === 'solicitante'))}
-      </div>
-
-      <div className="admin-paginacion">
-        <span>
-          {totalEmails === 0 ? 'Sin solicitantes' : `Solicitantes ${pagina * limite + 1}–${Math.min((pagina + 1) * limite, totalEmails)} de ${totalEmails}`}
-        </span>
-        <label>
-          Solicitantes por página
-          <select
-            value={limite}
-            onChange={(e) => {
-              setLimite(Number(e.target.value))
-              setPagina(0)
-            }}
+          <button
+            type="button"
+            onClick={enviarInvitacionesSeleccionadas}
+            disabled={pendientesSeleccionados === 0 || enviandoInvitaciones || enviandoSeleccionados}
           >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-        </label>
-        <div className="admin-paginacion__acciones">
-          <button type="button" className="admin-table__accion-secundaria" onClick={() => setPagina((actual) => actual - 1)} disabled={pagina === 0}>
-            Anterior
+            {enviandoInvitaciones ? 'Enviando...' : `Enviar invitación (${pendientesSeleccionados})`}
           </button>
-          <span>Página {pagina + 1} de {totalPaginas}</span>
-          <button type="button" className="admin-table__accion-secundaria" onClick={() => setPagina((actual) => actual + 1)} disabled={pagina + 1 >= totalPaginas}>
-            Siguiente
+          <button
+            type="button"
+            onClick={enviarBienvenidasSeleccionadas}
+            disabled={registradosSeleccionados === 0 || enviandoSeleccionados || enviandoInvitaciones}
+          >
+            {enviandoSeleccionados ? 'Enviando...' : `Enviar bienvenida (${registradosSeleccionados})`}
           </button>
+          <button type="button" className="admin-seleccion-barra__quitar" onClick={quitarSeleccion}>
+            Quitar selección
+          </button>
+          {mensajeMasivo && (
+            <span className={`admin-seleccion-barra__mensaje admin-seleccion-barra__mensaje--${mensajeMasivo.tipo}`} role="status">
+              {mensajeMasivo.texto}
+            </span>
+          )}
         </div>
+      )}
+
+      <div className="admin-table-scroll">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th className="admin-table__seleccion">
+                <input
+                  type="checkbox"
+                  aria-label="Seleccionar todos los visibles"
+                  checked={todosVisiblesSeleccionados}
+                  ref={(el) => {
+                    if (el) el.indeterminate = !todosVisiblesSeleccionados && algunoVisibleSeleccionado
+                  }}
+                  disabled={enviandoSeleccionados || enviandoInvitaciones || filasVisibles.length === 0}
+                  onChange={alternarSeleccionVisible}
+                />
+              </th>
+              <th>Correo</th>
+              <th>Rol</th>
+              <th>Área</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filasVisibles.map(renderFila)}
+            {filasVisibles.length === 0 && (
+              <tr>
+                <td colSpan={6} className="chart-card__vacio">
+                  {mensajeVacio()}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
+
+      {(filtroRol === 'todos' || filtroRol === 'solicitante') && (
+        <div className="admin-paginacion">
+          <span>
+            {totalEmails === 0 ? 'Sin solicitantes' : `Solicitantes ${pagina * limite + 1}–${Math.min((pagina + 1) * limite, totalEmails)} de ${totalEmails}`}
+          </span>
+          <label>
+            Solicitantes por página
+            <select
+              value={limite}
+              onChange={(e) => {
+                setLimite(Number(e.target.value))
+                setPagina(0)
+              }}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </label>
+          <div className="admin-paginacion__acciones">
+            <button type="button" className="admin-table__accion-secundaria" onClick={() => setPagina((actual) => actual - 1)} disabled={pagina === 0}>
+              Anterior
+            </button>
+            <span>Página {pagina + 1} de {totalPaginas}</span>
+            <button type="button" className="admin-table__accion-secundaria" onClick={() => setPagina((actual) => actual + 1)} disabled={pagina + 1 >= totalPaginas}>
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         abierto={emailPorEliminar !== null}
