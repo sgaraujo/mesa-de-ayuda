@@ -237,24 +237,34 @@ export function TicketDetalleModal({
             <p className="modal-descripcion">{ticket.descripcion}</p>
           </div>
 
-          {ticket.archivo_url && (
-            <div className="modal-seccion">
-              <h3 className="modal-seccion__titulo">Archivo adjunto</h3>
-              {esImagenAdjunta(ticket.archivo_url) ? (
-                <a href={ticket.archivo_url} target="_blank" rel="noreferrer" className="modal-archivo-link">
-                  <img src={ticket.archivo_url} alt="Adjunto de la solicitud" className="modal-archivo-imagen" />
-                </a>
-              ) : (
-                <a href={ticket.archivo_url} target="_blank" rel="noreferrer" className="modal-archivo-documento">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-                    <path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
-                    <path d="M14 3v5h5" />
-                  </svg>
-                  Ver archivo adjunto
-                </a>
-              )}
-            </div>
-          )}
+        {ticket.archivo_url && (
+          esImagenAdjunta(ticket.archivo_url) ? (
+            <a href={ticket.archivo_url} target="_blank" rel="noreferrer" className="modal-archivo-link">
+              <img src={ticket.archivo_url} alt="Adjunto de la solicitud" className="modal-archivo-imagen" />
+            </a>
+          ) : (
+            <a href={ticket.archivo_url} target="_blank" rel="noreferrer" className="modal-archivo-documento">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                <path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+                <path d="M14 3v5h5" />
+              </svg>
+              Ver archivo adjunto
+            </a>
+          )
+        )}
+
+        <dl className="modal-detalles">
+          <dt>Solicitante</dt>
+          <dd>{ticket.solicitante?.full_name ?? ticket.solicitante?.email ?? '—'}</dd>
+
+          <dt>Empresa</dt>
+          <dd>{ticket.empresa_solicitante}</dd>
+
+          <dt>Asignado a</dt>
+          <dd>{nombresAsignados(ticket).join(', ') || 'Bandeja general'}</dd>
+
+          <dt>Para cuándo se necesita</dt>
+          <dd>{formatearFecha(ticket.fecha_requerida)}</dd>
 
           {ticket.estado === 'finalizado' && ticket.nota_finalizacion && (
             <div className="modal-nota">

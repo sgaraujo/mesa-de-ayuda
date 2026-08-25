@@ -608,6 +608,12 @@ label {
   grid-template-columns: minmax(280px, 1fr);
 }
 
+.ticket-card__solicitado {
+  margin: 0.15rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
 .ticket-card__finalizado {
   margin-top: 0.5rem;
   padding-top: 0.45rem;
