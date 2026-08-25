@@ -217,6 +217,9 @@ export function TicketDetalleModal({
         )}
 
         <dl className="modal-detalles">
+          <dt>Solicitado</dt>
+          <dd>{formatearFecha(ticket.created_at)}</dd>
+
           <dt>Solicitante</dt>
           <dd>{ticket.solicitante?.full_name ?? ticket.solicitante?.email ?? '—'}</dd>
 

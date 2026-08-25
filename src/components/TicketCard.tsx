@@ -56,6 +56,7 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true }: TicketCar
         </span>
       </div>
       <h3>{ticket.titulo}</h3>
+      <p className="ticket-card__solicitado">Solicitado: {formatearFechaCorta(ticket.created_at)}</p>
       <p>{ticket.descripcion}</p>
       {(ticket.fecha_requerida || ticket.tiempo_propuesto_horas || ticket.tiempo_ejecutado_horas) && (
         <div className="ticket-card__tiempos">
