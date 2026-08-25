@@ -14,6 +14,12 @@ const PRIORIDAD_LABEL: Record<string, string> = {
   urgente: 'Urgente',
 }
 
+const ESTADO_LABEL: Record<string, string> = {
+  pendiente: 'Pendiente',
+  en_curso: 'En curso',
+  finalizado: 'Finalizado',
+}
+
 function formatearFecha(iso: string | null): string {
   if (!iso) return 'Sin definir'
   return new Date(iso).toLocaleString('es-CO', {
@@ -65,6 +71,7 @@ export function TicketDetalleModal({
   const [areaId, setAreaId] = useState(ticket.area_id ?? '')
   const [proyectoId, setProyectoId] = useState(ticket.proyecto_id ?? '')
   const [nuevoProyecto, setNuevoProyecto] = useState('')
+  const [mostrarNuevoProyecto, setMostrarNuevoProyecto] = useState(false)
   const [esGrupal, setEsGrupal] = useState(ticket.es_grupal)
   const [miembros, setMiembros] = useState<string[]>(ticket.asignados.map((a) => a.profile.id))
   const [propuestoInicialHoras, propuestoInicialMinutos] = separarTiempo(ticket.tiempo_propuesto_horas)
@@ -175,11 +182,17 @@ export function TicketDetalleModal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-panel modal-panel--detalle" onClick={(e) => e.stopPropagation()}>
         <div className="modal-panel__header">
-          <span className={`badge badge--prioridad-${ticket.prioridad}`}>
-            {PRIORIDAD_LABEL[ticket.prioridad]}
-          </span>
+          <div className="modal-panel__badges">
+            <span className={`badge badge--prioridad-${ticket.prioridad}`}>
+              {PRIORIDAD_LABEL[ticket.prioridad]}
+            </span>
+            <span className={`badge badge--estado-${ticket.estado}`}>
+              {ESTADO_LABEL[ticket.estado]}
+            </span>
+            {ticket.es_grupal && <span className="badge badge--grupal">Grupo</span>}
+          </div>
           <div className="modal-panel__header-acciones">
             {puedeEliminar && (
               <button
@@ -197,155 +210,204 @@ export function TicketDetalleModal({
           </div>
         </div>
 
-        <h2>{ticket.titulo}</h2>
-        <p className="modal-descripcion">{ticket.descripcion}</p>
+        <div className="modal-panel__body">
+          <h2>{ticket.titulo}</h2>
 
-        {ticket.archivo_url && (
-          esImagenAdjunta(ticket.archivo_url) ? (
-            <a href={ticket.archivo_url} target="_blank" rel="noreferrer" className="modal-archivo-link">
-              <img src={ticket.archivo_url} alt="Adjunto de la solicitud" className="modal-archivo-imagen" />
-            </a>
-          ) : (
-            <a href={ticket.archivo_url} target="_blank" rel="noreferrer" className="modal-archivo-documento">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-                <path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
-                <path d="M14 3v5h5" />
-              </svg>
-              Ver archivo adjunto
-            </a>
-          )
-        )}
+          <dl className="modal-meta">
+            <div className="modal-meta__item">
+              <dt>Solicitante</dt>
+              <dd>{ticket.solicitante?.full_name ?? ticket.solicitante?.email ?? '—'}</dd>
+            </div>
+            <div className="modal-meta__item">
+              <dt>Empresa</dt>
+              <dd>{ticket.empresa_solicitante}</dd>
+            </div>
+            <div className="modal-meta__item">
+              <dt>Asignado a</dt>
+              <dd>{nombresAsignados(ticket).join(', ') || 'Bandeja general'}</dd>
+            </div>
+            <div className="modal-meta__item">
+              <dt>Para cuándo</dt>
+              <dd>{formatearFecha(ticket.fecha_requerida)}</dd>
+            </div>
+          </dl>
 
-        <dl className="modal-detalles">
-          <dt>Solicitante</dt>
-          <dd>{ticket.solicitante?.full_name ?? ticket.solicitante?.email ?? '—'}</dd>
+          <div className="modal-seccion">
+            <h3 className="modal-seccion__titulo">Descripción</h3>
+            <p className="modal-descripcion">{ticket.descripcion}</p>
+          </div>
 
-          <dt>Empresa</dt>
-          <dd>{ticket.empresa_solicitante}</dd>
-
-          <dt>Asignado a</dt>
-          <dd>{nombresAsignados(ticket).join(', ') || 'Bandeja general'}</dd>
-
-          <dt>Para cuándo se necesita</dt>
-          <dd>{formatearFecha(ticket.fecha_requerida)}</dd>
+          {ticket.archivo_url && (
+            <div className="modal-seccion">
+              <h3 className="modal-seccion__titulo">Archivo adjunto</h3>
+              {esImagenAdjunta(ticket.archivo_url) ? (
+                <a href={ticket.archivo_url} target="_blank" rel="noreferrer" className="modal-archivo-link">
+                  <img src={ticket.archivo_url} alt="Adjunto de la solicitud" className="modal-archivo-imagen" />
+                </a>
+              ) : (
+                <a href={ticket.archivo_url} target="_blank" rel="noreferrer" className="modal-archivo-documento">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                    <path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+                    <path d="M14 3v5h5" />
+                  </svg>
+                  Ver archivo adjunto
+                </a>
+              )}
+            </div>
+          )}
 
           {ticket.estado === 'finalizado' && ticket.nota_finalizacion && (
-            <>
-              <dt>Nota de finalización</dt>
-              <dd>{ticket.nota_finalizacion}</dd>
-            </>
+            <div className="modal-nota">
+              <strong>Nota de finalización</strong>
+              {ticket.nota_finalizacion}
+            </div>
           )}
 
           {!puedeEditarTiempos && (
-            <>
-              <dt>Área</dt>
-              <dd>{ticket.area?.nombre ?? 'Sin definir'}</dd>
-              <dt>Proyecto</dt>
-              <dd>{ticket.proyecto?.nombre ?? 'Sin definir'}</dd>
-              <dt>Tiempo propuesto</dt>
-              <dd>{formatearTiempo(ticket.tiempo_propuesto_horas)}</dd>
-              <dt>Tiempo ejecutado</dt>
-              <dd>{formatearTiempo(ticket.tiempo_ejecutado_horas)}</dd>
-            </>
+            <dl className="modal-meta">
+              <div className="modal-meta__item">
+                <dt>Área</dt>
+                <dd>{ticket.area?.nombre ?? 'Sin definir'}</dd>
+              </div>
+              <div className="modal-meta__item">
+                <dt>Proyecto</dt>
+                <dd>{ticket.proyecto?.nombre ?? 'Sin definir'}</dd>
+              </div>
+              <div className="modal-meta__item">
+                <dt>Tiempo propuesto</dt>
+                <dd>{formatearTiempo(ticket.tiempo_propuesto_horas)}</dd>
+              </div>
+              <div className="modal-meta__item">
+                <dt>Tiempo ejecutado</dt>
+                <dd>{formatearTiempo(ticket.tiempo_ejecutado_horas)}</dd>
+              </div>
+            </dl>
           )}
-        </dl>
 
-        {puedeEditarTiempos && (
-          <form onSubmit={handleGuardar} className="modal-tiempos-form">
-            <div className="ticket-form__row">
-              <label>
-                Área
-                <select value={areaId} onChange={(e) => setAreaId(e.target.value)}>
-                  <option value="">Sin definir</option>
-                  {areas.map((area) => (
-                    <option key={area.id} value={area.id}>
-                      {area.nombre}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Proyecto
-                <select value={proyectoId} onChange={(e) => setProyectoId(e.target.value)}>
-                  <option value="">Sin definir</option>
-                  {proyectos.map((proyecto) => (
-                    <option key={proyecto.id} value={proyecto.id}>
-                      {proyecto.nombre}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <label>
-              O crear un proyecto nuevo
-              <input
-                value={nuevoProyecto}
-                onChange={(e) => setNuevoProyecto(e.target.value)}
-                placeholder="ej. Proyecto Castilla"
-              />
-            </label>
+          {puedeEditarTiempos && (
+            <form id="ticket-detalle-form" onSubmit={handleGuardar} className="modal-gestion">
+              <h3 className="modal-seccion__titulo modal-seccion__titulo--gestion">Gestión de la tarea</h3>
 
-            <label className="modal-checkbox">
-              <input
-                type="checkbox"
-                checked={esGrupal}
-                onChange={(e) => setEsGrupal(e.target.checked)}
-              />
-              Es una tarea en grupo (varias personas)
-            </label>
+              <div className="modal-gestion__seccion">
+                <div className="ticket-form__row">
+                  <label>
+                    Área
+                    <select value={areaId} onChange={(e) => setAreaId(e.target.value)}>
+                      <option value="">Sin definir</option>
+                      {areas.map((area) => (
+                        <option key={area.id} value={area.id}>
+                          {area.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Proyecto
+                    <select value={proyectoId} onChange={(e) => setProyectoId(e.target.value)}>
+                      <option value="">Sin definir</option>
+                      {proyectos.map((proyecto) => (
+                        <option key={proyecto.id} value={proyecto.id}>
+                          {proyecto.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                {mostrarNuevoProyecto ? (
+                  <label>
+                    Nuevo proyecto
+                    <input
+                      value={nuevoProyecto}
+                      onChange={(e) => setNuevoProyecto(e.target.value)}
+                      placeholder="ej. Proyecto Castilla"
+                      autoFocus
+                    />
+                  </label>
+                ) : (
+                  <button
+                    type="button"
+                    className="modal-link-button"
+                    onClick={() => setMostrarNuevoProyecto(true)}
+                  >
+                    + Crear proyecto nuevo
+                  </button>
+                )}
+              </div>
 
-            {esGrupal && (
-              <div className="modal-miembros">
-                <p className="modal-miembros__label">Selecciona a las personas del grupo</p>
-                <div className="modal-miembros__lista">
-                  {agentes.map((agente) => (
-                    <label key={agente.id} className="modal-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={miembros.includes(agente.id)}
-                        onChange={() => alternarMiembro(agente.id)}
-                      />
-                      {agente.full_name ?? agente.email}
-                    </label>
-                  ))}
+              <div className="modal-gestion__seccion">
+                <label className="modal-toggle-row">
+                  <span>Es una tarea en grupo (varias personas)</span>
+                  <input
+                    type="checkbox"
+                    checked={esGrupal}
+                    onChange={(e) => setEsGrupal(e.target.checked)}
+                  />
+                </label>
+
+                {esGrupal && (
+                  <div className="modal-miembros">
+                    <p className="modal-miembros__label">Selecciona a las personas del grupo</p>
+                    <div className="modal-miembros__lista">
+                      {agentes.map((agente) => (
+                        <label
+                          key={agente.id}
+                          className={`modal-chip${miembros.includes(agente.id) ? ' modal-chip--activo' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={miembros.includes(agente.id)}
+                            onChange={() => alternarMiembro(agente.id)}
+                          />
+                          {agente.full_name ?? agente.email}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-gestion__seccion">
+                <div className="ticket-form__row">
+                  <fieldset>
+                    <legend>Tiempo propuesto</legend>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={tiempoPropuestoHoras}
+                      onChange={(e) => setTiempoPropuestoHoras(e.target.value)}
+                      placeholder="Horas"
+                      aria-label="Horas propuestas"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      step="1"
+                      value={tiempoPropuestoMinutos}
+                      onChange={(e) => setTiempoPropuestoMinutos(e.target.value)}
+                      placeholder="Minutos"
+                      aria-label="Minutos propuestos"
+                    />
+                  </fieldset>
+                  <fieldset>
+                    <legend>Tiempo ejecutado</legend>
+                    <input type="number" min="0" step="1" value={tiempoEjecutadoHoras} onChange={(e) => setTiempoEjecutadoHoras(e.target.value)} placeholder="Horas" aria-label="Horas ejecutadas" />
+                    <input type="number" min="0" max="59" step="1" value={tiempoEjecutadoMinutos} onChange={(e) => setTiempoEjecutadoMinutos(e.target.value)} placeholder="Minutos" aria-label="Minutos ejecutados" />
+                  </fieldset>
                 </div>
               </div>
-            )}
+            </form>
+          )}
+        </div>
 
-            <div className="ticket-form__row">
-              <fieldset>
-                <legend>Tiempo propuesto</legend>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={tiempoPropuestoHoras}
-                  onChange={(e) => setTiempoPropuestoHoras(e.target.value)}
-                  placeholder="Horas"
-                  aria-label="Horas propuestas"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  max="59"
-                  step="1"
-                  value={tiempoPropuestoMinutos}
-                  onChange={(e) => setTiempoPropuestoMinutos(e.target.value)}
-                  placeholder="Minutos"
-                  aria-label="Minutos propuestos"
-                />
-              </fieldset>
-              <fieldset>
-                <legend>Tiempo ejecutado</legend>
-                <input type="number" min="0" step="1" value={tiempoEjecutadoHoras} onChange={(e) => setTiempoEjecutadoHoras(e.target.value)} placeholder="Horas" aria-label="Horas ejecutadas" />
-                <input type="number" min="0" max="59" step="1" value={tiempoEjecutadoMinutos} onChange={(e) => setTiempoEjecutadoMinutos(e.target.value)} placeholder="Minutos" aria-label="Minutos ejecutados" />
-              </fieldset>
-            </div>
+        {puedeEditarTiempos && (
+          <div className="modal-panel__footer">
             {error && <p className="auth-error">{error}</p>}
-            <button type="submit" disabled={guardando}>
-              {guardando ? 'Guardando...' : 'Guardar'}
+            <button type="submit" form="ticket-detalle-form" disabled={guardando}>
+              {guardando ? 'Guardando...' : 'Guardar cambios'}
             </button>
-          </form>
+          </div>
         )}
       </div>
     </div>
