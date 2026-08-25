@@ -18,9 +18,10 @@ function extensionDe(nombreArchivo: string): string {
 interface TicketFormProps {
   asignadoAPorDefecto?: string
   onCreado?: () => void
+  onDirtyChange?: (dirty: boolean) => void
 }
 
-export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormProps) {
+export function TicketForm({ asignadoAPorDefecto = '', onCreado, onDirtyChange }: TicketFormProps) {
   const { profile } = useAuth()
   const { areas } = useAreas()
   const esSolicitante = profile?.role === 'solicitante'
@@ -46,6 +47,10 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado }: TicketFormPro
     setArchivoPreview(url)
     return () => URL.revokeObjectURL(url)
   }, [archivo])
+
+  useEffect(() => {
+    onDirtyChange?.(titulo.trim() !== '' || descripcion.trim() !== '' || archivo !== null)
+  }, [titulo, descripcion, archivo, onDirtyChange])
 
   function seleccionarArchivo(file: File | null) {
     if (file && !EXTENSIONES_PERMITIDAS.includes(extensionDe(file.name))) {
