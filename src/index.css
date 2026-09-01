@@ -1214,8 +1214,29 @@ label {
 
 /* ---- Stats ---- */
 
-.stats-page h1 {
+.stats-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 1rem;
+}
+
+.stats-page__header h1 {
+  margin: 0;
+}
+
+.stats-page__acciones {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.stats-page__exportar {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
 }
 
 .stats-filtros {

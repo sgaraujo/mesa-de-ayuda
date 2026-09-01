@@ -13,6 +13,7 @@ import {
   type RangoFecha,
 } from '../lib/agregaciones'
 import { nombresAsignados } from '../lib/ticket'
+import { exportarReporteDetalladoExcel, exportarTicketsCSV } from '../lib/exportarCsv'
 import { BarraHorizontal } from '../components/BarraHorizontal'
 import { RankingLista } from '../components/RankingLista'
 import { DonutChart } from '../components/DonutChart'
@@ -104,7 +105,21 @@ export function StatsPage() {
 
   return (
     <div className="stats-page">
-      <h1>Estadísticas</h1>
+      <div className="stats-page__header">
+        <h1>Estadísticas</h1>
+        <div className="stats-page__acciones">
+          <button type="button" className="stats-page__exportar" onClick={() => exportarTicketsCSV(ticketsFiltrados)}>
+            Exportar CSV
+          </button>
+          <button
+            type="button"
+            className="stats-page__exportar"
+            onClick={() => exportarReporteDetalladoExcel(ticketsFiltrados)}
+          >
+            Exportar Excel
+          </button>
+        </div>
+      </div>
 
       <div className="stats-filtros">
         <select value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}>
