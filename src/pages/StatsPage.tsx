@@ -114,7 +114,7 @@ export function StatsPage() {
           <button
             type="button"
             className="stats-page__exportar"
-            onClick={() => exportarReporteDetalladoExcel(ticketsFiltrados)}
+            onClick={() => void exportarReporteDetalladoExcel(ticketsFiltrados)}
           >
             Exportar Excel
           </button>

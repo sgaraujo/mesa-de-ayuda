@@ -54,6 +54,7 @@ export function BoardPage() {
   const [ticketAFinalizar, setTicketAFinalizar] = useState<{
     ticketId: string
     titulo: string
+    tiempoEjecutadoHoras: number | null
     cambios: Record<string, unknown>
     estadoAnterior: Estado
   } | null>(null)
@@ -198,6 +199,7 @@ export function BoardPage() {
         setTicketAFinalizar({
           ticketId,
           titulo: ticket.titulo,
+          tiempoEjecutadoHoras: ticket.tiempo_ejecutado_horas,
           cambios: { estado: nuevoEstado, finalizado_at: new Date().toISOString() },
           estadoAnterior: ticket.estado,
         })
@@ -244,7 +246,13 @@ export function BoardPage() {
 
     if (nuevoEstado === 'finalizado') {
       setErrorFinalizar(null)
-      setTicketAFinalizar({ ticketId, titulo: ticket.titulo, cambios, estadoAnterior: ticket.estado })
+      setTicketAFinalizar({
+        ticketId,
+        titulo: ticket.titulo,
+        tiempoEjecutadoHoras: ticket.tiempo_ejecutado_horas,
+        cambios,
+        estadoAnterior: ticket.estado,
+      })
       return
     }
 
@@ -263,13 +271,17 @@ export function BoardPage() {
     await notificarCambio(ticketId)
   }
 
-  async function confirmarFinalizacion(nota: string) {
+  async function confirmarFinalizacion(nota: string, tiempoEjecutadoHoras: number | null) {
     if (!ticketAFinalizar) return
     const { ticketId, cambios, estadoAnterior } = ticketAFinalizar
     setFinalizando(true)
     setErrorFinalizar(null)
 
-    const cambiosFinales = { ...cambios, nota_finalizacion: nota || null }
+    const cambiosFinales = {
+      ...cambios,
+      nota_finalizacion: nota || null,
+      tiempo_ejecutado_horas: tiempoEjecutadoHoras,
+    }
     const { error } = await supabase.from('tickets').update(cambiosFinales).eq('id', ticketId)
 
     if (error) {
@@ -384,9 +396,10 @@ export function BoardPage() {
       {ticketAFinalizar && (
         <FinalizarTicketModal
           tituloTicket={ticketAFinalizar.titulo}
+          tiempoEjecutadoHoras={ticketAFinalizar.tiempoEjecutadoHoras}
           guardando={finalizando}
           error={errorFinalizar}
-          onConfirmar={(nota) => void confirmarFinalizacion(nota)}
+          onConfirmar={(nota, horas) => void confirmarFinalizacion(nota, horas)}
           onCancelar={() => {
             if (finalizando) return
             setTicketAFinalizar(null)

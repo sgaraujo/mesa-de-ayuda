@@ -1,3 +1,4 @@
+import ExcelJS from 'exceljs'
 import type { TicketConRelaciones } from '../types/database'
 import { estaSinAsignar, nombresAsignados } from './ticket'
 
@@ -37,6 +38,29 @@ function construirCsv(encabezados: string[], filas: unknown[][]): string {
 function descargarCsv(nombreArchivo: string, contenido: string) {
   const BOM = String.fromCharCode(0xfeff)
   const blob = new Blob([BOM + contenido], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const enlace = document.createElement('a')
+  enlace.href = url
+  enlace.download = nombreArchivo
+  enlace.click()
+  URL.revokeObjectURL(url)
+}
+
+async function descargarExcel(nombreArchivo: string, encabezados: string[], filas: unknown[][]) {
+  const workbook = new ExcelJS.Workbook()
+  const hoja = workbook.addWorksheet('Reporte')
+
+  hoja.addRow(encabezados)
+  hoja.getRow(1).font = { bold: true }
+  filas.forEach((fila) => hoja.addRow(fila))
+  hoja.columns.forEach((columna) => {
+    columna.width = 18
+  })
+
+  const buffer = await workbook.xlsx.writeBuffer()
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
   const url = URL.createObjectURL(blob)
   const enlace = document.createElement('a')
   enlace.href = url
@@ -102,7 +126,7 @@ function rangoSemana(fecha: Date): string {
   return `${formato(lunes)} - ${formato(domingo)}`
 }
 
-export function exportarReporteDetalladoExcel(tickets: TicketConRelaciones[]) {
+export async function exportarReporteDetalladoExcel(tickets: TicketConRelaciones[]) {
   const encabezados = [
     'ID de tarea',
     'Proyecto',
@@ -162,5 +186,5 @@ export function exportarReporteDetalladoExcel(tickets: TicketConRelaciones[]) {
     ]
   })
 
-  descargarCsv(`reporte_tickets_${new Date().toISOString().slice(0, 10)}.csv`, construirCsv(encabezados, filas))
+  await descargarExcel(`reporte_tickets_${new Date().toISOString().slice(0, 10)}.xlsx`, encabezados, filas)
 }

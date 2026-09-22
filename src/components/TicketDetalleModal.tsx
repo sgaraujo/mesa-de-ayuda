@@ -5,6 +5,7 @@ import { useProyectos } from '../hooks/useProyectos'
 import { useAgentes } from '../hooks/useAgentes'
 import { esImagenAdjunta, nombresAsignados } from '../lib/ticket'
 import { notificarAsignacion } from '../lib/notificaciones'
+import { separarTiempo, combinarTiempo, formatearTiempo } from '../lib/tiempo'
 import type { TicketConRelaciones } from '../types/database'
 
 const PRIORIDAD_LABEL: Record<string, string> = {
@@ -26,25 +27,6 @@ function formatearFecha(iso: string | null): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   })
-}
-
-function separarTiempo(horas: number | null): [string, string] {
-  if (horas == null) return ['', '']
-  const minutosTotales = Math.round(horas * 60)
-  return [String(Math.floor(minutosTotales / 60)), String(minutosTotales % 60)]
-}
-
-function combinarTiempo(horas: string, minutos: string): number | null {
-  if (!horas && !minutos) return null
-  return (Number(horas || 0) * 60 + Number(minutos || 0)) / 60
-}
-
-function formatearTiempo(horas: number | null): string {
-  if (horas == null) return 'Sin definir'
-  const minutosTotales = Math.round(horas * 60)
-  const horasEnteras = Math.floor(minutosTotales / 60)
-  const minutos = minutosTotales % 60
-  return [horasEnteras ? `${horasEnteras} h` : '', minutos ? `${minutos} min` : ''].filter(Boolean).join(' ') || '0 min'
 }
 
 interface TicketDetalleModalProps {
