@@ -8,7 +8,7 @@ export function Layout() {
   const { profile, signOut } = useAuth()
   const { areas, areaActiva, seleccionarArea, esSuperadmin, loading: cargandoAreas } = useArea()
   const rol = areaActiva?.rol
-  const esAgenteOAdmin = rol === 'agente' || rol === 'admin'
+  const esGestor = rol === 'agente' || rol === 'lider'
 
   if (profile && (!profile.full_name || !profile.area_id)) {
     return <CompletarPerfilForm />
@@ -42,9 +42,9 @@ export function Layout() {
         <nav className="app-nav">
           <NavLink to="/nueva-solicitud">Nueva solicitud</NavLink>
           <NavLink to="/mis-solicitudes">Mis solicitudes</NavLink>
-          {esAgenteOAdmin && <NavLink to="/tablero">Tablero</NavLink>}
-          {esAgenteOAdmin && <NavLink to="/estadisticas">Estadísticas</NavLink>}
-          {areas.some((a) => a.rol === 'admin') && <NavLink to="/grupos">Grupos</NavLink>}
+          {esGestor && <NavLink to="/tablero">Tablero</NavLink>}
+          {esGestor && <NavLink to="/estadisticas">Estadísticas</NavLink>}
+          {areas.some((a) => a.rol === 'lider') && <NavLink to="/grupos">Grupos</NavLink>}
           {esSuperadmin && <NavLink to="/admin/whitelist">Whitelist</NavLink>}
         </nav>
         <div className="app-header__user">

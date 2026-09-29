@@ -38,7 +38,7 @@ const AreaContext = createContext<AreaContextValue | undefined>(undefined)
 
 // Cada área es un tablero cerrado; el rol de la persona depende del área que
 // tenga abierta (area_miembros). El superadmin (profiles.role = 'admin') puede
-// abrir cualquier área y actúa como admin en todas.
+// abrir cualquier área y actúa como líder en todas.
 export function AreaProvider({ children }: { children: ReactNode }) {
   const { profile, loading: cargandoPerfil } = useAuth()
   const [areas, setAreas] = useState<AreaConRol[]>([])
@@ -66,7 +66,7 @@ export function AreaProvider({ children }: { children: ReactNode }) {
 
     if (esSuperadmin) {
       const { data: todas } = await supabase.from('areas').select('*').order('orden')
-      setAreas(((todas ?? []) as Area[]).map((area) => ({ ...area, rol: 'admin' as const })))
+      setAreas(((todas ?? []) as Area[]).map((area) => ({ ...area, rol: 'lider' as const })))
     } else {
       setAreas(propias.sort((a, b) => a.orden - b.orden))
     }

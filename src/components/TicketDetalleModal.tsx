@@ -45,7 +45,7 @@ export function TicketDetalleModal({
   onGuardado,
   onEliminado,
 }: TicketDetalleModalProps) {
-  const areaId = ticket.area_id ?? undefined
+  const areaId = ticket.area_id
   const { proyectos, recargar: recargarProyectos } = useProyectos(areaId)
   const { agentes } = useMiembrosArea(areaId)
 

@@ -1867,6 +1867,11 @@ label {
   color: var(--prioridad-urgente);
 }
 
+.rol-badge--lider {
+  background: color-mix(in srgb, var(--series-5) 14%, transparent);
+  color: var(--series-5);
+}
+
 .rol-badge--agente {
   background: color-mix(in srgb, var(--series-1) 14%, transparent);
   color: var(--series-1);

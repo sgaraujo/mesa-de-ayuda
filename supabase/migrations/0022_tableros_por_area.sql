@@ -27,12 +27,31 @@ create index area_miembros_profile_idx on area_miembros(profile_id);
 
 alter table area_miembros enable row level security;
 
--- Cada persona queda como miembro del área que ya tenía en su perfil, con el
--- rol que ya tenía. Los admins actuales quedan como admin de su área y además
--- siguen siendo superadmin por profiles.role.
+-- ---------------------------------------------------------------------------
+-- Datos existentes: todo lo que había hasta ahora era trabajo del equipo de
+-- desarrollo. Se crea su área y quedan en ella todas las tareas, todos los
+-- proyectos y todos los agentes y admins actuales (con su mismo rol). Las
+-- demás áreas arrancan con su tablero vacío y no ven nada de esto. Los
+-- solicitantes no entran a ningún tablero: siguen sus solicitudes en
+-- /mis-solicitudes (tickets_select por solicitante_id).
+-- ---------------------------------------------------------------------------
+insert into areas (nombre, orden)
+values ('Desarrollo', (select coalesce(max(orden), 0) + 1 from areas))
+on conflict (nombre) do nothing;
+
 insert into area_miembros (area_id, profile_id, rol)
-select area_id, id, role from profiles where area_id is not null
+select (select id from areas where nombre = 'Desarrollo'), p.id, p.role
+from profiles p
+where p.role in ('admin', 'agente')
 on conflict do nothing;
+
+-- Se apaga el trigger de updated_at para no alterar la fecha de modificación.
+alter table tickets disable trigger tickets_set_updated_at;
+update tickets set area_id = (select id from areas where nombre = 'Desarrollo');
+alter table tickets enable trigger tickets_set_updated_at;
+
+-- Todo ticket pertenece a un tablero.
+alter table tickets alter column area_id set not null;
 
 -- ---------------------------------------------------------------------------
 -- Funciones de permisos
@@ -112,16 +131,6 @@ create policy area_miembros_write on area_miembros for all to authenticated
 -- ---------------------------------------------------------------------------
 -- tickets
 -- ---------------------------------------------------------------------------
--- Tickets viejos sin área: se ubican en el área del perfil de quien los pidió.
--- Los que sigan sin área solo los ve el superadmin (y quien los pidió). Se
--- apaga el trigger de updated_at para no alterar su fecha de modificación.
-alter table tickets disable trigger tickets_set_updated_at;
-update tickets t
-set area_id = p.area_id
-from profiles p
-where t.area_id is null and p.id = t.solicitante_id and p.area_id is not null;
-alter table tickets enable trigger tickets_set_updated_at;
-
 drop policy tickets_select on tickets;
 create policy tickets_select on tickets for select to authenticated using (
   public.usuario_activo() and (
@@ -147,7 +156,6 @@ drop policy tickets_insert on tickets;
 create policy tickets_insert on tickets for insert to authenticated with check (
   public.usuario_activo()
   and solicitante_id = auth.uid()
-  and area_id is not null
   and ((asignado_a is null and not es_grupal) or public.puedo_gestionar_area(area_id))
 );
 
@@ -179,26 +187,28 @@ create policy ticket_asignados_write on ticket_asignados for all to authenticate
   with check (public.puedo_gestionar_ticket(ticket_id));
 
 -- ---------------------------------------------------------------------------
--- proyectos: cada área tiene los suyos. Los existentes quedan sin área
--- (compartidos por todas) y solo el superadmin los modifica.
+-- proyectos: cada área tiene los suyos y las demás no los ven. Los que
+-- existían son todos del equipo de desarrollo.
 -- ---------------------------------------------------------------------------
 alter table proyectos add column area_id uuid references areas(id) on delete cascade;
+update proyectos set area_id = (select id from areas where nombre = 'Desarrollo');
+alter table proyectos alter column area_id set not null;
 alter table proyectos drop constraint if exists proyectos_nombre_key;
-alter table proyectos add constraint proyectos_area_nombre_key unique nulls not distinct (area_id, nombre);
+alter table proyectos add constraint proyectos_area_nombre_key unique (area_id, nombre);
 
 drop policy proyectos_select on proyectos;
 -- Quien envió una solicitud a otra área ve el proyecto que le asignaron.
 create policy proyectos_select on proyectos for select to authenticated using (
   public.usuario_activo() and (
-    area_id is null or public.es_superadmin() or public.rol_en_area(area_id) is not null
+    public.es_superadmin() or public.rol_en_area(area_id) is not null
     or exists (select 1 from tickets t where t.proyecto_id = proyectos.id and t.solicitante_id = auth.uid())
   )
 );
 
 drop policy proyectos_agentes_admin_write on proyectos;
 create policy proyectos_gestores_write on proyectos for all to authenticated
-  using (public.es_superadmin() or (area_id is not null and public.puedo_gestionar_area(area_id)))
-  with check (public.es_superadmin() or (area_id is not null and public.puedo_gestionar_area(area_id)));
+  using (public.puedo_gestionar_area(area_id))
+  with check (public.puedo_gestionar_area(area_id));
 
 -- ---------------------------------------------------------------------------
 -- Whitelist: el área y rol con que se invita a alguien crean su primera

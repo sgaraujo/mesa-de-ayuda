@@ -37,7 +37,7 @@ export function BoardPage() {
   const { profile } = useAuth()
   const { areaActiva } = useArea()
   const areaId = areaActiva?.id
-  const esAdmin = areaActiva?.rol === 'admin'
+  const esLider = areaActiva?.rol === 'lider'
   const { agentes } = useMiembrosArea(areaId)
   const [tickets, setTickets] = useState<TicketConRelaciones[]>([])
   const [loading, setLoading] = useState(true)
@@ -320,18 +320,18 @@ export function BoardPage() {
             placeholder="Buscar por #, título, persona…"
             aria-label="Buscar tickets"
           />
-          {esAdmin && (
+          {esLider && (
             <select value={filtroAgente} onChange={(e) => setFiltroAgente(e.target.value)} aria-label="Filtrar por agente">
               <option value="">Todas las personas</option>
               <option value="sin_asignar">Sin asignar</option>
               {agentes.map((agente) => (
                 <option key={agente.id} value={agente.id}>
-                  {agente.full_name ?? agente.email} ({agente.rolArea === 'admin' ? 'Admin' : 'Agente'})
+                  {agente.full_name ?? agente.email} ({agente.rolArea === 'lider' ? 'Líder' : 'Agente'})
                 </option>
               ))}
             </select>
           )}
-          {esAdmin && (
+          {esLider && (
             <select value={vistaHistorial ? 'historial' : 'actual'} onChange={(e) => setVistaHistorial(e.target.value === 'historial')} aria-label="Cambiar vista del tablero">
               <option value="actual">Tablero actual</option>
               <option value="historial">Historial (+30 días)</option>
@@ -361,7 +361,7 @@ export function BoardPage() {
         <TicketDetalleModal
           ticket={ticketSeleccionado}
           puedeEditarTiempos
-          puedeEliminar={esAdmin}
+          puedeEliminar={esLider}
           onClose={() => setTicketSeleccionado(null)}
           onGuardado={(actualizado) => {
             setTickets((prev) => prev.map((t) => (t.id === actualizado.id ? { ...t, ...actualizado } : t)))

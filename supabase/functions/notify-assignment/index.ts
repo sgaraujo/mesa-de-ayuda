@@ -45,14 +45,14 @@ Deno.serve(async (req) => {
       .maybeSingle()
     if (ticketError || !ticket) return json({ ok: false, message: 'Tarea no encontrada' }, 404)
 
-    // Cada área es un tablero cerrado: solo se avisa a los admins y agentes
+    // Cada área es un tablero cerrado: solo se avisa a los líderes y agentes
     // del área del ticket, nunca a los de otras áreas.
     const { data: gestores, error: gestoresError } = ticket.area_id
       ? await supabaseAdmin
         .from('area_miembros')
         .select('profile_id')
         .eq('area_id', ticket.area_id)
-        .in('rol', ['admin', 'agente'])
+        .in('rol', ['lider', 'agente'])
       : { data: [], error: null }
     if (gestoresError) return json({ ok: false, message: 'No se pudieron consultar los agentes' }, 500)
     const idsGestores: string[] = (gestores ?? []).map((fila) => fila.profile_id)

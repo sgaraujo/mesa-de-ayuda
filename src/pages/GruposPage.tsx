@@ -7,9 +7,8 @@ import type { MiembroArea } from '../hooks/useMiembrosArea'
 import type { Profile, RolArea, Ticket } from '../types/database'
 
 const ROLES_EN_ORDEN: { rol: RolArea; titulo: string }[] = [
-  { rol: 'admin', titulo: 'Admins' },
+  { rol: 'lider', titulo: 'Líderes' },
   { rol: 'agente', titulo: 'Agentes' },
-  { rol: 'solicitante', titulo: 'Solicitantes' },
 ]
 
 type TicketResumen = Pick<Ticket, 'area_id' | 'estado' | 'asignado_a' | 'es_grupal'>
@@ -41,14 +40,14 @@ function iniciales(nombre: string): string {
     .join('')
 }
 
-// Vista de todos los grupos (áreas) que la persona administra: quiénes están
+// Vista de todos los grupos (áreas) que la persona lidera: quiénes están
 // en cada uno, cómo va su tablero y acceso directo a él. El superadmin ve
 // todas las áreas.
 export function GruposPage() {
   const navigate = useNavigate()
   const { areas, areaActiva, seleccionarArea } = useArea()
-  const areasAdmin = useMemo(() => areas.filter((a) => a.rol === 'admin'), [areas])
-  const idsAreas = useMemo(() => areasAdmin.map((a) => a.id), [areasAdmin])
+  const areasLider = useMemo(() => areas.filter((a) => a.rol === 'lider'), [areas])
+  const idsAreas = useMemo(() => areasLider.map((a) => a.id), [areasLider])
 
   const [miembrosPorArea, setMiembrosPorArea] = useState<Map<string, MiembroArea[]>>(new Map())
   const [ticketsPorArea, setTicketsPorArea] = useState<Map<string, TicketResumen[]>>(new Map())
@@ -90,7 +89,6 @@ export function GruposPage() {
         .then(({ data }) => {
           const porArea = new Map<string, TicketResumen[]>()
           for (const t of (data ?? []) as TicketResumen[]) {
-            if (!t.area_id) continue
             porArea.set(t.area_id, [...(porArea.get(t.area_id) ?? []), t])
           }
           setTicketsPorArea(porArea)
@@ -105,7 +103,7 @@ export function GruposPage() {
   }, [idsAreas, cargarMiembros])
 
   const termino = busqueda.trim().toLowerCase()
-  const areasVisibles = areasAdmin.filter((area) => {
+  const areasVisibles = areasLider.filter((area) => {
     if (!termino) return true
     if (area.nombre.toLowerCase().includes(termino)) return true
     return (miembrosPorArea.get(area.id) ?? []).some((m) =>
@@ -126,8 +124,8 @@ export function GruposPage() {
         <div>
           <h1>Grupos</h1>
           <p className="board-page__subtitulo">
-            Cada grupo tiene su propio tablero. Solo sus agentes y admins lo trabajan; cualquier persona puede
-            enviarle solicitudes.
+            Cada grupo tiene su propio tablero. Solo su líder y sus agentes lo ven y lo trabajan; cualquier
+            persona puede enviarle solicitudes.
           </p>
         </div>
         <div className="board-page__filtros">
@@ -226,7 +224,7 @@ export function GruposPage() {
         })}
         {areasVisibles.length === 0 && (
           <p className="admin-table__texto-sutil">
-            {areasAdmin.length === 0 ? 'No administras ningún grupo.' : 'Ningún grupo coincide con la búsqueda.'}
+            {areasLider.length === 0 ? 'No lideras ningún grupo.' : 'Ningún grupo coincide con la búsqueda.'}
           </p>
         )}
       </div>

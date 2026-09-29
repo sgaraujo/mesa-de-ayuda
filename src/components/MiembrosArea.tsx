@@ -7,9 +7,8 @@ import type { MiembroArea } from '../hooks/useMiembrosArea'
 import type { Profile, RolArea } from '../types/database'
 
 const ROL_LABEL: Record<RolArea, string> = {
-  admin: 'Admin',
+  lider: 'Líder',
   agente: 'Agente',
-  solicitante: 'Solicitante',
 }
 
 interface MiembrosAreaProps {
@@ -20,7 +19,7 @@ interface MiembrosAreaProps {
   onCambio: () => Promise<void>
 }
 
-// Alta, cambio de rol y baja de miembros de un área. Lo usa el admin del área
+// Alta, cambio de rol y baja de miembros de un área. Lo usa el líder del área
 // (o el superadmin); RLS de area_miembros impide hacerlo a cualquier otro.
 export function MiembrosArea({ areaId, areaNombre, miembros, perfiles, onCambio }: MiembrosAreaProps) {
   const { profile } = useAuth()
@@ -37,8 +36,8 @@ export function MiembrosArea({ areaId, areaNombre, miembros, perfiles, onCambio 
     return perfiles.filter((p) => !yaMiembros.has(p.id))
   }, [perfiles, miembros])
 
-  // Un admin de área no puede quitarse ni bajarse el rol a sí mismo, para que
-  // el área no se quede sin nadie que la administre por accidente.
+  // Un líder no puede quitarse ni bajarse el rol a sí mismo, para que el área
+  // no se quede sin líder por accidente.
   function puedeEditar(profileId: string) {
     return esSuperadmin || profileId !== profile?.id
   }
@@ -113,8 +112,7 @@ export function MiembrosArea({ areaId, areaNombre, miembros, perfiles, onCambio 
           Rol
           <select value={nuevoRol} onChange={(e) => setNuevoRol(e.target.value as RolArea)}>
             <option value="agente">Agente</option>
-            <option value="admin">Admin</option>
-            <option value="solicitante">Solicitante</option>
+            <option value="lider">Líder</option>
           </select>
         </label>
         <button type="submit" disabled={procesando || !nuevoPerfilId}>
@@ -158,8 +156,7 @@ export function MiembrosArea({ areaId, areaNombre, miembros, perfiles, onCambio 
                         aria-label={`Rol de ${nombre}`}
                       >
                         <option value="agente">Agente</option>
-                        <option value="admin">Admin</option>
-                        <option value="solicitante">Solicitante</option>
+                        <option value="lider">Líder</option>
                       </select>
                     ) : (
                       ROL_LABEL[m.rol]

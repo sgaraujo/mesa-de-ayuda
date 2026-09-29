@@ -102,7 +102,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
     if (!profile || !areaId) return
     setError(null)
     setEnviando(true)
-    const puedeAutoasignarse = rolEnDestino === 'agente' || rolEnDestino === 'admin'
+    const puedeAutoasignarse = rolEnDestino === 'agente' || rolEnDestino === 'lider'
 
     let archivoUrl: string | null = null
     if (archivo) {

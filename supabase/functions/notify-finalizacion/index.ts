@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     if (ticketError || !ticket) return json({ ok: false, message: 'Tarea no encontrada' }, 404)
     if (ticket.estado !== 'finalizado') return json({ ok: false, message: 'La tarea no está finalizada' }, 409)
 
-    // Solo quien gestiona el área del ticket (admin o agente de esa área) o el
+    // Solo quien gestiona el área del ticket (líder o agente de esa área) o el
     // superadmin puede disparar el aviso.
     if (remitente.role !== 'admin') {
       const { data: membresia } = ticket.area_id
@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
           .eq('profile_id', authData.user.id)
           .maybeSingle()
         : { data: null }
-      if (!membresia || !['admin', 'agente'].includes(membresia.rol)) {
+      if (!membresia || !['lider', 'agente'].includes(membresia.rol)) {
         return json({ ok: false, message: 'No autorizado' }, 403)
       }
     }

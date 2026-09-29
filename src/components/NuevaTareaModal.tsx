@@ -14,7 +14,7 @@ export function NuevaTareaModal({ onClose, onCreado }: NuevaTareaModalProps) {
   const { areaActiva } = useArea()
   const [dirty, setDirty] = useState(false)
   const [confirmarDescarte, setConfirmarDescarte] = useState(false)
-  const asignadoAPorDefecto = areaActiva?.rol === 'agente' || areaActiva?.rol === 'admin'
+  const asignadoAPorDefecto = areaActiva?.rol === 'agente' || areaActiva?.rol === 'lider'
     ? profile?.id
     : undefined
 

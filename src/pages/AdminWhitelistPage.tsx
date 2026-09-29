@@ -8,8 +8,11 @@ import { RowActionsMenu } from '../components/RowActionsMenu'
 
 const TAMANO_BLOQUE_EQUIPO = 1000
 
+// 'admin' es el superadmin: ve todas las áreas. Para el jefe de un área se usa
+// 'lider', que solo ve el tablero del área indicada.
 const ETIQUETAS_ROL: Record<Role, string> = {
-  admin: 'Admin',
+  admin: 'Superadmin',
+  lider: 'Líder',
   agente: 'Agente',
   solicitante: 'Solicitante',
 }
@@ -106,7 +109,7 @@ export function AdminWhitelistPage() {
         let consulta = supabase
           .from('allowed_emails')
           .select('*')
-          .in('role', ['admin', 'agente'])
+          .in('role', ['admin', 'lider', 'agente'])
           .order('role', { ascending: true })
           .order('email', { ascending: true })
 
@@ -222,7 +225,7 @@ export function AdminWhitelistPage() {
       const lineas = texto.split(/\r?\n/).map((linea) => linea.trim()).filter(Boolean)
       const separador = (lineas[0]?.match(/;/g)?.length ?? 0) > (lineas[0]?.match(/,/g)?.length ?? 0) ? ';' : ','
       const limpiar = (valor = '') => valor.trim().replace(/^['"]|['"]$/g, '')
-      const rolesValidos = new Set<Role>(['admin', 'agente', 'solicitante'])
+      const rolesValidos = new Set<Role>(['admin', 'lider', 'agente', 'solicitante'])
       let filasInvalidas = 0
       let areasNoEncontradas = 0
 
@@ -235,7 +238,7 @@ export function AdminWhitelistPage() {
         .map((linea) => linea.split(separador).map(limpiar))
         .map(([emailOriginal, roleOriginal, areaNombre]) => {
           const email = emailOriginal?.toLowerCase()
-          const role = (roleOriginal?.toLowerCase() || 'solicitante') as Role
+          const role = (roleOriginal?.toLowerCase().replace('í', 'i') || 'solicitante') as Role
           if (!email || !email.includes('@') || !rolesValidos.has(role)) {
             filasInvalidas += 1
             return null
@@ -487,15 +490,17 @@ export function AdminWhitelistPage() {
   const totalPaginas = Math.max(1, Math.ceil(totalEmails / limite))
 
   const totalAdmin = emails.filter((e) => e.role === 'admin').length
+  const totalLider = emails.filter((e) => e.role === 'lider').length
   const totalAgente = emails.filter((e) => e.role === 'agente').length
-  const totalTodos = totalAdmin + totalAgente + totalEmails
+  const totalTodos = totalAdmin + totalLider + totalAgente + totalEmails
   const filasVisibles = filtroRol === 'todos' ? emails : emails.filter((e) => e.role === filtroRol)
   const todosVisiblesSeleccionados = filasVisibles.length > 0 && filasVisibles.every((e) => seleccionados.has(e.email))
   const algunoVisibleSeleccionado = filasVisibles.some((e) => seleccionados.has(e.email))
 
   const pestanas: { valor: FiltroRol; etiqueta: string; contador: number }[] = [
     { valor: 'todos', etiqueta: 'Todos', contador: totalTodos },
-    { valor: 'admin', etiqueta: 'Administradores', contador: totalAdmin },
+    { valor: 'admin', etiqueta: 'Superadmins', contador: totalAdmin },
+    { valor: 'lider', etiqueta: 'Líderes', contador: totalLider },
     { valor: 'agente', etiqueta: 'Agentes', contador: totalAgente },
     { valor: 'solicitante', etiqueta: 'Solicitantes', contador: totalEmails },
   ]
@@ -520,7 +525,8 @@ export function AdminWhitelistPage() {
 
   function mensajeVacio() {
     if (busquedaAplicada) return 'No se encontraron personas con ese correo.'
-    if (filtroRol === 'admin') return 'No hay administradores.'
+    if (filtroRol === 'admin') return 'No hay superadmins.'
+    if (filtroRol === 'lider') return 'No hay líderes.'
     if (filtroRol === 'agente') return 'No hay agentes.'
     if (filtroRol === 'solicitante') return 'No hay solicitantes.'
     return 'No hay correos en la whitelist.'
@@ -553,7 +559,8 @@ export function AdminWhitelistPage() {
             <select value={editRole} onChange={(ev) => setEditRole(ev.target.value as Role)}>
               <option value="solicitante">Solicitante</option>
               <option value="agente">Agente</option>
-              <option value="admin">Admin</option>
+              <option value="lider">Líder</option>
+              <option value="admin">Superadmin (ve todo)</option>
             </select>
           ) : (
             <span className={`rol-badge rol-badge--${e.role}`}>{etiquetaRol(e.role)}</span>
@@ -763,7 +770,8 @@ export function AdminWhitelistPage() {
                 <select value={nuevoRole} onChange={(e) => setNuevoRole(e.target.value as Role)}>
                   <option value="solicitante">Solicitante</option>
                   <option value="agente">Agente</option>
-                  <option value="admin">Admin</option>
+                  <option value="lider">Líder</option>
+                  <option value="admin">Superadmin (ve todo)</option>
                 </select>
               </label>
               <label>

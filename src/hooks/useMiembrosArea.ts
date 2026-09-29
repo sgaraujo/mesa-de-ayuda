@@ -32,9 +32,10 @@ export function useMiembrosArea(areaId: string | undefined) {
     void recargar()
   }, [recargar])
 
-  // Quienes pueden recibir tareas en el área: agentes y admins activos.
+  // Quienes pueden recibir tareas en el área: agentes y líderes activos
+  // (todos los miembros tienen uno de esos dos roles).
   const agentes = miembros
-    .filter((m) => m.profile.activo && (m.rol === 'agente' || m.rol === 'admin'))
+    .filter((m) => m.profile.activo)
     .map((m) => ({ ...m.profile, rolArea: m.rol }))
 
   return { miembros, agentes, loading, recargar }

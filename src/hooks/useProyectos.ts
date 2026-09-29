@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Proyecto } from '../types/database'
 
-// Proyectos del área más los compartidos (sin área, creados antes de que
-// cada área tuviera su propio tablero).
+// Cada área tiene sus propios proyectos; las demás no los ven.
 export function useProyectos(areaId: string | undefined) {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [loading, setLoading] = useState(true)
@@ -17,7 +16,7 @@ export function useProyectos(areaId: string | undefined) {
     const { data } = await supabase
       .from('proyectos')
       .select('*')
-      .or(`area_id.eq.${areaId},area_id.is.null`)
+      .eq('area_id', areaId)
       .order('nombre')
     setProyectos(data ?? [])
     setLoading(false)

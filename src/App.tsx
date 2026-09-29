@@ -60,12 +60,12 @@ export default function App() {
 
               <Route path="/mis-solicitudes" element={<MisSolicitudesPage />} />
 
-              <Route element={<ProtectedRoute rolesPermitidos={['agente', 'admin']} />}>
+              <Route element={<ProtectedRoute rolesPermitidos={['agente', 'lider']} />}>
                 <Route path="/tablero" element={<BoardPage />} />
                 <Route path="/estadisticas" element={<StatsPage />} />
               </Route>
 
-              <Route element={<ProtectedRoute adminDeAlgunArea />}>
+              <Route element={<ProtectedRoute liderDeAlgunArea />}>
                 <Route path="/grupos" element={<GruposPage />} />
               </Route>
 
