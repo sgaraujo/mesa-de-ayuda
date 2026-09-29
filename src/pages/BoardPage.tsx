@@ -10,7 +10,7 @@ import { KanbanColumn, type ColumnaId } from '../components/KanbanColumn'
 import { TicketDetalleModal } from '../components/TicketDetalleModal'
 import { NuevaTareaModal } from '../components/NuevaTareaModal'
 import { FinalizarTicketModal } from '../components/FinalizarTicketModal'
-import { estaSinAsignar } from '../lib/ticket'
+import { coincideBusqueda, estaSinAsignar } from '../lib/ticket'
 import type { Estado, TicketConRelaciones } from '../types/database'
 
 const COLUMNAS: { id: ColumnaId; titulo: string }[] = [
@@ -48,6 +48,7 @@ export function BoardPage() {
   const [loading, setLoading] = useState(true)
   const [filtroArea, setFiltroArea] = useState('')
   const [filtroAgente, setFiltroAgente] = useState('')
+  const [busqueda, setBusqueda] = useState('')
   const [vistaHistorial, setVistaHistorial] = useState(false)
   const [ticketSeleccionado, setTicketSeleccionado] = useState<TicketConRelaciones | null>(null)
   const [mostrarNuevaTarea, setMostrarNuevaTarea] = useState(false)
@@ -149,6 +150,7 @@ export function BoardPage() {
     const limiteFinalizados = Date.now() - DIAS_FINALIZADOS_EN_TABLERO * 24 * 60 * 60 * 1000
 
     return tickets.filter((t) => {
+      if (!coincideBusqueda(t, busqueda)) return false
       if (filtroArea && t.area_id !== filtroArea) return false
 
       if (filtroAgente === 'sin_asignar' && !estaSinAsignar(t)) return false
@@ -165,7 +167,7 @@ export function BoardPage() {
 
       return vistaHistorial ? esFinalizadoAntiguo : !esFinalizadoAntiguo
     })
-  }, [tickets, filtroArea, filtroAgente, vistaHistorial])
+  }, [tickets, busqueda, filtroArea, filtroAgente, vistaHistorial])
 
   function ticketsParaColumna(id: ColumnaId) {
     if (vistaHistorial) return id === 'finalizado' ? ticketsFiltrados : []
@@ -317,6 +319,14 @@ export function BoardPage() {
           {vistaHistorial && <p className="board-page__subtitulo">Tareas finalizadas hace más de 30 días.</p>}
         </div>
         <div className="board-page__filtros">
+          <input
+            type="search"
+            className="board-page__buscador"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar por #, título, persona…"
+            aria-label="Buscar tickets"
+          />
           {!esSolicitante && (
             <select value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}>
               <option value="">Todas las áreas</option>

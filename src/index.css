@@ -593,6 +593,10 @@ label {
   flex-wrap: wrap;
 }
 
+.board-page__buscador {
+  min-width: 240px;
+}
+
 .kanban-board {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -2054,6 +2058,7 @@ label {
     flex-direction: column;
   }
 
+  .board-page__filtros input,
   .board-page__filtros select,
   .board-page__filtros button {
     width: 100%;
@@ -2120,4 +2125,10 @@ label {
   .admin-seleccion-barra {
     align-items: stretch;
   }
+}
+
+.ticket-numero {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }

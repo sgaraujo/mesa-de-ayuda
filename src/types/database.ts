@@ -26,6 +26,7 @@ export interface Profile {
 
 export interface Ticket {
   id: string
+  numero: number
   titulo: string
   descripcion: string
   solicitante_id: string

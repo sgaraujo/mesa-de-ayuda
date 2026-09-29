@@ -55,7 +55,7 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true }: TicketCar
           {[ticket.proyecto?.nombre, ticket.area?.nombre].filter(Boolean).join(' · ')}
         </span>
       </div>
-      <h3>{ticket.titulo}</h3>
+      <h3><span className="ticket-numero">#{ticket.numero}</span> {ticket.titulo}</h3>
       <p className="ticket-card__solicitado">Solicitado: {formatearFechaCorta(ticket.created_at)}</p>
       <p>{ticket.descripcion}</p>
       {(ticket.fecha_requerida || ticket.tiempo_propuesto_horas || ticket.tiempo_ejecutado_horas) && (

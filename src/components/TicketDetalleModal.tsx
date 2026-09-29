@@ -193,7 +193,7 @@ export function TicketDetalleModal({
         </div>
 
         <div className="modal-panel__body">
-          <h2>{ticket.titulo}</h2>
+          <h2><span className="ticket-numero">#{ticket.numero}</span> {ticket.titulo}</h2>
 
           <dl className="modal-meta">
             <div className="modal-meta__item">

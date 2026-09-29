@@ -71,6 +71,7 @@ async function descargarExcel(nombreArchivo: string, encabezados: string[], fila
 
 export function exportarTicketsCSV(tickets: TicketConRelaciones[]) {
   const encabezados = [
+    'N.º',
     'Título',
     'Solicitante',
     'Atendido por',
@@ -81,6 +82,7 @@ export function exportarTicketsCSV(tickets: TicketConRelaciones[]) {
   ]
 
   const filas = tickets.map((t) => [
+    t.numero,
     t.titulo,
     t.solicitante?.full_name ?? t.solicitante?.email ?? '',
     nombresAsignados(t).join(', ') || 'Bandeja general',
@@ -158,7 +160,7 @@ export async function exportarReporteDetalladoExcel(tickets: TicketConRelaciones
   const filas = tickets.map((t) => {
     const creado = new Date(t.created_at)
     return [
-      t.id,
+      t.numero,
       t.proyecto?.nombre ?? '',
       columnaTablero(t),
       '',
