@@ -57,7 +57,8 @@ Cada área es un **tablero cerrado** (migración 0022): el rol se define por
 área en `area_miembros` (`admin` | `agente` | `solicitante`) y una persona
 puede estar en varias áreas con roles distintos. Solo agentes y admins del
 área trabajan su tablero (`agente` ve lo asignado a él más la bandeja
-general, `admin` ve todo y gestiona los miembros en `/area/miembros`).
+general, `admin` ve todo y gestiona los miembros en `/grupos`, que muestra
+cada grupo que administra con sus miembros y un resumen de su tablero).
 **Solicitudes entre áreas:** cualquier usuario activo, sea o no miembro, puede
 enviarle una solicitud a cualquier área desde `/nueva-solicitud`; llega sin
 asignar a la bandeja de ese tablero y quien la pidió la sigue en

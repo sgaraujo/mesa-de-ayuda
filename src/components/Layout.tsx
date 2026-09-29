@@ -44,7 +44,7 @@ export function Layout() {
           <NavLink to="/mis-solicitudes">Mis solicitudes</NavLink>
           {esAgenteOAdmin && <NavLink to="/tablero">Tablero</NavLink>}
           {esAgenteOAdmin && <NavLink to="/estadisticas">Estadísticas</NavLink>}
-          {rol === 'admin' && <NavLink to="/area/miembros">Miembros</NavLink>}
+          {areas.some((a) => a.rol === 'admin') && <NavLink to="/grupos">Grupos</NavLink>}
           {esSuperadmin && <NavLink to="/admin/whitelist">Whitelist</NavLink>}
         </nav>
         <div className="app-header__user">

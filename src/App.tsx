@@ -38,7 +38,7 @@ const NewTicketPage = lazyConReintento(() => import('./pages/NewTicketPage').the
 const MisSolicitudesPage = lazyConReintento(() => import('./pages/MisSolicitudesPage').then((m) => ({ default: m.MisSolicitudesPage })))
 const BoardPage = lazyConReintento(() => import('./pages/BoardPage').then((m) => ({ default: m.BoardPage })))
 const StatsPage = lazyConReintento(() => import('./pages/StatsPage').then((m) => ({ default: m.StatsPage })))
-const AreaMiembrosPage = lazyConReintento(() => import('./pages/AreaMiembrosPage').then((m) => ({ default: m.AreaMiembrosPage })))
+const GruposPage = lazyConReintento(() => import('./pages/GruposPage').then((m) => ({ default: m.GruposPage })))
 const AdminWhitelistPage = lazyConReintento(() => import('./pages/AdminWhitelistPage').then((m) => ({ default: m.AdminWhitelistPage })))
 
 export default function App() {
@@ -65,8 +65,8 @@ export default function App() {
                 <Route path="/estadisticas" element={<StatsPage />} />
               </Route>
 
-              <Route element={<ProtectedRoute rolesPermitidos={['admin']} />}>
-                <Route path="/area/miembros" element={<AreaMiembrosPage />} />
+              <Route element={<ProtectedRoute adminDeAlgunArea />}>
+                <Route path="/grupos" element={<GruposPage />} />
               </Route>
 
               <Route element={<ProtectedRoute soloSuperadmin />}>
