@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useArea } from '../context/AreaContext'
 import { TicketForm } from './TicketForm'
 import { ConfirmDialog } from './ConfirmDialog'
 
@@ -10,10 +11,11 @@ interface NuevaTareaModalProps {
 
 export function NuevaTareaModal({ onClose, onCreado }: NuevaTareaModalProps) {
   const { profile } = useAuth()
+  const { areaActiva } = useArea()
   const [dirty, setDirty] = useState(false)
   const [confirmarDescarte, setConfirmarDescarte] = useState(false)
-  const asignadoAPorDefecto = profile?.role === 'agente' || profile?.role === 'admin'
-    ? profile.id
+  const asignadoAPorDefecto = areaActiva?.rol === 'agente' || areaActiva?.rol === 'admin'
+    ? profile?.id
     : undefined
 
   function intentarCerrar() {

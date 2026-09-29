@@ -188,6 +188,26 @@ label {
   flex: 1;
 }
 
+.app-header__area {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.35rem 0.6rem;
+}
+
+.app-header__area-nombre {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.mis-solicitudes__fila {
+  cursor: pointer;
+}
+
+.mis-solicitudes__fila:hover td {
+  background: var(--brand-soft);
+}
+
 .app-nav a {
   color: var(--text-secondary);
   text-decoration: none;

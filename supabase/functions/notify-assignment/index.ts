@@ -40,23 +40,31 @@ Deno.serve(async (req) => {
 
     const { data: ticket, error: ticketError } = await supabaseAdmin
       .from('tickets')
-      .select('id, solicitante_id, asignado_a, es_grupal')
+      .select('id, solicitante_id, asignado_a, es_grupal, area_id')
       .eq('id', ticketId)
       .maybeSingle()
     if (ticketError || !ticket) return json({ ok: false, message: 'Tarea no encontrada' }, 404)
 
-    let consultaAgentes = supabaseAdmin
-      .from('profiles')
-      .select('id, email, full_name, role, activo')
-      .in('role', ['admin', 'agente'])
-      .eq('activo', true)
+    // Cada área es un tablero cerrado: solo se avisa a los admins y agentes
+    // del área del ticket, nunca a los de otras áreas.
+    const { data: gestores, error: gestoresError } = ticket.area_id
+      ? await supabaseAdmin
+        .from('area_miembros')
+        .select('profile_id')
+        .eq('area_id', ticket.area_id)
+        .in('rol', ['admin', 'agente'])
+      : { data: [], error: null }
+    if (gestoresError) return json({ ok: false, message: 'No se pudieron consultar los agentes' }, 500)
+    const idsGestores: string[] = (gestores ?? []).map((fila) => fila.profile_id)
+
+    let destinatariosIds = idsGestores
 
     if (esNuevaTarea) {
       if (ticket.solicitante_id !== remitente.id || ticket.asignado_a !== null || ticket.es_grupal) {
         return json({ ok: false, message: 'No autorizado' }, 403)
       }
     } else {
-      if (!['admin', 'agente'].includes(remitente.role)) {
+      if (remitente.role !== 'admin' && !idsGestores.includes(remitente.id)) {
         return json({ ok: false, message: 'No autorizado' }, 403)
       }
 
@@ -75,12 +83,15 @@ Deno.serve(async (req) => {
         idsAsignados = (asignados ?? []).map((fila) => fila.profile_id)
       }
 
-      const destinatariosIds = idsSolicitados.filter((id) => idsAsignados.includes(id))
-      if (destinatariosIds.length === 0) return json({ ok: true, enviados: 0 })
-      consultaAgentes = consultaAgentes.in('id', destinatariosIds)
+      destinatariosIds = idsSolicitados.filter((id) => idsAsignados.includes(id) && idsGestores.includes(id))
     }
+    if (destinatariosIds.length === 0) return json({ ok: true, enviados: 0 })
 
-    const { data: agentes, error: agentesError } = await consultaAgentes
+    const { data: agentes, error: agentesError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email, full_name')
+      .in('id', destinatariosIds)
+      .eq('activo', true)
     if (agentesError) return json({ ok: false, message: 'No se pudieron consultar los agentes' }, 500)
 
     const siteUrl = Deno.env.get('SITE_URL') ?? ''

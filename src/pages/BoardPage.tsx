@@ -3,8 +3,8 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { useAreas } from '../hooks/useAreas'
-import { useAgentes } from '../hooks/useAgentes'
+import { useArea } from '../context/AreaContext'
+import { useMiembrosArea } from '../hooks/useMiembrosArea'
 import { notificarAsignacion, notificarFinalizacion } from '../lib/notificaciones'
 import { KanbanColumn, type ColumnaId } from '../components/KanbanColumn'
 import { TicketDetalleModal } from '../components/TicketDetalleModal'
@@ -18,11 +18,6 @@ const COLUMNAS: { id: ColumnaId; titulo: string }[] = [
   { id: 'pendiente', titulo: 'Pendiente' },
   { id: 'en_curso', titulo: 'En curso' },
   { id: 'finalizado', titulo: 'Finalizado' },
-]
-
-const COLUMNAS_SOLICITANTE: { id: ColumnaId; titulo: string }[] = [
-  { id: 'pendiente', titulo: 'Pendientes' },
-  { id: 'finalizado', titulo: 'Finalizadas' },
 ]
 
 const DIAS_FINALIZADOS_EN_TABLERO = 30
@@ -40,13 +35,12 @@ const BOARD_CHANNEL = 'ticket-board'
 
 export function BoardPage() {
   const { profile } = useAuth()
-  const esSolicitante = profile?.role === 'solicitante'
-  const esAdmin = profile?.role === 'admin'
-  const { areas } = useAreas()
-  const { agentes } = useAgentes()
+  const { areaActiva } = useArea()
+  const areaId = areaActiva?.id
+  const esAdmin = areaActiva?.rol === 'admin'
+  const { agentes } = useMiembrosArea(areaId)
   const [tickets, setTickets] = useState<TicketConRelaciones[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtroArea, setFiltroArea] = useState('')
   const [filtroAgente, setFiltroAgente] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [vistaHistorial, setVistaHistorial] = useState(false)
@@ -70,14 +64,16 @@ export function BoardPage() {
   )
 
   const cargarTickets = useCallback(async (mostrarCarga = false) => {
+    if (!areaId) return
     if (mostrarCarga) setLoading(true)
     const { data } = await supabase
       .from('tickets')
       .select(TICKET_SELECT)
+      .eq('area_id', areaId)
       .order('created_at', { ascending: false })
     setTickets((data as unknown as TicketConRelaciones[]) ?? [])
     setLoading(false)
-  }, [])
+  }, [areaId])
 
   const notificarCambio = useCallback(async (ticketId?: string) => {
     await boardChannel.current?.send({
@@ -103,8 +99,12 @@ export function BoardPage() {
       if (ids.length === 0) return
 
       const { data } = await supabase.from('tickets').select(TICKET_SELECT).in('id', ids)
+      // Un ticket que se movió a otra área sale de este tablero aunque la
+      // persona todavía pueda verlo por ser miembro de esa otra área.
       const actualizados = new Map(
-        ((data as unknown as TicketConRelaciones[]) ?? []).map((t) => [t.id, t]),
+        ((data as unknown as TicketConRelaciones[]) ?? [])
+          .filter((t) => t.area_id === areaId)
+          .map((t) => [t.id, t]),
       )
 
       setTickets((prev) => {
@@ -117,13 +117,13 @@ export function BoardPage() {
         return [...nuevos, ...siguen]
       })
     }, 400)
-  }, [])
+  }, [areaId])
 
   useEffect(() => {
     void cargarTickets(true)
 
     const channel = supabase
-      .channel(BOARD_CHANNEL)
+      .channel(`${BOARD_CHANNEL}:${areaId}`)
       .on('broadcast', { event: 'tickets_changed' }, ({ payload }) => {
         programarActualizacion((payload as { ticketId?: string } | undefined)?.ticketId)
       })
@@ -144,14 +144,13 @@ export function BoardPage() {
       boardChannel.current = null
       void supabase.removeChannel(channel)
     }
-  }, [cargarTickets, programarActualizacion])
+  }, [areaId, cargarTickets, programarActualizacion])
 
   const ticketsFiltrados = useMemo(() => {
     const limiteFinalizados = Date.now() - DIAS_FINALIZADOS_EN_TABLERO * 24 * 60 * 60 * 1000
 
     return tickets.filter((t) => {
       if (!coincideBusqueda(t, busqueda)) return false
-      if (filtroArea && t.area_id !== filtroArea) return false
 
       if (filtroAgente === 'sin_asignar' && !estaSinAsignar(t)) return false
       if (
@@ -167,21 +166,15 @@ export function BoardPage() {
 
       return vistaHistorial ? esFinalizadoAntiguo : !esFinalizadoAntiguo
     })
-  }, [tickets, busqueda, filtroArea, filtroAgente, vistaHistorial])
+  }, [tickets, busqueda, filtroAgente, vistaHistorial])
 
   function ticketsParaColumna(id: ColumnaId) {
     if (vistaHistorial) return id === 'finalizado' ? ticketsFiltrados : []
-    if (esSolicitante) {
-      if (id === 'pendiente') return ticketsFiltrados.filter((t) => t.estado !== 'finalizado')
-      if (id === 'finalizado') return ticketsFiltrados.filter((t) => t.estado === 'finalizado')
-      return []
-    }
     if (id === 'tareas') return ticketsFiltrados.filter((t) => estaSinAsignar(t))
     return ticketsFiltrados.filter((t) => !estaSinAsignar(t) && t.estado === id)
   }
 
   async function handleDragEnd(event: DragEndEvent) {
-    if (esSolicitante) return
     const { active, over } = event
     if (!over) return
 
@@ -315,7 +308,7 @@ export function BoardPage() {
     <div className="board-page">
       <div className="board-page__toolbar">
         <div>
-          <h1>{vistaHistorial ? 'Historial de finalizadas' : esSolicitante ? 'Mis solicitudes' : 'Tablero'}</h1>
+          <h1>{vistaHistorial ? 'Historial de finalizadas' : `Tablero · ${areaActiva?.nombre ?? ''}`}</h1>
           {vistaHistorial && <p className="board-page__subtitulo">Tareas finalizadas hace más de 30 días.</p>}
         </div>
         <div className="board-page__filtros">
@@ -327,23 +320,13 @@ export function BoardPage() {
             placeholder="Buscar por #, título, persona…"
             aria-label="Buscar tickets"
           />
-          {!esSolicitante && (
-            <select value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}>
-              <option value="">Todas las áreas</option>
-              {areas.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.nombre}
-                </option>
-              ))}
-            </select>
-          )}
           {esAdmin && (
             <select value={filtroAgente} onChange={(e) => setFiltroAgente(e.target.value)} aria-label="Filtrar por agente">
               <option value="">Todas las personas</option>
               <option value="sin_asignar">Sin asignar</option>
               {agentes.map((agente) => (
                 <option key={agente.id} value={agente.id}>
-                  {agente.full_name ?? agente.email} ({agente.role === 'admin' ? 'Admin' : 'Agente'})
+                  {agente.full_name ?? agente.email} ({agente.rolArea === 'admin' ? 'Admin' : 'Agente'})
                 </option>
               ))}
             </select>
@@ -360,14 +343,14 @@ export function BoardPage() {
         </div>
       </div>
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className={`kanban-board ${vistaHistorial ? 'kanban-board--1' : esSolicitante ? 'kanban-board--2' : 'kanban-board--4'}`}>
-          {(vistaHistorial ? [{ id: 'finalizado' as const, titulo: 'Finalizadas archivadas' }] : esSolicitante ? COLUMNAS_SOLICITANTE : COLUMNAS).map((columna) => (
+        <div className={`kanban-board ${vistaHistorial ? 'kanban-board--1' : 'kanban-board--4'}`}>
+          {(vistaHistorial ? [{ id: 'finalizado' as const, titulo: 'Finalizadas archivadas' }] : COLUMNAS).map((columna) => (
             <KanbanColumn
               key={columna.id}
               id={columna.id}
               titulo={columna.titulo}
               tickets={ticketsParaColumna(columna.id)}
-              puedeArrastrar={!esSolicitante && !vistaHistorial}
+              puedeArrastrar={!vistaHistorial}
               onTicketClick={setTicketSeleccionado}
             />
           ))}
@@ -377,7 +360,7 @@ export function BoardPage() {
       {ticketSeleccionado && (
         <TicketDetalleModal
           ticket={ticketSeleccionado}
-          puedeEditarTiempos={profile?.role === 'agente' || profile?.role === 'admin'}
+          puedeEditarTiempos
           puedeEliminar={esAdmin}
           onClose={() => setTicketSeleccionado(null)}
           onGuardado={(actualizado) => {

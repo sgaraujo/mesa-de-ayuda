@@ -1,4 +1,6 @@
 export type Role = 'admin' | 'agente' | 'solicitante'
+// Rol dentro de un área (area_miembros). Role en profiles solo distingue al superadmin.
+export type RolArea = Role
 export type Estado = 'pendiente' | 'en_curso' | 'finalizado'
 export type Prioridad = 'baja' | 'media' | 'alta' | 'urgente'
 
@@ -11,6 +13,14 @@ export interface Area {
 export interface Proyecto {
   id: string
   nombre: string
+  area_id: string | null
+}
+
+export interface AreaMiembro {
+  area_id: string
+  profile_id: string
+  rol: RolArea
+  created_at: string
 }
 
 export interface Profile {

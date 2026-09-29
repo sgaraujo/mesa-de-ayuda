@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useArea } from '../context/AreaContext'
 import { useAreas } from '../hooks/useAreas'
 import type { Prioridad } from '../types/database'
 import { notificarAsignacion, notificarNuevaTarea } from '../lib/notificaciones'
@@ -17,18 +18,23 @@ function extensionDe(nombreArchivo: string): string {
 
 interface TicketFormProps {
   asignadoAPorDefecto?: string
+  // true: se elige a qué área enviar la solicitud (cualquiera, sea o no
+  // miembro). false: se crea en el área activa, como desde el tablero.
+  elegirArea?: boolean
   onCreado?: () => void
   onDirtyChange?: (dirty: boolean) => void
 }
 
-export function TicketForm({ asignadoAPorDefecto = '', onCreado, onDirtyChange }: TicketFormProps) {
+export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCreado, onDirtyChange }: TicketFormProps) {
   const { profile } = useAuth()
-  const { areas } = useAreas()
-  const esSolicitante = profile?.role === 'solicitante'
+  const { areaActiva, areas: misAreas } = useArea()
+  const { areas: todasLasAreas } = useAreas()
+  const [areaDestinoId, setAreaDestinoId] = useState(areaActiva?.id ?? '')
+  const areaId = elegirArea ? areaDestinoId : areaActiva?.id ?? ''
+  const rolEnDestino = misAreas.find((a) => a.id === areaId)?.rol
 
   const [titulo, setTitulo] = useState('')
   const [descripcion, setDescripcion] = useState('')
-  const [areaId, setAreaId] = useState('')
   const [prioridad, setPrioridad] = useState<Prioridad>('media')
   const [archivo, setArchivo] = useState<File | null>(null)
   const [archivoPreview, setArchivoPreview] = useState<string | null>(null)
@@ -93,10 +99,10 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado, onDirtyChange }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!profile) return
+    if (!profile || !areaId) return
     setError(null)
     setEnviando(true)
-    const puedeAutoasignarse = profile.role === 'agente' || profile.role === 'admin'
+    const puedeAutoasignarse = rolEnDestino === 'agente' || rolEnDestino === 'admin'
 
     let archivoUrl: string | null = null
     if (archivo) {
@@ -119,7 +125,7 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado, onDirtyChange }
         descripcion,
         solicitante_id: profile.id,
         empresa_solicitante: profile.empresa,
-        area_id: areaId || null,
+        area_id: areaId,
         asignado_a: asignadoA,
         prioridad,
         estado: 'pendiente',
@@ -142,7 +148,6 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado, onDirtyChange }
     setExito(true)
     setTitulo('')
     setDescripcion('')
-    setAreaId('')
     setPrioridad('media')
     setArchivo(null)
     if (archivoInputRef.current) archivoInputRef.current.value = ''
@@ -165,17 +170,24 @@ export function TicketForm({ asignadoAPorDefecto = '', onCreado, onDirtyChange }
         />
       </label>
       <div className="ticket-form__row">
-        {!esSolicitante && (
+        {elegirArea ? (
           <label>
-            Área responsable
-            <select value={areaId} onChange={(e) => setAreaId(e.target.value)}>
-              <option value="">Sin definir</option>
-              {areas.map((area) => (
+            Área destino
+            <select value={areaDestinoId} onChange={(e) => setAreaDestinoId(e.target.value)} required>
+              <option value="" disabled>
+                ¿A qué área se la pides?
+              </option>
+              {todasLasAreas.map((area) => (
                 <option key={area.id} value={area.id}>
                   {area.nombre}
                 </option>
               ))}
             </select>
+          </label>
+        ) : (
+          <label>
+            Área
+            <input value={areaActiva?.nombre ?? ''} disabled />
           </label>
         )}
         <label>

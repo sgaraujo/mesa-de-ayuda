@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { useAreas } from '../hooks/useAreas'
+import { useArea } from '../context/AreaContext'
 import { useProyectos } from '../hooks/useProyectos'
 import {
   contarPor,
@@ -46,32 +46,33 @@ function contarPorPersonaAsignada(tickets: TicketConRelaciones[]): ConteoCategor
 export function StatsPage() {
   const [tickets, setTickets] = useState<TicketConRelaciones[]>([])
   const [loading, setLoading] = useState(true)
-  const { areas } = useAreas()
-  const { proyectos } = useProyectos()
+  const { areaActiva } = useArea()
+  const areaId = areaActiva?.id
+  const { proyectos } = useProyectos(areaId)
 
-  const [filtroArea, setFiltroArea] = useState('')
   const [filtroProyecto, setFiltroProyecto] = useState('')
   const [filtroEstado, setFiltroEstado] = useState<Estado | ''>('')
   const [filtroRango, setFiltroRango] = useState<RangoFecha>('todo')
 
   useEffect(() => {
+    if (!areaId) return
     supabase
       .from('tickets')
       .select(TICKET_SELECT)
+      .eq('area_id', areaId)
       .then(({ data }) => {
         setTickets((data as unknown as TicketConRelaciones[]) ?? [])
         setLoading(false)
       })
-  }, [])
+  }, [areaId])
 
   const ticketsBase = useMemo(() => {
     return tickets.filter(
       (t) =>
-        (!filtroArea || t.area_id === filtroArea) &&
         (!filtroProyecto || t.proyecto_id === filtroProyecto) &&
         dentroDeRango(t.created_at, filtroRango),
     )
-  }, [tickets, filtroArea, filtroProyecto, filtroRango])
+  }, [tickets, filtroProyecto, filtroRango])
 
   const ticketsFiltrados = useMemo(() => {
     return ticketsBase.filter((t) => !filtroEstado || t.estado === filtroEstado)
@@ -95,7 +96,6 @@ export function StatsPage() {
         }, 0) / finalizadosConTiempo.length
       : null
 
-  const porArea = contarPor(ticketsFiltrados, (t) => t.area?.nombre ?? null)
   const porAgente = contarPorPersonaAsignada(ticketsFiltrados)
   const porEmpresa = contarPor(ticketsFiltrados, (t) => t.empresa_solicitante)
   const porProyecto = contarPor(ticketsFiltrados, (t) => t.proyecto?.nombre ?? null)
@@ -106,7 +106,7 @@ export function StatsPage() {
   return (
     <div className="stats-page">
       <div className="stats-page__header">
-        <h1>Estadísticas</h1>
+        <h1>Estadísticas · {areaActiva?.nombre}</h1>
         <div className="stats-page__acciones">
           <button type="button" className="stats-page__exportar" onClick={() => exportarTicketsCSV(ticketsFiltrados)}>
             Exportar CSV
@@ -122,14 +122,6 @@ export function StatsPage() {
       </div>
 
       <div className="stats-filtros">
-        <select value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}>
-          <option value="">Todas las áreas</option>
-          {areas.map((area) => (
-            <option key={area.id} value={area.id}>
-              {area.nombre}
-            </option>
-          ))}
-        </select>
         <select value={filtroProyecto} onChange={(e) => setFiltroProyecto(e.target.value)}>
           <option value="">Todos los proyectos</option>
           {proyectos.map((proyecto) => (
@@ -185,10 +177,6 @@ export function StatsPage() {
             datos={tendencia}
             formatearEtiqueta={(periodo) => formatearEtiquetaPeriodo(periodo, agrupacionTendencia)}
           />
-        </div>
-        <div className="chart-card">
-          <h2>Solicitudes por área</h2>
-          <BarraHorizontal datos={porArea} />
         </div>
         <div className="chart-card">
           <h2>Ranking por proyecto</h2>

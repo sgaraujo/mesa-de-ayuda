@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
       .select('role, activo')
       .eq('id', authData.user.id)
       .maybeSingle()
-    if (!remitente || remitente.activo === false || !['admin', 'agente'].includes(remitente.role)) {
+    if (!remitente || remitente.activo === false) {
       return json({ ok: false, message: 'No autorizado' }, 403)
     }
 
@@ -37,11 +37,27 @@ Deno.serve(async (req) => {
 
     const { data: ticket, error: ticketError } = await supabaseAdmin
       .from('tickets')
-      .select('id, titulo, estado, nota_finalizacion, solicitante:profiles!tickets_solicitante_id_fkey(id, email, full_name, activo)')
+      .select('id, titulo, estado, nota_finalizacion, area_id, solicitante:profiles!tickets_solicitante_id_fkey(id, email, full_name, activo)')
       .eq('id', ticketId)
       .maybeSingle()
     if (ticketError || !ticket) return json({ ok: false, message: 'Tarea no encontrada' }, 404)
     if (ticket.estado !== 'finalizado') return json({ ok: false, message: 'La tarea no está finalizada' }, 409)
+
+    // Solo quien gestiona el área del ticket (admin o agente de esa área) o el
+    // superadmin puede disparar el aviso.
+    if (remitente.role !== 'admin') {
+      const { data: membresia } = ticket.area_id
+        ? await supabaseAdmin
+          .from('area_miembros')
+          .select('rol')
+          .eq('area_id', ticket.area_id)
+          .eq('profile_id', authData.user.id)
+          .maybeSingle()
+        : { data: null }
+      if (!membresia || !['admin', 'agente'].includes(membresia.rol)) {
+        return json({ ok: false, message: 'No autorizado' }, 403)
+      }
+    }
 
     const solicitante = Array.isArray(ticket.solicitante) ? ticket.solicitante[0] : ticket.solicitante
     if (!solicitante || solicitante.activo === false) return json({ ok: true, enviados: 0 })

@@ -1,8 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
-import { useAreas } from '../hooks/useAreas'
 import { useProyectos } from '../hooks/useProyectos'
-import { useAgentes } from '../hooks/useAgentes'
+import { useMiembrosArea } from '../hooks/useMiembrosArea'
 import { esImagenAdjunta, nombresAsignados } from '../lib/ticket'
 import { notificarAsignacion } from '../lib/notificaciones'
 import { separarTiempo, combinarTiempo, formatearTiempo } from '../lib/tiempo'
@@ -46,11 +45,10 @@ export function TicketDetalleModal({
   onGuardado,
   onEliminado,
 }: TicketDetalleModalProps) {
-  const { areas } = useAreas()
-  const { proyectos, recargar: recargarProyectos } = useProyectos()
-  const { agentes } = useAgentes()
+  const areaId = ticket.area_id ?? undefined
+  const { proyectos, recargar: recargarProyectos } = useProyectos(areaId)
+  const { agentes } = useMiembrosArea(areaId)
 
-  const [areaId, setAreaId] = useState(ticket.area_id ?? '')
   const [proyectoId, setProyectoId] = useState(ticket.proyecto_id ?? '')
   const [nuevoProyecto, setNuevoProyecto] = useState('')
   const [mostrarNuevoProyecto, setMostrarNuevoProyecto] = useState(false)
@@ -80,7 +78,7 @@ export function TicketDetalleModal({
     if (nuevoProyecto.trim()) {
       const { data: creado, error: errorProyecto } = await supabase
         .from('proyectos')
-        .insert({ nombre: nuevoProyecto.trim() })
+        .insert({ nombre: nuevoProyecto.trim(), area_id: ticket.area_id })
         .select()
         .single()
 
@@ -96,7 +94,6 @@ export function TicketDetalleModal({
     const { data, error } = await supabase
       .from('tickets')
       .update({
-        area_id: areaId || null,
         proyecto_id: proyectoIdFinal,
         es_grupal: esGrupal,
         asignado_a: esGrupal ? null : ticket.asignado_a,
@@ -126,7 +123,6 @@ export function TicketDetalleModal({
 
     setGuardando(false)
 
-    const areaActualizada = areas.find((a) => a.id === data.area_id) ?? null
     const proyectoActualizado = data.proyecto_id
       ? (proyectos.find((p) => p.id === data.proyecto_id) ??
         (nuevoProyecto.trim() ? { id: data.proyecto_id, nombre: nuevoProyecto.trim() } : ticket.proyecto))
@@ -140,7 +136,6 @@ export function TicketDetalleModal({
     onGuardado({
       ...ticket,
       ...data,
-      area: areaActualizada,
       proyecto: proyectoActualizado,
       asignados: asignadosActualizados,
     })
@@ -278,14 +273,7 @@ export function TicketDetalleModal({
                 <div className="ticket-form__row">
                   <label>
                     Área
-                    <select value={areaId} onChange={(e) => setAreaId(e.target.value)}>
-                      <option value="">Sin definir</option>
-                      {areas.map((area) => (
-                        <option key={area.id} value={area.id}>
-                          {area.nombre}
-                        </option>
-                      ))}
-                    </select>
+                    <input value={ticket.area?.nombre ?? 'Sin definir'} disabled />
                   </label>
                   <label>
                     Proyecto

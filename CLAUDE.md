@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0015_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0022_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -53,10 +53,26 @@ No hay auto-registro: un admin da de alta correos en `allowed_emails`
 2. `/crear-password` define la contraseña desde el link del correo.
 2. Login normal en `/login` después de eso.
 
-Tres roles (`src/types/database.ts`): `solicitante` (crea tickets, ve solo
-los suyos), `agente` (ve/gestiona tickets asignados a su área), `admin`
-(todo, incluida la whitelist). El primer admin se inserta a mano por SQL
-(no hay quien lo invite desde la UI hasta que exista uno).
+Cada área es un **tablero cerrado** (migración 0022): el rol se define por
+área en `area_miembros` (`admin` | `agente` | `solicitante`) y una persona
+puede estar en varias áreas con roles distintos. Solo agentes y admins del
+área trabajan su tablero (`agente` ve lo asignado a él más la bandeja
+general, `admin` ve todo y gestiona los miembros en `/area/miembros`).
+**Solicitudes entre áreas:** cualquier usuario activo, sea o no miembro, puede
+enviarle una solicitud a cualquier área desde `/nueva-solicitud`; llega sin
+asignar a la bandeja de ese tablero y quien la pidió la sigue en
+`/mis-solicitudes` (RLS: `solicitante_id = auth.uid()`), sin ver nada más
+del tablero. `profiles.role =
+'admin'` es el **superadmin** global: crea áreas, gestiona la whitelist y
+actúa como admin en todas las áreas; fuera de eso `profiles.role` no da
+permisos. En RLS se usa `rol_en_area()`, `es_superadmin()`,
+`puedo_gestionar_area()` y `puedo_gestionar_ticket()` (security definer).
+El primer superadmin se inserta a mano por SQL.
+
+En el frontend, `AreaProvider` ([src/context/AreaContext.tsx](src/context/AreaContext.tsx))
+carga las áreas de la persona y el área activa (selector en el Layout). Las
+páginas leen el rol con `useArea().areaActiva.rol`, nunca con `profile.role`,
+y el Layout las remonta al cambiar de área.
 
 `AuthProvider` ([src/context/AuthContext.tsx](src/context/AuthContext.tsx))
 espera a que `getSession()` resuelva antes de decidir si hay perfil — hacerlo
@@ -98,7 +114,7 @@ del frontend. Combina:
   `tickets` y `ticket_asignados`. Ambos alimentan la misma cola de
   `ticketId`s pendientes, debounced 400ms, para refrescar solo los tickets
   que cambiaron en vez de recargar todo el tablero en cada evento.
-- Vistas distintas por rol: `solicitante` ve 2 columnas (sus propias
+- Solo carga tickets del área activa. Vistas distintas por rol en el área: `solicitante` ve 2 columnas (sus propias
   solicitudes), agente/admin ven 4. `vistaHistorial` (solo admin) filtra
   tickets finalizados hace más de 30 días, que de otro modo desaparecen del
   tablero activo.

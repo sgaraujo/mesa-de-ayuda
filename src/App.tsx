@@ -1,6 +1,7 @@
 import { lazy, Suspense, type ComponentType } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { AreaProvider } from './context/AreaContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Layout } from './components/Layout'
 
@@ -34,14 +35,17 @@ const CreatePasswordPage = lazyConReintento(() => import('./pages/CreatePassword
 const ForgotPasswordPage = lazyConReintento(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })))
 const ResetPasswordPage = lazyConReintento(() => import('./pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })))
 const NewTicketPage = lazyConReintento(() => import('./pages/NewTicketPage').then((m) => ({ default: m.NewTicketPage })))
+const MisSolicitudesPage = lazyConReintento(() => import('./pages/MisSolicitudesPage').then((m) => ({ default: m.MisSolicitudesPage })))
 const BoardPage = lazyConReintento(() => import('./pages/BoardPage').then((m) => ({ default: m.BoardPage })))
 const StatsPage = lazyConReintento(() => import('./pages/StatsPage').then((m) => ({ default: m.StatsPage })))
+const AreaMiembrosPage = lazyConReintento(() => import('./pages/AreaMiembrosPage').then((m) => ({ default: m.AreaMiembrosPage })))
 const AdminWhitelistPage = lazyConReintento(() => import('./pages/AdminWhitelistPage').then((m) => ({ default: m.AdminWhitelistPage })))
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <AreaProvider>
         <Suspense fallback={<div className="pantalla-carga">Cargando...</div>}>
           <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -54,13 +58,18 @@ export default function App() {
             <Route element={<Layout />}>
               <Route path="/nueva-solicitud" element={<NewTicketPage />} />
 
-              <Route path="/tablero" element={<BoardPage />} />
+              <Route path="/mis-solicitudes" element={<MisSolicitudesPage />} />
 
               <Route element={<ProtectedRoute rolesPermitidos={['agente', 'admin']} />}>
+                <Route path="/tablero" element={<BoardPage />} />
                 <Route path="/estadisticas" element={<StatsPage />} />
               </Route>
 
               <Route element={<ProtectedRoute rolesPermitidos={['admin']} />}>
+                <Route path="/area/miembros" element={<AreaMiembrosPage />} />
+              </Route>
+
+              <Route element={<ProtectedRoute soloSuperadmin />}>
                 <Route path="/admin/whitelist" element={<AdminWhitelistPage />} />
               </Route>
             </Route>
@@ -70,6 +79,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/nueva-solicitud" replace />} />
           </Routes>
         </Suspense>
+        </AreaProvider>
       </AuthProvider>
     </BrowserRouter>
   )
