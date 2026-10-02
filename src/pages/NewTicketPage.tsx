@@ -8,8 +8,8 @@ export function NewTicketPage() {
     <div className="page-form">
       <h1>Nueva solicitud</h1>
       <p className="page-form__subtitulo">
-        Cuéntanos qué necesitas y a qué área se lo pides. La solicitud llega a la bandeja
-        general de esa área y puedes seguirla en Mis solicitudes.
+        En cuatro pasos: elige el área, cuéntanos qué necesitas, marca la urgencia y, si quieres,
+        adjunta un archivo. Después puedes seguirla en Mis solicitudes.
       </p>
       <TicketForm elegirArea onCreado={() => navigate('/mis-solicitudes')} />
     </div>

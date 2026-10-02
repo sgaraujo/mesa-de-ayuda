@@ -66,7 +66,7 @@ as $$
   );
 $$;
 
-drop policy tickets_select on tickets;
+drop policy if exists tickets_select on tickets;
 create policy tickets_select on tickets for select to authenticated using (
   public.usuario_activo() and (
     public.es_superadmin()
@@ -83,11 +83,12 @@ create policy tickets_select on tickets for select to authenticated using (
   )
 );
 
-drop policy tickets_delete_admin on tickets;
+drop policy if exists tickets_delete_admin on tickets;
+drop policy if exists tickets_delete_lider on tickets;
 create policy tickets_delete_lider on tickets for delete to authenticated
   using (public.es_superadmin() or public.rol_en_area(area_id) = 'lider');
 
-drop policy area_miembros_write on area_miembros;
+drop policy if exists area_miembros_write on area_miembros;
 create policy area_miembros_write on area_miembros for all to authenticated
   using (public.es_superadmin() or public.rol_en_area(area_id) = 'lider')
   with check (public.es_superadmin() or public.rol_en_area(area_id) = 'lider');

@@ -1,8 +1,8 @@
 -- Cada área tiene su propio tablero cerrado. El rol ya no es uno solo por
 -- persona: se define por área en area_miembros, y una persona puede estar en
--- varias áreas con roles distintos (admin, agente o solicitante). Cualquiera
--- puede enviarle solicitudes a cualquier área, pero solo los miembros ven y
--- trabajan su tablero.
+-- varias áreas. Cualquiera puede enviarle solicitudes a cualquier área, pero
+-- solo sus miembros ven y trabajan su tablero. (Los nombres de rol de área
+-- definitivos, 'lider' y 'agente', los fija 0023.)
 --
 -- profiles.role queda solo para distinguir al superadmin global
 -- (role = 'admin'): crea áreas, gestiona la whitelist y ve todos los tableros.
@@ -11,19 +11,29 @@
 -- Todas las funciones nuevas son security definer, igual que puedo_ver_ticket
 -- (ver 0007): area_miembros se consulta desde las policies de tickets y de sí
 -- misma, y así no se vuelve a disparar RLS dentro de ellas.
+--
+-- Es idempotente porque versiones previas de este archivo se corrieron a mano
+-- en producción antes de pasar por db push: cada paso crea o reemplaza lo que
+-- corresponde sin fallar si ya existe.
 
 -- ---------------------------------------------------------------------------
 -- area_miembros
 -- ---------------------------------------------------------------------------
-create table area_miembros (
+create table if not exists area_miembros (
   area_id uuid not null references areas(id) on delete cascade,
   profile_id uuid not null references profiles(id) on delete cascade,
-  rol text not null check (rol in ('admin', 'agente', 'solicitante')),
+  rol text not null,
   created_at timestamptz not null default now(),
   primary key (area_id, profile_id)
 );
 
-create index area_miembros_profile_idx on area_miembros(profile_id);
+-- Acepta los nombres viejos y nuevos mientras 0023 convierte 'admin' en
+-- 'lider' y deja solo ('lider', 'agente').
+alter table area_miembros drop constraint if exists area_miembros_rol_check;
+alter table area_miembros add constraint area_miembros_rol_check
+  check (rol in ('admin', 'lider', 'agente', 'solicitante'));
+
+create index if not exists area_miembros_profile_idx on area_miembros(profile_id);
 
 alter table area_miembros enable row level security;
 
@@ -56,13 +66,13 @@ alter table tickets alter column area_id set not null;
 -- ---------------------------------------------------------------------------
 -- Funciones de permisos
 -- ---------------------------------------------------------------------------
-create function public.es_superadmin()
+create or replace function public.es_superadmin()
 returns boolean language sql stable security definer set search_path = public
 as $$
   select coalesce(public.rol_actual() = 'admin', false);
 $$;
 
-create function public.rol_en_area(p_area_id uuid)
+create or replace function public.rol_en_area(p_area_id uuid)
 returns text language sql stable security definer set search_path = public
 as $$
   select am.rol
@@ -72,13 +82,13 @@ $$;
 
 -- Admin y agentes de un área gestionan sus tickets (estado, asignación,
 -- tiempos). El superadmin gestiona todos.
-create function public.puedo_gestionar_area(p_area_id uuid)
+create or replace function public.puedo_gestionar_area(p_area_id uuid)
 returns boolean language sql stable security definer set search_path = public
 as $$
   select public.es_superadmin() or coalesce(public.rol_en_area(p_area_id) in ('admin', 'agente'), false);
 $$;
 
-create function public.puedo_gestionar_ticket(p_ticket_id uuid)
+create or replace function public.puedo_gestionar_ticket(p_ticket_id uuid)
 returns boolean language sql stable security definer set search_path = public
 as $$
   select exists (
@@ -115,6 +125,7 @@ $$;
 -- Policies de area_miembros
 -- ---------------------------------------------------------------------------
 -- Los miembros de un área se ven entre sí (para asignar tareas y armar grupos).
+drop policy if exists area_miembros_select on area_miembros;
 create policy area_miembros_select on area_miembros for select to authenticated using (
   public.usuario_activo() and (
     profile_id = auth.uid()
@@ -124,6 +135,7 @@ create policy area_miembros_select on area_miembros for select to authenticated 
 );
 
 -- Solo el admin del área (o el superadmin) agrega, cambia o quita miembros.
+drop policy if exists area_miembros_write on area_miembros;
 create policy area_miembros_write on area_miembros for all to authenticated
   using (public.es_superadmin() or public.rol_en_area(area_id) = 'admin')
   with check (public.es_superadmin() or public.rol_en_area(area_id) = 'admin');
@@ -131,7 +143,7 @@ create policy area_miembros_write on area_miembros for all to authenticated
 -- ---------------------------------------------------------------------------
 -- tickets
 -- ---------------------------------------------------------------------------
-drop policy tickets_select on tickets;
+drop policy if exists tickets_select on tickets;
 create policy tickets_select on tickets for select to authenticated using (
   public.usuario_activo() and (
     public.es_superadmin()
@@ -152,51 +164,53 @@ create policy tickets_select on tickets for select to authenticated using (
 -- solicitud a cualquier área (queda en la bandeja general de ese tablero) y
 -- la sigue por tickets_select (solicitante_id = auth.uid()), sin ver nada más
 -- del tablero. Solo quien gestiona el área puede crearla ya asignada.
-drop policy tickets_insert on tickets;
+drop policy if exists tickets_insert on tickets;
 create policy tickets_insert on tickets for insert to authenticated with check (
   public.usuario_activo()
   and solicitante_id = auth.uid()
   and ((asignado_a is null and not es_grupal) or public.puedo_gestionar_area(area_id))
 );
 
-drop policy tickets_update_agentes on tickets;
+drop policy if exists tickets_update_agentes on tickets;
+drop policy if exists tickets_update_gestores on tickets;
 create policy tickets_update_gestores on tickets for update to authenticated
   using (public.puedo_gestionar_area(area_id))
   with check (public.puedo_gestionar_area(area_id));
 
-drop policy tickets_delete_admin on tickets;
+drop policy if exists tickets_delete_admin on tickets;
 create policy tickets_delete_admin on tickets for delete to authenticated
   using (public.es_superadmin() or public.rol_en_area(area_id) = 'admin');
 
 -- ---------------------------------------------------------------------------
 -- ticket_status_history y ticket_asignados
 -- ---------------------------------------------------------------------------
-drop policy ticket_status_history_select on ticket_status_history;
+drop policy if exists ticket_status_history_select on ticket_status_history;
 create policy ticket_status_history_select on ticket_status_history for select to authenticated using (
   public.puedo_ver_ticket(ticket_id)
 );
 
-drop policy ticket_status_history_insert on ticket_status_history;
+drop policy if exists ticket_status_history_insert on ticket_status_history;
 create policy ticket_status_history_insert on ticket_status_history for insert to authenticated with check (
   public.puedo_gestionar_ticket(ticket_id)
 );
 
-drop policy ticket_asignados_write on ticket_asignados;
+drop policy if exists ticket_asignados_write on ticket_asignados;
 create policy ticket_asignados_write on ticket_asignados for all to authenticated
   using (public.puedo_gestionar_ticket(ticket_id))
   with check (public.puedo_gestionar_ticket(ticket_id));
 
 -- ---------------------------------------------------------------------------
 -- proyectos: cada área tiene los suyos y las demás no los ven. Los que
--- existían son todos del equipo de desarrollo.
+-- existían sin área son todos del equipo de desarrollo.
 -- ---------------------------------------------------------------------------
-alter table proyectos add column area_id uuid references areas(id) on delete cascade;
-update proyectos set area_id = (select id from areas where nombre = 'Desarrollo');
+alter table proyectos add column if not exists area_id uuid references areas(id) on delete cascade;
+update proyectos set area_id = (select id from areas where nombre = 'Desarrollo') where area_id is null;
 alter table proyectos alter column area_id set not null;
 alter table proyectos drop constraint if exists proyectos_nombre_key;
+alter table proyectos drop constraint if exists proyectos_area_nombre_key;
 alter table proyectos add constraint proyectos_area_nombre_key unique (area_id, nombre);
 
-drop policy proyectos_select on proyectos;
+drop policy if exists proyectos_select on proyectos;
 -- Quien envió una solicitud a otra área ve el proyecto que le asignaron.
 create policy proyectos_select on proyectos for select to authenticated using (
   public.usuario_activo() and (
@@ -205,14 +219,16 @@ create policy proyectos_select on proyectos for select to authenticated using (
   )
 );
 
-drop policy proyectos_agentes_admin_write on proyectos;
+drop policy if exists proyectos_agentes_admin_write on proyectos;
+drop policy if exists proyectos_gestores_write on proyectos;
 create policy proyectos_gestores_write on proyectos for all to authenticated
   using (public.puedo_gestionar_area(area_id))
   with check (public.puedo_gestionar_area(area_id));
 
 -- ---------------------------------------------------------------------------
 -- Whitelist: el área y rol con que se invita a alguien crean su primera
--- membresía. Las demás se gestionan desde la página de miembros del área.
+-- membresía. Las demás se gestionan desde la página Grupos.
+-- (0023 restringe esto a líderes y agentes.)
 -- ---------------------------------------------------------------------------
 create or replace function public.sincronizar_whitelist_con_perfil()
 returns trigger
@@ -305,7 +321,7 @@ $$;
 -- la API. Solo el superadmin, o el service role de las Edge Functions
 -- (auth.uid() nulo), puede cambiar esas columnas.
 -- ---------------------------------------------------------------------------
-create function public.proteger_columnas_perfil()
+create or replace function public.proteger_columnas_perfil()
 returns trigger language plpgsql security definer set search_path = public
 as $$
 begin
@@ -319,6 +335,7 @@ begin
 end;
 $$;
 
+drop trigger if exists profiles_proteger_columnas on profiles;
 create trigger profiles_proteger_columnas
   before update on profiles
   for each row execute procedure public.proteger_columnas_perfil();

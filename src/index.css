@@ -586,6 +586,336 @@ label {
   filter: none;
 }
 
+/* ---- Nueva solicitud (pasos) ---- */
+
+.solicitud-form {
+  --paso-gap: 0.9rem;
+  --paso-padding: 1.4rem;
+  --paso-numero: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--paso-gap);
+}
+
+.solicitud-paso {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  padding: var(--paso-padding);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Línea que une el número de cada paso con el siguiente. */
+.solicitud-paso + .solicitud-paso::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--paso-gap) - 1px);
+  left: calc(var(--paso-padding) + var(--paso-numero) / 2 - 1px);
+  width: 2px;
+  height: var(--paso-gap);
+  background: var(--baseline);
+}
+
+.solicitud-paso__encabezado {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.solicitud-paso__numero {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: var(--paso-numero);
+  height: var(--paso-numero);
+  border-radius: 50%;
+  border: 1.5px solid var(--baseline);
+  background: var(--surface-page);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.solicitud-paso__numero--completo {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: white;
+}
+
+.solicitud-paso__numero svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.solicitud-paso__etiqueta {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.solicitud-paso__encabezado h2 {
+  margin: 0.05rem 0 0;
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.solicitud-paso__encabezado p {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.solicitud-paso__campos {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.solicitud-paso input::placeholder,
+.solicitud-paso textarea::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* Tarjetas de área */
+
+.solicitud-areas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.65rem;
+}
+
+.solicitud-areas__vacio {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.87rem;
+}
+
+.solicitud-area {
+  position: relative;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-1);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.solicitud-area:hover {
+  border-color: color-mix(in srgb, var(--area-color) 55%, transparent);
+  transform: translateY(-1px);
+}
+
+.solicitud-area--seleccionada,
+.solicitud-area--seleccionada:hover {
+  border-color: var(--area-color);
+  background: color-mix(in srgb, var(--area-color) 8%, var(--surface-1));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--area-color) 18%, transparent);
+  transform: none;
+}
+
+.solicitud-area:has(input:focus-visible),
+.solicitud-prioridad:has(input:focus-visible) {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.solicitud-area input,
+.solicitud-prioridad input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.solicitud-area__avatar {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--area-color) 16%, transparent);
+  color: var(--area-color);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.solicitud-area__texto {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.solicitud-area__texto strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.solicitud-area__texto small {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 500;
+}
+
+.solicitud-area__check {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--baseline);
+  color: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.solicitud-area__check svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.solicitud-area--seleccionada .solicitud-area__check {
+  border-color: var(--area-color);
+  background: var(--area-color);
+  color: white;
+}
+
+/* Prioridad */
+
+.solicitud-prioridades {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.55rem;
+}
+
+.solicitud-prioridad {
+  position: relative;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.7rem 0.8rem;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.solicitud-prioridad:hover {
+  border-color: color-mix(in srgb, var(--prioridad-color) 55%, transparent);
+}
+
+.solicitud-prioridad--seleccionada,
+.solicitud-prioridad--seleccionada:hover {
+  border-color: var(--prioridad-color);
+  background: color-mix(in srgb, var(--prioridad-color) 9%, var(--surface-1));
+}
+
+.solicitud-prioridad__punto {
+  flex-shrink: 0;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-top: 0.38rem;
+  border-radius: 50%;
+  background: var(--prioridad-color);
+}
+
+.solicitud-prioridad__texto {
+  display: flex;
+  flex-direction: column;
+}
+
+.solicitud-prioridad__texto strong {
+  color: var(--text-primary);
+  font-size: 0.88rem;
+}
+
+.solicitud-prioridad__texto small {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+/* Resumen fijo con el destino */
+
+.solicitud-resumen {
+  position: sticky;
+  bottom: 1rem;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.3rem;
+  padding: 0.85rem 0.85rem 0.85rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-1);
+  box-shadow: var(--shadow-md);
+}
+
+.solicitud-resumen__destino {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.solicitud-resumen__texto {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.solicitud-resumen__texto small {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.solicitud-resumen__texto strong {
+  overflow: hidden;
+  color: var(--area-color);
+  font-size: 1.02rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.solicitud-resumen__pendiente {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.87rem;
+}
+
+.solicitud-resumen button {
+  flex-shrink: 0;
+  max-width: 60%;
+  overflow: hidden;
+  padding: 0.7rem 1.3rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ---- Board ---- */
 
 .board-page__toolbar {
@@ -2072,6 +2402,23 @@ label {
 
   .ticket-form__row {
     grid-template-columns: 1fr;
+  }
+
+  .solicitud-form {
+    --paso-padding: 1rem;
+  }
+
+  .solicitud-prioridades {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .solicitud-resumen {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .solicitud-resumen button {
+    max-width: none;
   }
 
   .board-page__toolbar {
