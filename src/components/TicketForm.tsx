@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useArea } from '../context/AreaContext'
 import { useAreas } from '../hooks/useAreas'
+import { SugerenciasTexto } from './SugerenciasTexto'
 import type { Prioridad } from '../types/database'
 import { notificarAsignacion, notificarNuevaTarea } from '../lib/notificaciones'
 
@@ -35,8 +36,9 @@ function estiloArea(indice: number): CSSProperties {
 
 interface TicketFormProps {
   asignadoAPorDefecto?: string
-  // true: se elige a qué área enviar la solicitud (cualquiera, sea o no
-  // miembro). false: se crea en el área activa, como desde el tablero.
+  // true: formulario por pasos para elegir a qué área enviar la solicitud.
+  // false: formulario compacto del tablero; parte del área activa pero deja
+  // elegir cualquier área del sistema, sea o no miembro.
   elegirArea?: boolean
   onCreado?: () => void
   onDirtyChange?: (dirty: boolean) => void
@@ -46,9 +48,10 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   const { profile } = useAuth()
   const { areaActiva, areas: misAreas } = useArea()
   const { areas: todasLasAreas, loading: cargandoAreas } = useAreas()
-  // Sin área preseleccionada: quien envía la solicitud debe elegir el destino a conciencia.
-  const [areaDestinoId, setAreaDestinoId] = useState('')
-  const areaId = elegirArea ? areaDestinoId : areaActiva?.id ?? ''
+  // En el formulario por pasos no hay área preseleccionada: quien envía la
+  // solicitud debe elegir el destino a conciencia. Desde el tablero parte del área activa.
+  const [areaDestinoId, setAreaDestinoId] = useState(elegirArea ? '' : areaActiva?.id ?? '')
+  const areaId = areaDestinoId
   const rolEnDestino = misAreas.find((a) => a.id === areaId)?.rol
 
   const [titulo, setTitulo] = useState('')
@@ -180,22 +183,29 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
         onChange={(e) => setTitulo(e.target.value)}
         required
         maxLength={140}
+        spellCheck
+        lang="es"
         placeholder={elegirArea ? 'Ej.: Actualizar el reporte mensual de ventas' : undefined}
       />
     </label>
   )
 
   const campoDescripcion = (
-    <label>
-      Descripción
-      <textarea
-        value={descripcion}
-        onChange={(e) => setDescripcion(e.target.value)}
-        required
-        rows={5}
-        placeholder={elegirArea ? 'Cuenta qué necesitas, para cuándo y cualquier detalle que ayude a resolverlo.' : undefined}
-      />
-    </label>
+    <>
+      <label>
+        Descripción
+        <textarea
+          value={descripcion}
+          onChange={(e) => setDescripcion(e.target.value)}
+          required
+          rows={5}
+          spellCheck
+          lang="es"
+          placeholder={elegirArea ? 'Cuenta qué necesitas, para cuándo y cualquier detalle que ayude a resolverlo.' : undefined}
+        />
+      </label>
+      <SugerenciasTexto texto={descripcion} onCambiar={setDescripcion} />
+    </>
   )
 
   const campoAdjunto = (
@@ -267,8 +277,10 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
     </div>
   )
 
-  // Desde el tablero (modal): formulario compacto en el área activa.
+  // Desde el tablero (modal): formulario compacto, por defecto en el área activa.
   if (!elegirArea) {
+    const enviadaAOtraArea = areaId !== areaActiva?.id
+    const nombreAreaDestino = todasLasAreas.find((a) => a.id === areaId)?.nombre ?? areaActiva?.nombre ?? ''
     return (
       <form onSubmit={handleSubmit} className="ticket-form">
         {campoTitulo}
@@ -276,7 +288,15 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
         <div className="ticket-form__row">
           <label>
             Área
-            <input value={areaActiva?.nombre ?? ''} disabled />
+            <select value={areaId} onChange={(e) => setAreaDestinoId(e.target.value)} required disabled={cargandoAreas}>
+              {/* Mientras cargan todas las áreas, al menos se ve la activa. */}
+              {cargandoAreas && areaActiva && <option value={areaActiva.id}>{areaActiva.nombre}</option>}
+              {todasLasAreas.map((area) => (
+                <option key={area.id} value={area.id}>
+                  {area.nombre}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             Prioridad
@@ -291,7 +311,13 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
         </div>
         {campoAdjunto}
         {error && <p className="auth-error">{error}</p>}
-        {exito && <p className="auth-success">Solicitud creada correctamente.</p>}
+        {exito && (
+          <p className="auth-success">
+            {enviadaAOtraArea
+              ? `Solicitud enviada a ${nombreAreaDestino}. Puedes seguirla en Mis solicitudes.`
+              : 'Solicitud creada correctamente.'}
+          </p>
+        )}
         <button type="submit" disabled={enviando}>
           {enviando ? 'Enviando...' : 'Crear solicitud'}
         </button>

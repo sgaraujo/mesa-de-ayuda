@@ -132,7 +132,9 @@ Deno, cada una en su carpeta con `index.ts`. Código compartido en `_shared/`
 (`graph.ts` para envío de correo vía Microsoft Graph, `email-template.ts`
 para el HTML de los correos). Funciones actuales: `invite-user`,
 `reset-password`, `revoke-user`, `notify-assignment`, `send-welcome-email`,
-`admin-set-password`. Todas usan el service role key
+`admin-set-password`, `revisar-texto` (ortografía y gramática con
+LanguageTool; API pública gratuita salvo que se definan los secretos
+`LANGUAGETOOL_USERNAME`/`LANGUAGETOOL_API_KEY` o `LANGUAGETOOL_URL`). Todas usan el service role key
 (`SUPABASE_SERVICE_ROLE_KEY`, disponible automáticamente en runtime) para
 saltarse RLS de forma controlada — son el único lugar donde eso es correcto.
 

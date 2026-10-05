@@ -2672,3 +2672,112 @@ label {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Revisión ortográfica y gramatical (SugerenciasTexto) */
+.revision-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: -0.35rem;
+}
+
+.revision-texto__estado,
+.revision-texto__titulo {
+  margin: -0.35rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.revision-texto__titulo {
+  margin: 0;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.revision-texto__estado--ok {
+  color: var(--brand-text);
+}
+
+.revision-texto__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 14rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.revision-texto__item {
+  --revision-color: var(--estado-pendiente);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--revision-color);
+  border-radius: 8px;
+  font-size: 0.83rem;
+}
+
+.revision-texto__item--ortografia {
+  --revision-color: var(--prioridad-urgente);
+}
+
+.revision-texto__item--gramatica {
+  --revision-color: var(--estado-en-curso);
+}
+
+.revision-texto__tipo {
+  color: var(--revision-color);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.revision-texto__contexto,
+.revision-texto__mensaje {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.revision-texto__contexto {
+  color: var(--text-secondary);
+}
+
+.revision-texto__contexto mark {
+  background: transparent;
+  color: var(--text-primary);
+  font-weight: 600;
+  text-decoration: underline wavy var(--revision-color);
+  text-underline-offset: 3px;
+}
+
+.revision-texto__mensaje {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.revision-texto__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.revision-texto__reemplazo {
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-size: 0.8rem;
+}
+
+.revision-texto__ignorar {
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+}

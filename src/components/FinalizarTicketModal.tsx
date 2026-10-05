@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { separarTiempo, combinarTiempo } from '../lib/tiempo'
+import { SugerenciasTexto } from './SugerenciasTexto'
 
 interface FinalizarTicketModalProps {
   tituloTicket: string
@@ -70,9 +71,12 @@ export function FinalizarTicketModal({
               value={nota}
               onChange={(e) => setNota(e.target.value)}
               rows={4}
+              spellCheck
+              lang="es"
               placeholder="ej. Quedó lista, cualquier ajuste me avisas."
             />
           </label>
+          <SugerenciasTexto texto={nota} onCambiar={setNota} />
           {error && <p className="auth-error">{error}</p>}
           <button type="submit" disabled={guardando}>
             {guardando ? 'Finalizando...' : 'Finalizar tarea'}
