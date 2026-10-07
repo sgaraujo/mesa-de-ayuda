@@ -37,6 +37,7 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true }: TicketCar
     ? { transform: `translate(${transform.x}px, ${transform.y}px)`, opacity: isDragging ? 0.6 : 1 }
     : undefined
   const faltan = clasificacionFaltante(ticket)
+  const totalComentarios = ticket.comentarios?.[0]?.count ?? 0
 
   return (
     <div
@@ -78,7 +79,17 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true }: TicketCar
       )}
       <div className="ticket-card__footer">
         <span>{ticket.empresa_solicitante}</span>
-        <span>{nombresAsignados(ticket).join(', ') || 'Bandeja general'}</span>
+        <span className="ticket-card__footer-derecha">
+          {totalComentarios > 0 && (
+            <span
+              className="ticket-card__comentarios"
+              title={`${totalComentarios} comentario${totalComentarios === 1 ? '' : 's'}`}
+            >
+              💬 {totalComentarios}
+            </span>
+          )}
+          {nombresAsignados(ticket).join(', ') || 'Bandeja general'}
+        </span>
       </div>
     </div>
   )

@@ -44,6 +44,7 @@ interface TicketDetalleModalProps {
   onClose: () => void
   onGuardado: (ticket: TicketConRelaciones) => void
   onEliminado: (ticketId: string) => void
+  onComentado?: () => void
 }
 
 export function TicketDetalleModal({
@@ -53,6 +54,7 @@ export function TicketDetalleModal({
   onClose,
   onGuardado,
   onEliminado,
+  onComentado,
 }: TicketDetalleModalProps) {
   const areaId = ticket.area_id
   const { proyectos, recargar: recargarProyectos } = useProyectos(areaId)
@@ -449,7 +451,7 @@ export function TicketDetalleModal({
             </form>
           )}
 
-          <ComentariosTicket ticketId={ticket.id} />
+          <ComentariosTicket ticketId={ticket.id} onComentado={onComentado} />
 
           <HistorialCambios ticket={ticket} />
         </div>

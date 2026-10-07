@@ -28,7 +28,8 @@ const TICKET_SELECT = `
   asignado:profiles!tickets_asignado_a_fkey(id, full_name, email),
   area:areas(id, nombre),
   proyecto:proyectos(id, nombre),
-  asignados:ticket_asignados(profile:profiles(id, full_name, email))
+  asignados:ticket_asignados(profile:profiles(id, full_name, email)),
+  comentarios:ticket_comentarios(count)
 `
 
 const BOARD_CHANNEL = 'ticket-board'
@@ -406,6 +407,8 @@ export function BoardPage() {
             setTicketSeleccionado(null)
             void notificarCambio(ticketId)
           }}
+          // Refresca la tarjeta (contador de comentarios) aquí y en los demás tableros abiertos.
+          onComentado={() => void notificarCambio(ticketSeleccionado.id)}
         />
       )}
 

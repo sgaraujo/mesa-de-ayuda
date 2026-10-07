@@ -65,6 +65,8 @@ export interface TicketConRelaciones extends Ticket {
   area: Pick<Area, 'id' | 'nombre'> | null
   proyecto: Pick<Proyecto, 'id' | 'nombre'> | null
   asignados: { profile: Pick<Profile, 'id' | 'full_name' | 'email'> }[]
+  // Solo lo trae el tablero (conteo agregado de ticket_comentarios).
+  comentarios?: { count: number }[]
 }
 
 export interface TicketStatusHistory {

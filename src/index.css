@@ -1130,9 +1130,26 @@ label {
 .ticket-card__footer {
   display: flex;
   justify-content: space-between;
+  gap: 0.5rem;
   font-size: 0.75rem;
   color: var(--text-muted);
   margin-top: 0.5rem;
+}
+
+.ticket-card__footer-derecha {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  text-align: right;
+}
+
+.ticket-card__comentarios {
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 /* ---- Modal de detalle de ticket ---- */

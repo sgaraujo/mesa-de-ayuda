@@ -44,9 +44,10 @@ function TextoConMenciones({ texto, nombres }: { texto: string; nombres: string[
 
 interface ComentariosTicketProps {
   ticketId: string
+  onComentado?: () => void
 }
 
-export function ComentariosTicket({ ticketId }: ComentariosTicketProps) {
+export function ComentariosTicket({ ticketId, onComentado }: ComentariosTicketProps) {
   const { profile } = useAuth()
   const usuarios = useUsuariosActivos()
   const [comentarios, setComentarios] = useState<ComentarioConRelaciones[]>([])
@@ -162,6 +163,7 @@ export function ComentariosTicket({ ticketId }: ComentariosTicketProps) {
     setTexto('')
     setMencionados([])
     setConsulta(null)
+    onComentado?.()
     await cargar()
   }
 
