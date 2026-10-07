@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useProyectos } from '../hooks/useProyectos'
 import { useMiembrosArea } from '../hooks/useMiembrosArea'
-import { esImagenAdjunta, nombresAsignados } from '../lib/ticket'
+import { clasificacionFaltante, esImagenAdjunta, nombresAsignados } from '../lib/ticket'
 import { notificarAsignacion } from '../lib/notificaciones'
 import { separarTiempo, combinarTiempo, formatearTiempo } from '../lib/tiempo'
 import { HistorialCambios } from './HistorialCambios'
@@ -276,6 +276,14 @@ export function TicketDetalleModal({
             <div className="modal-nota">
               <strong>Nota de finalización</strong>
               {ticket.nota_finalizacion}
+            </div>
+          )}
+
+          {clasificacionFaltante(ticket).length > 0 && (
+            <div className="modal-aviso" role="status">
+              <strong>Falta clasificar esta tarea</strong>
+              Está finalizada pero no tiene {clasificacionFaltante(ticket).join(' ni ')}.
+              {puedeEditarTiempos && ' Complétalo abajo y guarda los cambios.'}
             </div>
           )}
 

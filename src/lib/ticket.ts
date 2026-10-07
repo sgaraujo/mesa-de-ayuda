@@ -14,6 +14,18 @@ export function estaSinAsignar(ticket: TicketConRelaciones): boolean {
   return !ticket.es_grupal && ticket.asignado_a === null
 }
 
+// Una tarea finalizada debe quedar clasificada (proyecto, área y tiempo
+// ejecutado) para que cuente bien en las estadísticas. Devuelve lo que le
+// falta, vacío si nada.
+export function clasificacionFaltante(ticket: TicketConRelaciones): string[] {
+  if (ticket.estado !== 'finalizado') return []
+  const faltan: string[] = []
+  if (!ticket.proyecto_id) faltan.push('proyecto')
+  if (!ticket.area_id) faltan.push('área')
+  if (ticket.tiempo_ejecutado_horas == null) faltan.push('tiempo ejecutado')
+  return faltan
+}
+
 const EXTENSIONES_IMAGEN = ['png', 'jpg', 'jpeg', 'webp', 'gif']
 
 export function esImagenAdjunta(url: string): boolean {

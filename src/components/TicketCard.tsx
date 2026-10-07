@@ -1,5 +1,5 @@
 import { useDraggable } from '@dnd-kit/core'
-import { nombresAsignados } from '../lib/ticket'
+import { clasificacionFaltante, nombresAsignados } from '../lib/ticket'
 import type { TicketConRelaciones } from '../types/database'
 
 const PRIORIDAD_LABEL: Record<string, string> = {
@@ -36,6 +36,7 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true }: TicketCar
   const style = transform
     ? { transform: `translate(${transform.x}px, ${transform.y}px)`, opacity: isDragging ? 0.6 : 1 }
     : undefined
+  const faltan = clasificacionFaltante(ticket)
 
   return (
     <div
@@ -44,7 +45,7 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true }: TicketCar
       {...(puedeArrastrar ? listeners : {})}
       {...(puedeArrastrar ? attributes : {})}
       onClick={onClick}
-      className={`ticket-card ticket-card--${ticket.prioridad}`}
+      className={`ticket-card ticket-card--${ticket.prioridad}${faltan.length > 0 ? ' ticket-card--sin-clasificar' : ''}`}
     >
       <div className="ticket-card__header">
         <span className="ticket-card__prioridad">
@@ -68,6 +69,11 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true }: TicketCar
       {ticket.estado === 'finalizado' && ticket.finalizado_at && (
         <div className="ticket-card__finalizado">
           Finalizada: {formatearFechaCorta(ticket.finalizado_at)}
+        </div>
+      )}
+      {faltan.length > 0 && (
+        <div className="ticket-card__aviso" role="status">
+          ⚠ Finalizada sin {faltan.join(' ni ')}
         </div>
       )}
       <div className="ticket-card__footer">

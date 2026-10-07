@@ -1077,6 +1077,23 @@ label {
   border-left-color: var(--prioridad-urgente);
 }
 
+.ticket-card--sin-clasificar {
+  border-top-color: var(--prioridad-urgente);
+  border-right-color: var(--prioridad-urgente);
+  border-bottom-color: var(--prioridad-urgente);
+  box-shadow: 0 0 0 1px var(--prioridad-urgente);
+}
+
+.ticket-card__aviso {
+  margin-top: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--prioridad-urgente) 12%, transparent);
+  color: var(--prioridad-urgente);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .ticket-card h3 {
   margin: 0.3rem 0;
   font-size: 0.95rem;
@@ -2818,4 +2835,25 @@ label {
 .historial-cambios__detalle p {
   margin: 0.3rem 0 0;
   white-space: pre-wrap;
+}
+
+.modal-aviso {
+  margin: 0 0 1.2rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--prioridad-urgente);
+  border-left: 3px solid var(--prioridad-urgente);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--prioridad-urgente) 10%, transparent);
+  color: var(--text-secondary);
+  font-size: 0.87rem;
+}
+
+.modal-aviso strong {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: var(--prioridad-urgente);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
