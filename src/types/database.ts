@@ -75,6 +75,17 @@ export interface TicketStatusHistory {
   changed_by: string | null
 }
 
+// Historial de ediciones de un ticket (lo llenan triggers, ver migración 0024).
+export interface TicketCambio {
+  id: number
+  ticket_id: string
+  campo: string
+  valor_anterior: string | null
+  valor_nuevo: string | null
+  changed_by: string | null
+  changed_at: string
+}
+
 export interface AllowedEmail {
   email: string
   area_id: string | null

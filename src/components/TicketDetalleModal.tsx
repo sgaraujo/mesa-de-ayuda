@@ -5,7 +5,8 @@ import { useMiembrosArea } from '../hooks/useMiembrosArea'
 import { esImagenAdjunta, nombresAsignados } from '../lib/ticket'
 import { notificarAsignacion } from '../lib/notificaciones'
 import { separarTiempo, combinarTiempo, formatearTiempo } from '../lib/tiempo'
-import type { TicketConRelaciones } from '../types/database'
+import { HistorialCambios } from './HistorialCambios'
+import type { Prioridad, TicketConRelaciones } from '../types/database'
 
 const PRIORIDAD_LABEL: Record<string, string> = {
   baja: 'Baja',
@@ -26,6 +27,13 @@ function formatearFecha(iso: string | null): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   })
+}
+
+// <input type="datetime-local"> trabaja en hora local y sin zona horaria.
+function aInputFecha(iso: string | null): string {
+  if (!iso) return ''
+  const fecha = new Date(iso)
+  return new Date(fecha.getTime() - fecha.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 }
 
 interface TicketDetalleModalProps {
@@ -49,6 +57,11 @@ export function TicketDetalleModal({
   const { proyectos, recargar: recargarProyectos } = useProyectos(areaId)
   const { agentes } = useMiembrosArea(areaId)
 
+  const [titulo, setTitulo] = useState(ticket.titulo)
+  const [descripcion, setDescripcion] = useState(ticket.descripcion)
+  const [prioridad, setPrioridad] = useState<Prioridad>(ticket.prioridad)
+  const fechaRequeridaInicial = aInputFecha(ticket.fecha_requerida)
+  const [fechaRequerida, setFechaRequerida] = useState(fechaRequeridaInicial)
   const [proyectoId, setProyectoId] = useState(ticket.proyecto_id ?? '')
   const [nuevoProyecto, setNuevoProyecto] = useState('')
   const [mostrarNuevoProyecto, setMostrarNuevoProyecto] = useState(false)
@@ -71,6 +84,10 @@ export function TicketDetalleModal({
   async function handleGuardar(e: FormEvent) {
     e.preventDefault()
     setError(null)
+    if (!titulo.trim() || !descripcion.trim()) {
+      setError('El título y la descripción no pueden quedar vacíos.')
+      return
+    }
     setGuardando(true)
 
     let proyectoIdFinal = proyectoId || null
@@ -94,6 +111,14 @@ export function TicketDetalleModal({
     const { data, error } = await supabase
       .from('tickets')
       .update({
+        titulo: titulo.trim(),
+        descripcion: descripcion.trim(),
+        prioridad,
+        // Solo se reescribe si cambió, para no registrar en el historial una
+        // diferencia de segundos que el input de fecha no muestra.
+        fecha_requerida: fechaRequerida === fechaRequeridaInicial
+          ? ticket.fecha_requerida
+          : fechaRequerida ? new Date(fechaRequerida).toISOString() : null,
         proyecto_id: proyectoIdFinal,
         es_grupal: esGrupal,
         asignado_a: esGrupal ? null : ticket.asignado_a,
@@ -110,15 +135,25 @@ export function TicketDetalleModal({
       return
     }
 
-    await supabase.from('ticket_asignados').delete().eq('ticket_id', ticket.id)
-    if (esGrupal && miembros.length > 0) {
+    // Solo se tocan las personas que entran o salen: cada alta y baja queda
+    // en el historial de cambios (trigger en ticket_asignados).
+    const miembrosAnteriores = new Set(ticket.asignados.map((asignado) => asignado.profile.id))
+    const miembrosFinales = esGrupal ? miembros : []
+    const miembrosQuitados = [...miembrosAnteriores].filter((id) => !miembrosFinales.includes(id))
+    const miembrosNuevos = miembrosFinales.filter((id) => !miembrosAnteriores.has(id))
+    if (miembrosQuitados.length > 0) {
       await supabase
         .from('ticket_asignados')
-        .insert(miembros.map((profile_id) => ({ ticket_id: ticket.id, profile_id })))
+        .delete()
+        .eq('ticket_id', ticket.id)
+        .in('profile_id', miembrosQuitados)
+    }
+    if (miembrosNuevos.length > 0) {
+      await supabase
+        .from('ticket_asignados')
+        .insert(miembrosNuevos.map((profile_id) => ({ ticket_id: ticket.id, profile_id })))
     }
 
-    const miembrosAnteriores = new Set(ticket.asignados.map((asignado) => asignado.profile.id))
-    const miembrosNuevos = esGrupal ? miembros.filter((id) => !miembrosAnteriores.has(id)) : []
     if (miembrosNuevos.length > 0) void notificarAsignacion(ticket.id, miembrosNuevos)
 
     setGuardando(false)
@@ -270,6 +305,37 @@ export function TicketDetalleModal({
               <h3 className="modal-seccion__titulo modal-seccion__titulo--gestion">Gestión de la tarea</h3>
 
               <div className="modal-gestion__seccion">
+                <label>
+                  Título
+                  <input value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
+                </label>
+                <label>
+                  Descripción
+                  <textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)} rows={4} required />
+                </label>
+                <div className="ticket-form__row">
+                  <label>
+                    Prioridad
+                    <select value={prioridad} onChange={(e) => setPrioridad(e.target.value as Prioridad)}>
+                      {Object.entries(PRIORIDAD_LABEL).map(([valor, etiqueta]) => (
+                        <option key={valor} value={valor}>
+                          {etiqueta}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Para cuándo
+                    <input
+                      type="datetime-local"
+                      value={fechaRequerida}
+                      onChange={(e) => setFechaRequerida(e.target.value)}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="modal-gestion__seccion">
                 <div className="ticket-form__row">
                   <label>
                     Área
@@ -373,6 +439,8 @@ export function TicketDetalleModal({
               </div>
             </form>
           )}
+
+          <HistorialCambios ticket={ticket} />
         </div>
 
         {puedeEditarTiempos && (

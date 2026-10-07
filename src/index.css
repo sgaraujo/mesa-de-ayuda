@@ -2781,3 +2781,41 @@ label {
   font-size: 0.8rem;
   font-weight: 500;
 }
+
+.historial-cambios {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 0.9rem;
+  border-left: 2px solid var(--border);
+  display: grid;
+  gap: 0.7rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.historial-cambios__item {
+  display: grid;
+  gap: 0.1rem;
+  overflow-wrap: anywhere;
+}
+
+.historial-cambios__item strong {
+  color: var(--text-primary);
+}
+
+.historial-cambios__fecha,
+.historial-cambios__vacio {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.historial-cambios__detalle summary {
+  cursor: pointer;
+  font-size: 0.78rem;
+  color: var(--brand-text);
+}
+
+.historial-cambios__detalle p {
+  margin: 0.3rem 0 0;
+  white-space: pre-wrap;
+}
