@@ -10,9 +10,10 @@ interface KanbanColumnProps {
   tickets: TicketConRelaciones[]
   onTicketClick?: (ticket: TicketConRelaciones) => void
   puedeArrastrar?: boolean
+  mostrarArea?: boolean
 }
 
-export function KanbanColumn({ id, titulo, tickets, onTicketClick, puedeArrastrar = true }: KanbanColumnProps) {
+export function KanbanColumn({ id, titulo, tickets, onTicketClick, puedeArrastrar = true, mostrarArea = false }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id })
 
   return (
@@ -21,7 +22,10 @@ export function KanbanColumn({ id, titulo, tickets, onTicketClick, puedeArrastra
       className={`kanban-column kanban-column--${id} ${isOver ? 'kanban-column--over' : ''}`}
     >
       <div className="kanban-column__header">
-        <h2>{titulo}</h2>
+        <h2>
+          <span className="kanban-column__punto" aria-hidden="true" />
+          {titulo}
+        </h2>
         <span className="kanban-column__count">{tickets.length}</span>
       </div>
       <div className="kanban-column__body">
@@ -30,6 +34,7 @@ export function KanbanColumn({ id, titulo, tickets, onTicketClick, puedeArrastra
             key={ticket.id}
             ticket={ticket}
             puedeArrastrar={puedeArrastrar}
+            mostrarArea={mostrarArea}
             onClick={() => onTicketClick?.(ticket)}
           />
         ))}

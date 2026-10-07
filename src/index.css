@@ -947,211 +947,6 @@ label {
   min-width: 240px;
 }
 
-.kanban-board {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  align-items: start;
-}
-
-.kanban-board--4 {
-  grid-template-columns: repeat(4, 1fr);
-}
-
-.kanban-board--1 {
-  grid-template-columns: minmax(280px, 1fr);
-}
-
-.ticket-card__solicitado {
-  margin: 0.15rem 0 0;
-  color: var(--text-muted);
-  font-size: 0.72rem;
-}
-
-.ticket-card__finalizado {
-  margin-top: 0.5rem;
-  padding-top: 0.45rem;
-  border-top: 1px solid var(--border);
-  color: var(--estado-finalizado);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.kanban-board--2 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.kanban-column {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-top: 4px solid var(--text-muted);
-  border-radius: 12px;
-  min-height: 300px;
-  display: flex;
-  flex-direction: column;
-  box-shadow: var(--shadow-sm);
-}
-
-.kanban-column--tareas {
-  border-top-color: var(--series-5);
-}
-.kanban-column--pendiente {
-  border-top-color: var(--estado-pendiente);
-}
-.kanban-column--en_curso {
-  border-top-color: var(--estado-en-curso);
-}
-.kanban-column--finalizado {
-  border-top-color: var(--estado-finalizado);
-}
-
-.kanban-column--over {
-  outline: 2px solid var(--brand);
-  outline-offset: -2px;
-}
-
-.kanban-column__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.9rem 1rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.kanban-column__header h2 {
-  font-size: 0.95rem;
-  margin: 0;
-}
-
-.kanban-column__count {
-  background: var(--gridline);
-  color: var(--text-secondary);
-  border-radius: 999px;
-  padding: 0.1rem 0.55rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.kanban-column__body {
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  flex: 1;
-}
-
-.kanban-column__vacio {
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  text-align: center;
-  padding: 1rem 0;
-}
-
-.ticket-card {
-  background: var(--surface-page);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--text-muted);
-  border-radius: 8px;
-  padding: 0.7rem 0.8rem;
-  cursor: grab;
-  touch-action: none;
-  text-align: left;
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
-}
-
-.ticket-card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
-}
-
-.ticket-card--baja {
-  border-left-color: var(--prioridad-baja);
-}
-.ticket-card--media {
-  border-left-color: var(--prioridad-media);
-}
-.ticket-card--alta {
-  border-left-color: var(--prioridad-alta);
-}
-.ticket-card--urgente {
-  border-left-color: var(--prioridad-urgente);
-}
-
-.ticket-card--sin-clasificar {
-  border-top-color: var(--prioridad-urgente);
-  border-right-color: var(--prioridad-urgente);
-  border-bottom-color: var(--prioridad-urgente);
-  box-shadow: 0 0 0 1px var(--prioridad-urgente);
-}
-
-.ticket-card__aviso {
-  margin-top: 0.5rem;
-  padding: 0.3rem 0.5rem;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--prioridad-urgente) 12%, transparent);
-  color: var(--prioridad-urgente);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.ticket-card h3 {
-  margin: 0.3rem 0;
-  font-size: 0.95rem;
-}
-
-.ticket-card p {
-  margin: 0;
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.ticket-card__header {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.ticket-card__tiempos {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  font-size: 0.72rem;
-  color: var(--brand-text);
-  margin-top: 0.45rem;
-}
-
-.ticket-card__footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-top: 0.5rem;
-}
-
-.ticket-card__footer-derecha {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  text-align: right;
-}
-
-.ticket-card__comentarios {
-  padding: 0 0.35rem;
-  border-radius: 999px;
-  background: var(--brand-soft);
-  color: var(--brand-text);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 /* ---- Modal de detalle de ticket ---- */
 
 .modal-overlay {
@@ -3689,5 +3484,387 @@ kbd {
 
   .detalle__footer {
     padding: 0.7rem 1rem;
+  }
+}
+
+/* ---- Tablero Kanban ---- */
+
+/* minmax(0, 1fr): todas las columnas del mismo ancho aunque una tarjeta
+   tenga un título largo. */
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.kanban-board--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.kanban-board--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.kanban-board--1 {
+  grid-template-columns: minmax(280px, 1fr);
+}
+
+.kanban-column {
+  --columna-color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
+  max-height: calc(100vh - 12rem);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-page) 70%, var(--gridline));
+  transition: box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.kanban-column--tareas { --columna-color: var(--series-5); }
+.kanban-column--pendiente { --columna-color: var(--estado-pendiente); }
+.kanban-column--en_curso { --columna-color: var(--estado-en-curso); }
+.kanban-column--finalizado { --columna-color: var(--estado-finalizado); }
+
+.kanban-column--over {
+  background: color-mix(in srgb, var(--columna-color) 8%, var(--surface-page));
+  box-shadow: inset 0 0 0 2px var(--columna-color);
+}
+
+.kanban-column__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.85rem 0.9rem 0.6rem 1rem;
+  flex-shrink: 0;
+}
+
+.kanban-column__header h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kanban-column__punto {
+  width: 0.55rem;
+  height: 0.55rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--columna-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--columna-color) 22%, transparent);
+}
+
+.kanban-column__count {
+  flex-shrink: 0;
+  min-width: 1.6rem;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.kanban-column__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  flex: 1;
+  min-height: 0;
+  padding: 0.25rem 0.6rem 0.75rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.kanban-column__vacio {
+  margin: 0;
+  padding: 1.5rem 0.5rem;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+/* ---- Tarjeta ---- */
+
+.ticket-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  padding: 0.75rem 0.8rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+  cursor: grab;
+  touch-action: none;
+  text-align: left;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.ticket-card:hover {
+  border-color: color-mix(in srgb, var(--text-primary) 18%, transparent);
+  box-shadow: var(--shadow-md);
+}
+
+.ticket-card--arrastrando {
+  z-index: 10;
+  cursor: grabbing;
+  box-shadow: 0 12px 28px rgba(11, 11, 11, 0.18);
+  transform: rotate(1.5deg);
+}
+
+/* Las prioridades altas llevan un acento a la izquierda; baja y media no,
+   para que lo urgente resalte de verdad. */
+.ticket-card--alta,
+.ticket-card--urgente {
+  border-left-width: 3px;
+}
+.ticket-card--alta { border-left-color: var(--prioridad-alta); }
+.ticket-card--urgente { border-left-color: var(--prioridad-urgente); }
+
+.ticket-card--sin-clasificar {
+  border-color: var(--prioridad-urgente);
+  box-shadow: 0 0 0 1px var(--prioridad-urgente), var(--shadow-sm);
+}
+
+.ticket-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ticket-card__numero {
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.ticket-card__prioridad {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ticket-card__prioridad::before {
+  content: '';
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.ticket-card__prioridad--baja {
+  background: color-mix(in srgb, var(--prioridad-baja) 12%, transparent);
+  color: var(--prioridad-baja);
+}
+.ticket-card__prioridad--media {
+  background: color-mix(in srgb, var(--prioridad-media) 18%, transparent);
+  color: color-mix(in srgb, var(--prioridad-media) 55%, var(--text-primary));
+}
+.ticket-card__prioridad--alta {
+  background: color-mix(in srgb, var(--prioridad-alta) 15%, transparent);
+  color: var(--prioridad-alta);
+}
+.ticket-card__prioridad--urgente {
+  background: color-mix(in srgb, var(--prioridad-urgente) 13%, transparent);
+  color: var(--prioridad-urgente);
+}
+
+.ticket-card__titulo {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+  font-size: 0.87rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.ticket-card__descripcion {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.ticket-card__etiquetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.ticket-card__etiqueta {
+  max-width: 100%;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-page);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticket-card__etiqueta--area {
+  border-color: color-mix(in srgb, var(--series-1) 30%, transparent);
+  background: color-mix(in srgb, var(--series-1) 10%, transparent);
+  color: var(--series-1);
+  font-weight: 600;
+}
+
+.ticket-card__etiqueta--grupo {
+  border-color: color-mix(in srgb, var(--series-5) 30%, transparent);
+  background: color-mix(in srgb, var(--series-5) 10%, transparent);
+  color: var(--series-5);
+}
+
+.ticket-card__aviso {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--prioridad-urgente) 10%, transparent);
+  color: var(--prioridad-urgente);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.ticket-card__aviso::before {
+  content: '!';
+  display: grid;
+  place-items: center;
+  width: 0.9rem;
+  height: 0.9rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--prioridad-urgente);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+
+.ticket-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.ticket-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.7rem;
+  min-width: 0;
+}
+
+.ticket-card__dato {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.ticket-card__dato svg {
+  width: 0.8rem;
+  height: 0.8rem;
+  flex-shrink: 0;
+}
+
+.ticket-card__dato-sutil {
+  opacity: 0.7;
+}
+
+.ticket-card__dato--vencida {
+  color: var(--prioridad-urgente);
+  font-weight: 600;
+}
+
+.ticket-card__dato--ok {
+  color: var(--estado-finalizado);
+  font-weight: 600;
+}
+
+.ticket-card__asignados {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.ticket-card__asignados .avatar {
+  box-shadow: 0 0 0 2px var(--surface-1);
+}
+
+.ticket-card__asignados .avatar + .avatar {
+  margin-left: -0.35rem;
+}
+
+.ticket-card__mas {
+  background: var(--gridline);
+  color: var(--text-secondary);
+}
+
+.ticket-card__sin-asignar {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1.5px dashed var(--baseline);
+  border-radius: 999px;
+}
+
+@media (max-width: 1100px) and (min-width: 721px) {
+  .kanban-board--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .kanban-board,
+  .kanban-board--4,
+  .kanban-board--2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kanban-column {
+    max-height: none;
   }
 }

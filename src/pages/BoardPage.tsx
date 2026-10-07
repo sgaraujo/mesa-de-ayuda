@@ -385,6 +385,7 @@ export function BoardPage() {
               titulo={columna.titulo}
               tickets={ticketsParaColumna(columna.id)}
               puedeArrastrar={!vistaHistorial}
+              mostrarArea={todasLasAreas}
               onTicketClick={setTicketSeleccionado}
             />
           ))}
