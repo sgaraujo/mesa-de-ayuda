@@ -331,50 +331,91 @@ export function BoardPage() {
 
   if (loading) return <div className="pantalla-carga">Cargando tablero...</div>
 
+  const totalActivas = ticketsFiltrados.filter((t) => t.estado !== 'finalizado').length
+  const totalSinAsignar = ticketsFiltrados.filter((t) => estaSinAsignar(t)).length
+
   return (
     <div className="board-page">
-      <div className="board-page__toolbar">
-        <div>
-          <h1>{vistaHistorial ? 'Historial de finalizadas' : `Tablero · ${todasLasAreas ? 'Todas las áreas' : areaActiva?.nombre ?? ''}`}</h1>
-          {vistaHistorial && <p className="board-page__subtitulo">Tareas finalizadas hace más de 30 días.</p>}
+      <div className="board-page__toolbar board-page__toolbar--tablero">
+        <div className="board-page__encabezado">
+          <p className="board-page__eyebrow">
+            {vistaHistorial ? 'Historial' : 'Tablero'}
+          </p>
+          <h1>{todasLasAreas ? 'Todas las áreas' : areaActiva?.nombre ?? ''}</h1>
+          <p className="board-page__subtitulo">
+            {vistaHistorial
+              ? `${ticketsFiltrados.length} tareas finalizadas hace más de 30 días`
+              : `${totalActivas} tareas activas · ${totalSinAsignar} sin asignar`}
+          </p>
         </div>
-        <div className="board-page__filtros">
-          <input
-            type="search"
-            className="board-page__buscador"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por #, título, persona…"
-            aria-label="Buscar tickets"
-          />
-          {esSuperadmin && (
-            <select value={todasLasAreas ? 'todas' : 'area'} onChange={(e) => cambiarVistaTodas(e.target.value === 'todas')} aria-label="Áreas del tablero">
-              <option value="area">Solo {areaActiva?.nombre ?? 'esta área'}</option>
-              <option value="todas">Todas las áreas</option>
-            </select>
-          )}
+        <div className="board-page__acciones">
           {esLider && (
-            <select value={filtroAgente} onChange={(e) => setFiltroAgente(e.target.value)} aria-label="Filtrar por agente">
-              <option value="">Todas las personas</option>
-              <option value="sin_asignar">Sin asignar</option>
-              {agentes.map((agente) => (
-                <option key={agente.id} value={agente.id}>
-                  {agente.full_name ?? agente.email}
-                  {!todasLasAreas && ` (${agente.rolArea === 'lider' ? 'Líder' : 'Agente'})`}
-                </option>
-              ))}
-            </select>
+            <div className="segmentado" role="group" aria-label="Vista del tablero">
+              <button type="button" aria-pressed={!vistaHistorial} onClick={() => setVistaHistorial(false)}>
+                Tablero
+              </button>
+              <button type="button" aria-pressed={vistaHistorial} onClick={() => setVistaHistorial(true)}>
+                Historial
+              </button>
+            </div>
           )}
-          {esLider && (
-            <select value={vistaHistorial ? 'historial' : 'actual'} onChange={(e) => setVistaHistorial(e.target.value === 'historial')} aria-label="Cambiar vista del tablero">
-              <option value="actual">Tablero actual</option>
-              <option value="historial">Historial (+30 días)</option>
-            </select>
-          )}
-          <button type="button" onClick={() => setMostrarNuevaTarea(true)}>
-            + Nueva tarea
+          <button type="button" className="boton-primario" onClick={() => setMostrarNuevaTarea(true)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Nueva tarea
           </button>
         </div>
+      </div>
+
+      <div className="board-page__filtros board-page__filtros--barra">
+        <input
+          type="search"
+          className="board-page__buscador"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar por #, título, persona…"
+          aria-label="Buscar tickets"
+        />
+        {esSuperadmin && (
+          <div className="segmentado" role="group" aria-label="Áreas del tablero">
+            <button type="button" aria-pressed={!todasLasAreas} onClick={() => cambiarVistaTodas(false)}>
+              {areaActiva?.nombre ?? 'Esta área'}
+            </button>
+            <button type="button" aria-pressed={todasLasAreas} onClick={() => cambiarVistaTodas(true)}>
+              Todas las áreas
+            </button>
+          </div>
+        )}
+        {esLider && (
+          <select
+            className="board-page__select-persona"
+            value={filtroAgente}
+            onChange={(e) => setFiltroAgente(e.target.value)}
+            aria-label="Filtrar por persona"
+          >
+            <option value="">Todas las personas</option>
+            <option value="sin_asignar">Sin asignar</option>
+            {agentes.map((agente) => (
+              <option key={agente.id} value={agente.id}>
+                {agente.full_name ?? agente.email}
+                {!todasLasAreas && ` (${agente.rolArea === 'lider' ? 'Líder' : 'Agente'})`}
+              </option>
+            ))}
+          </select>
+        )}
+        {(busqueda || filtroAgente) && (
+          <button
+            type="button"
+            className="board-page__limpiar"
+            onClick={() => {
+              setBusqueda('')
+              setFiltroAgente('')
+            }}
+          >
+            Limpiar filtros
+          </button>
+        )}
       </div>
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className={`kanban-board ${vistaHistorial ? 'kanban-board--1' : 'kanban-board--4'}`}>
