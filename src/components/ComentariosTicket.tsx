@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { Avatar } from './Avatar'
 import { useUsuariosActivos, type UsuarioActivo } from '../hooks/useUsuariosActivos'
 import { normalizar } from '../lib/ticket'
 import { notificarMenciones } from '../lib/notificaciones'
@@ -180,81 +181,94 @@ export function ComentariosTicket({ ticketId, onComentado }: ComentariosTicketPr
     await cargar()
   }
 
-  return (
-    <div className="modal-seccion">
-      <h3 className="modal-seccion__titulo">Comentarios</h3>
+  const miNombre = profile ? profile.full_name?.trim() || profile.email : 'Yo'
 
+  return (
+    <div className="comentarios-panel">
       {loading ? (
-        <p className="comentarios__vacio">Cargando comentarios...</p>
+        <p className="actividad__vacio">Cargando comentarios...</p>
       ) : errorCarga ? (
         <p className="auth-error">{errorCarga}</p>
       ) : comentarios.length === 0 ? (
-        <p className="comentarios__vacio">Todavía no hay comentarios.</p>
+        <p className="actividad__vacio">
+          Aún no hay comentarios. Inicia la conversación o menciona a alguien con <strong>@</strong>.
+        </p>
       ) : (
         <ul className="comentarios">
-          {comentarios.map((comentario) => (
-            <li key={comentario.id} className="comentario">
-              <div className="comentario__cabecera">
-                <strong>{comentario.autor ? nombreDe(comentario.autor) : 'Usuario eliminado'}</strong>
-                <span>{formatearFecha(comentario.created_at)}</span>
-              </div>
-              <p className="comentario__texto">
-                <TextoConMenciones
-                  texto={comentario.texto}
-                  nombres={comentario.menciones.flatMap((m) => (m.profile ? [nombreDe(m.profile)] : []))}
-                />
-              </p>
-            </li>
-          ))}
+          {comentarios.map((comentario) => {
+            const autor = comentario.autor ? nombreDe(comentario.autor) : 'Usuario eliminado'
+            return (
+              <li key={comentario.id} className="comentario">
+                <Avatar nombre={autor} />
+                <div className="comentario__contenido">
+                  <div className="comentario__cabecera">
+                    <strong>{autor}</strong>
+                    <time dateTime={comentario.created_at}>{formatearFecha(comentario.created_at)}</time>
+                  </div>
+                  <p className="comentario__texto">
+                    <TextoConMenciones
+                      texto={comentario.texto}
+                      nombres={comentario.menciones.flatMap((m) => (m.profile ? [nombreDe(m.profile)] : []))}
+                    />
+                  </p>
+                </div>
+              </li>
+            )
+          })}
         </ul>
       )}
 
       <form className="comentarios__nuevo" onSubmit={enviar}>
-        <div className="comentarios__campo">
-          <textarea
-            ref={textareaRef}
-            value={texto}
-            onChange={(e) => {
-              setTexto(e.target.value)
-              actualizarConsulta(e.target.value, e.target.selectionStart)
-            }}
-            onKeyDown={handleKeyDown}
-            onClick={(e) => actualizarConsulta(texto, e.currentTarget.selectionStart)}
-            onBlur={() => setConsulta(null)}
-            placeholder="Escribe un comentario… usa @ para mencionar a alguien"
-            rows={3}
-            maxLength={5000}
-            aria-label="Nuevo comentario"
-            aria-autocomplete="list"
-            aria-expanded={sugerencias.length > 0}
-          />
-          {sugerencias.length > 0 && (
-            <ul className="comentarios__sugerencias" role="listbox">
-              {sugerencias.map((usuario, indice) => (
-                <li
-                  key={usuario.id}
-                  role="option"
-                  aria-selected={indice === indiceSugerencia}
-                  className={`comentarios__sugerencia${indice === indiceSugerencia ? ' comentarios__sugerencia--activa' : ''}`}
-                  // mousedown para que el blur del textarea no cierre la lista antes del clic.
-                  onMouseDown={(e) => {
-                    e.preventDefault()
-                    elegir(usuario)
-                  }}
-                >
-                  <span>{nombreDe(usuario)}</span>
-                  <span className="comentarios__sugerencia-correo">{usuario.email}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        {error && <p className="auth-error">{error}</p>}
-        <div className="comentarios__acciones">
-          <span className="comentarios__ayuda">Ctrl + Enter para enviar</span>
-          <button type="submit" disabled={enviando || !texto.trim()}>
-            {enviando ? 'Enviando...' : 'Comentar'}
-          </button>
+        <Avatar nombre={miNombre} />
+        <div className="comentarios__caja">
+          <div className="comentarios__campo">
+            <textarea
+              ref={textareaRef}
+              value={texto}
+              onChange={(e) => {
+                setTexto(e.target.value)
+                actualizarConsulta(e.target.value, e.target.selectionStart)
+              }}
+              onKeyDown={handleKeyDown}
+              onClick={(e) => actualizarConsulta(texto, e.currentTarget.selectionStart)}
+              onBlur={() => setConsulta(null)}
+              placeholder="Escribe un comentario… usa @ para mencionar a alguien"
+              rows={2}
+              maxLength={5000}
+              aria-label="Nuevo comentario"
+              aria-autocomplete="list"
+              aria-expanded={sugerencias.length > 0}
+            />
+            {sugerencias.length > 0 && (
+              <ul className="comentarios__sugerencias" role="listbox">
+                {sugerencias.map((usuario, indice) => (
+                  <li
+                    key={usuario.id}
+                    role="option"
+                    aria-selected={indice === indiceSugerencia}
+                    className={`comentarios__sugerencia${indice === indiceSugerencia ? ' comentarios__sugerencia--activa' : ''}`}
+                    // mousedown para que el blur del textarea no cierre la lista antes del clic.
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      elegir(usuario)
+                    }}
+                  >
+                    <Avatar nombre={nombreDe(usuario)} tamano="sm" />
+                    <span className="comentarios__sugerencia-nombre">{nombreDe(usuario)}</span>
+                    <span className="comentarios__sugerencia-correo">{usuario.email}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="comentarios__acciones">
+            {error
+              ? <p className="auth-error">{error}</p>
+              : <span className="comentarios__ayuda"><kbd>@</kbd> mencionar · <kbd>Ctrl</kbd> + <kbd>Enter</kbd> enviar</span>}
+            <button type="submit" disabled={enviando || !texto.trim()}>
+              {enviando ? 'Enviando...' : 'Comentar'}
+            </button>
+          </div>
         </div>
       </form>
     </div>

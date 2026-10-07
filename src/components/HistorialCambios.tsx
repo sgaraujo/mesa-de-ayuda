@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatearTiempo } from '../lib/tiempo'
+import { Avatar } from './Avatar'
 import type { Profile, TicketCambio, TicketConRelaciones } from '../types/database'
 
 type CambioConAutor = TicketCambio & { autor: Pick<Profile, 'full_name' | 'email'> | null }
@@ -98,33 +99,52 @@ export function HistorialCambios({ ticket }: HistorialCambiosProps) {
   const solicitante = ticket.solicitante?.full_name ?? ticket.solicitante?.email ?? 'Alguien'
 
   return (
-    <div className="modal-seccion">
-      <h3 className="modal-seccion__titulo">Historial de cambios</h3>
+    <div className="historial-panel">
       {loading ? (
-        <p className="historial-cambios__vacio">Cargando historial...</p>
+        <p className="actividad__vacio">Cargando historial...</p>
       ) : (
         <ol className="historial-cambios">
-          {cambios.map((cambio) => (
-            <li key={cambio.id} className="historial-cambios__item">
-              <span className="historial-cambios__fecha">{formatearFecha(cambio.changed_at)}</span>
-              <span>
-                <strong>{cambio.autor?.full_name ?? cambio.autor?.email ?? 'Sistema'}</strong>{' '}
-                {describirCambio(cambio)}
-              </span>
-              {CAMPOS_LARGOS.has(cambio.campo) && (
-                <details className="historial-cambios__detalle">
-                  <summary>Ver antes y después</summary>
-                  <p><em>Antes:</em> {cambio.valor_anterior || 'Sin definir'}</p>
-                  <p><em>Después:</em> {cambio.valor_nuevo || 'Sin definir'}</p>
-                </details>
-              )}
-            </li>
-          ))}
+          {cambios.map((cambio) => {
+            const autor = cambio.autor?.full_name ?? cambio.autor?.email ?? 'Sistema'
+            return (
+              <li key={cambio.id} className="historial-cambios__item">
+                <Avatar nombre={autor} tamano="sm" />
+                <div className="historial-cambios__contenido">
+                  <p className="historial-cambios__texto">
+                    <strong>{autor}</strong> {describirCambio(cambio)}
+                  </p>
+                  <time className="historial-cambios__fecha" dateTime={cambio.changed_at}>
+                    {formatearFecha(cambio.changed_at)}
+                  </time>
+                  {CAMPOS_LARGOS.has(cambio.campo) && (
+                    <details className="historial-cambios__detalle">
+                      <summary>Ver antes y después</summary>
+                      <div className="historial-cambios__comparacion">
+                        <div className="historial-cambios__version historial-cambios__version--antes">
+                          <span>Antes</span>
+                          <p>{cambio.valor_anterior || 'Sin definir'}</p>
+                        </div>
+                        <div className="historial-cambios__version historial-cambios__version--despues">
+                          <span>Después</span>
+                          <p>{cambio.valor_nuevo || 'Sin definir'}</p>
+                        </div>
+                      </div>
+                    </details>
+                  )}
+                </div>
+              </li>
+            )
+          })}
           <li className="historial-cambios__item">
-            <span className="historial-cambios__fecha">{formatearFecha(ticket.created_at)}</span>
-            <span>
-              <strong>{solicitante}</strong> creó la solicitud
-            </span>
+            <Avatar nombre={solicitante} tamano="sm" />
+            <div className="historial-cambios__contenido">
+              <p className="historial-cambios__texto">
+                <strong>{solicitante}</strong> creó la solicitud
+              </p>
+              <time className="historial-cambios__fecha" dateTime={ticket.created_at}>
+                {formatearFecha(ticket.created_at)}
+              </time>
+            </div>
           </li>
         </ol>
       )}

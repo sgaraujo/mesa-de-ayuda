@@ -7,6 +7,7 @@ import { notificarAsignacion } from '../lib/notificaciones'
 import { separarTiempo, combinarTiempo, formatearTiempo } from '../lib/tiempo'
 import { ComentariosTicket } from './ComentariosTicket'
 import { HistorialCambios } from './HistorialCambios'
+import { Avatar } from './Avatar'
 import type { Prioridad, TicketConRelaciones } from '../types/database'
 
 const PRIORIDAD_LABEL: Record<string, string> = {
@@ -79,6 +80,7 @@ export function TicketDetalleModal({
   const [guardando, setGuardando] = useState(false)
   const [eliminando, setEliminando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pestana, setPestana] = useState<'comentarios' | 'historial'>('comentarios')
 
   function alternarMiembro(id: string) {
     setMiembros((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]))
@@ -195,209 +197,322 @@ export function TicketDetalleModal({
     onEliminado(ticket.id)
   }
 
+  const solicitanteNombre = ticket.solicitante?.full_name ?? ticket.solicitante?.email ?? 'Alguien'
+  const asignados = nombresAsignados(ticket)
+  const faltan = clasificacionFaltante(ticket)
+  const totalComentarios = ticket.comentarios?.[0]?.count
+
+  const tiempoPropuesto = combinarTiempo(tiempoPropuestoHoras, tiempoPropuestoMinutos)
+  const tiempoEjecutado = combinarTiempo(tiempoEjecutadoHoras, tiempoEjecutadoMinutos)
+  const avance = tiempoPropuesto && tiempoEjecutado != null ? tiempoEjecutado / tiempoPropuesto : null
+
+  const miembrosIniciales = ticket.asignados.map((a) => a.profile.id)
+  const hayCambios = puedeEditarTiempos && (
+    titulo !== ticket.titulo
+    || descripcion !== ticket.descripcion
+    || prioridad !== ticket.prioridad
+    || fechaRequerida !== fechaRequeridaInicial
+    || proyectoId !== (ticket.proyecto_id ?? '')
+    || nuevoProyecto.trim() !== ''
+    || esGrupal !== ticket.es_grupal
+    || miembros.length !== miembrosIniciales.length
+    || miembros.some((id) => !miembrosIniciales.includes(id))
+    || tiempoPropuestoHoras !== propuestoInicialHoras
+    || tiempoPropuestoMinutos !== propuestoInicialMinutos
+    || tiempoEjecutadoHoras !== ejecutadoInicialHoras
+    || tiempoEjecutadoMinutos !== ejecutadoInicialMinutos
+  )
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-panel modal-panel--detalle" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-panel__header">
-          <div className="modal-panel__badges">
-            <span className={`badge badge--prioridad-${ticket.prioridad}`}>
-              {PRIORIDAD_LABEL[ticket.prioridad]}
-            </span>
-            <span className={`badge badge--estado-${ticket.estado}`}>
-              {ESTADO_LABEL[ticket.estado]}
-            </span>
-            {ticket.es_grupal && <span className="badge badge--grupal">Grupo</span>}
-          </div>
-          <div className="modal-panel__header-acciones">
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose()
+      }}
+    >
+      <div
+        className="modal-panel modal-panel--detalle"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ticket-detalle-titulo"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="detalle__header">
+          <nav className="detalle__ruta" aria-label="Ubicación de la tarea">
+            <span className="detalle__numero">#{ticket.numero}</span>
+            <span className="detalle__ruta-separador" aria-hidden="true">/</span>
+            <span>{ticket.area?.nombre ?? 'Sin área'}</span>
+            {ticket.proyecto && (
+              <>
+                <span className="detalle__ruta-separador" aria-hidden="true">/</span>
+                <span>{ticket.proyecto.nombre}</span>
+              </>
+            )}
+          </nav>
+          <div className="detalle__header-acciones">
             {puedeEliminar && (
               <button
                 type="button"
-                className="modal-eliminar"
+                className="detalle__boton-icono detalle__boton-icono--peligro"
                 onClick={handleEliminar}
                 disabled={eliminando}
+                title="Eliminar tarea"
+                aria-label="Eliminar tarea"
               >
-                {eliminando ? 'Eliminando...' : 'Eliminar'}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+                </svg>
               </button>
             )}
-            <button type="button" className="modal-close" onClick={onClose} aria-label="Cerrar">
-              ×
+            <button type="button" className="detalle__boton-icono" onClick={onClose} aria-label="Cerrar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
             </button>
           </div>
-        </div>
+        </header>
 
-        <div className="modal-panel__body">
-          <h2><span className="ticket-numero">#{ticket.numero}</span> {ticket.titulo}</h2>
+        <div className="detalle__scroll">
+          <form id="ticket-detalle-form" onSubmit={handleGuardar} className="detalle__cuerpo">
+            <div className="detalle__principal">
+              <div className="detalle__chips">
+                <span className={`badge badge--estado-${ticket.estado}`}>{ESTADO_LABEL[ticket.estado]}</span>
+                <span className={`badge badge--prioridad-${ticket.prioridad}`}>{PRIORIDAD_LABEL[ticket.prioridad]}</span>
+                {ticket.es_grupal && <span className="badge badge--equipo">En grupo</span>}
+              </div>
 
-          <dl className="modal-meta">
-            <div className="modal-meta__item">
-              <dt>Solicitado</dt>
-              <dd>{formatearFecha(ticket.created_at)}</dd>
-            </div>
-            <div className="modal-meta__item">
-              <dt>Solicitante</dt>
-              <dd>{ticket.solicitante?.full_name ?? ticket.solicitante?.email ?? '—'}</dd>
-            </div>
-            <div className="modal-meta__item">
-              <dt>Empresa</dt>
-              <dd>{ticket.empresa_solicitante}</dd>
-            </div>
-            <div className="modal-meta__item">
-              <dt>Asignado a</dt>
-              <dd>{nombresAsignados(ticket).join(', ') || 'Bandeja general'}</dd>
-            </div>
-            <div className="modal-meta__item">
-              <dt>Para cuándo</dt>
-              <dd>{formatearFecha(ticket.fecha_requerida)}</dd>
-            </div>
-          </dl>
-
-          <div className="modal-seccion">
-            <h3 className="modal-seccion__titulo">Descripción</h3>
-            <p className="modal-descripcion">{ticket.descripcion}</p>
-          </div>
-
-          {ticket.archivo_url && (
-            <div className="modal-seccion">
-              <h3 className="modal-seccion__titulo">Archivo adjunto</h3>
-              {esImagenAdjunta(ticket.archivo_url) ? (
-                <a href={ticket.archivo_url} target="_blank" rel="noreferrer" className="modal-archivo-link">
-                  <img src={ticket.archivo_url} alt="Adjunto de la solicitud" className="modal-archivo-imagen" />
-                </a>
+              {puedeEditarTiempos ? (
+                <textarea
+                  id="ticket-detalle-titulo"
+                  className="detalle__titulo detalle__titulo--editable"
+                  value={titulo}
+                  onChange={(e) => setTitulo(e.target.value.replace(/\n/g, ' '))}
+                  rows={1}
+                  aria-label="Título"
+                  required
+                />
               ) : (
-                <a href={ticket.archivo_url} target="_blank" rel="noreferrer" className="modal-archivo-documento">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-                    <path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
-                    <path d="M14 3v5h5" />
+                <h2 id="ticket-detalle-titulo" className="detalle__titulo">{ticket.titulo}</h2>
+              )}
+
+              <p className="detalle__autor">
+                <Avatar nombre={solicitanteNombre} tamano="sm" />
+                <span>
+                  <strong>{solicitanteNombre}</strong> lo solicitó el {formatearFecha(ticket.created_at)}
+                  {ticket.empresa_solicitante && <> · {ticket.empresa_solicitante}</>}
+                </span>
+              </p>
+
+              {faltan.length > 0 && (
+                <div className="detalle__alerta" role="status">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
                   </svg>
-                  Ver archivo adjunto
-                </a>
+                  <div>
+                    <strong>Falta clasificar esta tarea</strong>
+                    <p>
+                      Está finalizada pero no tiene {faltan.join(' ni ')}.
+                      {puedeEditarTiempos && ' Complétalo en el panel de detalles y guarda los cambios.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <section className="detalle__seccion">
+                <h3 className="detalle__seccion-titulo">Descripción</h3>
+                {puedeEditarTiempos ? (
+                  <textarea
+                    className="detalle__descripcion detalle__descripcion--editable"
+                    value={descripcion}
+                    onChange={(e) => setDescripcion(e.target.value)}
+                    rows={5}
+                    aria-label="Descripción"
+                    required
+                  />
+                ) : (
+                  <p className="detalle__descripcion">{ticket.descripcion}</p>
+                )}
+              </section>
+
+              {ticket.archivo_url && (
+                <section className="detalle__seccion">
+                  <h3 className="detalle__seccion-titulo">Archivo adjunto</h3>
+                  {esImagenAdjunta(ticket.archivo_url) ? (
+                    <a href={ticket.archivo_url} target="_blank" rel="noreferrer" className="modal-archivo-link">
+                      <img src={ticket.archivo_url} alt="Adjunto de la solicitud" className="modal-archivo-imagen" />
+                    </a>
+                  ) : (
+                    <a href={ticket.archivo_url} target="_blank" rel="noreferrer" className="modal-archivo-documento">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                        <path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+                        <path d="M14 3v5h5" />
+                      </svg>
+                      Ver archivo adjunto
+                    </a>
+                  )}
+                </section>
+              )}
+
+              {ticket.estado === 'finalizado' && ticket.nota_finalizacion && (
+                <section className="detalle__seccion">
+                  <h3 className="detalle__seccion-titulo">Nota de finalización</h3>
+                  <p className="detalle__nota">{ticket.nota_finalizacion}</p>
+                </section>
               )}
             </div>
-          )}
 
-          {ticket.estado === 'finalizado' && ticket.nota_finalizacion && (
-            <div className="modal-nota">
-              <strong>Nota de finalización</strong>
-              {ticket.nota_finalizacion}
-            </div>
-          )}
-
-          {clasificacionFaltante(ticket).length > 0 && (
-            <div className="modal-aviso" role="status">
-              <strong>Falta clasificar esta tarea</strong>
-              Está finalizada pero no tiene {clasificacionFaltante(ticket).join(' ni ')}.
-              {puedeEditarTiempos && ' Complétalo abajo y guarda los cambios.'}
-            </div>
-          )}
-
-          {!puedeEditarTiempos && (
-            <dl className="modal-meta">
-              <div className="modal-meta__item">
-                <dt>Área</dt>
-                <dd>{ticket.area?.nombre ?? 'Sin definir'}</dd>
-              </div>
-              <div className="modal-meta__item">
-                <dt>Proyecto</dt>
-                <dd>{ticket.proyecto?.nombre ?? 'Sin definir'}</dd>
-              </div>
-              <div className="modal-meta__item">
-                <dt>Tiempo propuesto</dt>
-                <dd>{formatearTiempo(ticket.tiempo_propuesto_horas)}</dd>
-              </div>
-              <div className="modal-meta__item">
-                <dt>Tiempo ejecutado</dt>
-                <dd>{formatearTiempo(ticket.tiempo_ejecutado_horas)}</dd>
-              </div>
-            </dl>
-          )}
-
-          {puedeEditarTiempos && (
-            <form id="ticket-detalle-form" onSubmit={handleGuardar} className="modal-gestion">
-              <h3 className="modal-seccion__titulo modal-seccion__titulo--gestion">Gestión de la tarea</h3>
-
-              <div className="modal-gestion__seccion">
-                <label>
-                  Título
-                  <input value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
-                </label>
-                <label>
-                  Descripción
-                  <textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)} rows={4} required />
-                </label>
-                <div className="ticket-form__row">
-                  <label>
-                    Prioridad
-                    <select value={prioridad} onChange={(e) => setPrioridad(e.target.value as Prioridad)}>
-                      {Object.entries(PRIORIDAD_LABEL).map(([valor, etiqueta]) => (
-                        <option key={valor} value={valor}>
-                          {etiqueta}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Para cuándo
-                    <input
-                      type="datetime-local"
-                      value={fechaRequerida}
-                      onChange={(e) => setFechaRequerida(e.target.value)}
-                    />
-                  </label>
+            <aside className="detalle__lateral" aria-label="Detalles de la tarea">
+              <h3 className="detalle__seccion-titulo">Detalles</h3>
+              <dl className="propiedades">
+                <div className="propiedad">
+                  <dt>Asignado a</dt>
+                  <dd>
+                    {asignados.length > 0 ? (
+                      <span className="propiedad__personas">
+                        {asignados.map((nombre) => (
+                          <span key={nombre} className="propiedad__persona">
+                            <Avatar nombre={nombre} tamano="sm" />
+                            {nombre}
+                          </span>
+                        ))}
+                      </span>
+                    ) : (
+                      <span className="propiedad__vacio">Bandeja general</span>
+                    )}
+                  </dd>
                 </div>
-              </div>
 
-              <div className="modal-gestion__seccion">
-                <div className="ticket-form__row">
-                  <label>
-                    Área
-                    <input value={ticket.area?.nombre ?? 'Sin definir'} disabled />
-                  </label>
-                  <label>
-                    Proyecto
-                    <select value={proyectoId} onChange={(e) => setProyectoId(e.target.value)}>
-                      <option value="">Sin definir</option>
-                      {proyectos.map((proyecto) => (
-                        <option key={proyecto.id} value={proyecto.id}>
-                          {proyecto.nombre}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                <div className="propiedad">
+                  <dt><label htmlFor="detalle-prioridad">Prioridad</label></dt>
+                  <dd>
+                    {puedeEditarTiempos ? (
+                      <select id="detalle-prioridad" value={prioridad} onChange={(e) => setPrioridad(e.target.value as Prioridad)}>
+                        {Object.entries(PRIORIDAD_LABEL).map(([valor, etiqueta]) => (
+                          <option key={valor} value={valor}>{etiqueta}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="propiedad__prioridad">
+                        <span className={`propiedad__punto propiedad__punto--${ticket.prioridad}`} aria-hidden="true" />
+                        {PRIORIDAD_LABEL[ticket.prioridad]}
+                      </span>
+                    )}
+                  </dd>
                 </div>
-                {mostrarNuevoProyecto ? (
-                  <label>
-                    Nuevo proyecto
-                    <input
-                      value={nuevoProyecto}
-                      onChange={(e) => setNuevoProyecto(e.target.value)}
-                      placeholder="ej. Proyecto Castilla"
-                      autoFocus
+
+                <div className="propiedad">
+                  <dt><label htmlFor="detalle-fecha">Para cuándo</label></dt>
+                  <dd>
+                    {puedeEditarTiempos ? (
+                      <input id="detalle-fecha" type="datetime-local" value={fechaRequerida} onChange={(e) => setFechaRequerida(e.target.value)} />
+                    ) : (
+                      formatearFecha(ticket.fecha_requerida)
+                    )}
+                  </dd>
+                </div>
+
+                <div className="propiedad">
+                  <dt>Área</dt>
+                  <dd>{ticket.area?.nombre ?? <span className="propiedad__vacio">Sin definir</span>}</dd>
+                </div>
+
+                <div className="propiedad">
+                  <dt><label htmlFor="detalle-proyecto">Proyecto</label></dt>
+                  <dd>
+                    {puedeEditarTiempos ? (
+                      <>
+                        <select
+                          id="detalle-proyecto"
+                          value={proyectoId}
+                          onChange={(e) => setProyectoId(e.target.value)}
+                          className={faltan.includes('proyecto') ? 'propiedad__control--falta' : undefined}
+                          disabled={nuevoProyecto.trim() !== ''}
+                        >
+                          <option value="">Sin definir</option>
+                          {proyectos.map((proyecto) => (
+                            <option key={proyecto.id} value={proyecto.id}>{proyecto.nombre}</option>
+                          ))}
+                        </select>
+                        {mostrarNuevoProyecto ? (
+                          <input
+                            value={nuevoProyecto}
+                            onChange={(e) => setNuevoProyecto(e.target.value)}
+                            placeholder="Nombre del proyecto nuevo"
+                            aria-label="Nombre del proyecto nuevo"
+                            autoFocus
+                          />
+                        ) : (
+                          <button type="button" className="propiedad__enlace" onClick={() => setMostrarNuevoProyecto(true)}>
+                            + Crear proyecto nuevo
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      ticket.proyecto?.nombre ?? <span className="propiedad__vacio">Sin definir</span>
+                    )}
+                  </dd>
+                </div>
+              </dl>
+
+              <h3 className="detalle__seccion-titulo">Tiempo</h3>
+              <dl className="propiedades">
+                <div className="propiedad">
+                  <dt>Propuesto</dt>
+                  <dd>
+                    {puedeEditarTiempos ? (
+                      <span className="tiempo-input">
+                        <input type="number" min="0" step="1" value={tiempoPropuestoHoras} onChange={(e) => setTiempoPropuestoHoras(e.target.value)} placeholder="0" aria-label="Horas propuestas" />
+                        <span>h</span>
+                        <input type="number" min="0" max="59" step="1" value={tiempoPropuestoMinutos} onChange={(e) => setTiempoPropuestoMinutos(e.target.value)} placeholder="0" aria-label="Minutos propuestos" />
+                        <span>min</span>
+                      </span>
+                    ) : (
+                      formatearTiempo(ticket.tiempo_propuesto_horas)
+                    )}
+                  </dd>
+                </div>
+                <div className="propiedad">
+                  <dt>Ejecutado</dt>
+                  <dd>
+                    {puedeEditarTiempos ? (
+                      <span className={`tiempo-input${faltan.includes('tiempo ejecutado') ? ' propiedad__control--falta' : ''}`}>
+                        <input type="number" min="0" step="1" value={tiempoEjecutadoHoras} onChange={(e) => setTiempoEjecutadoHoras(e.target.value)} placeholder="0" aria-label="Horas ejecutadas" />
+                        <span>h</span>
+                        <input type="number" min="0" max="59" step="1" value={tiempoEjecutadoMinutos} onChange={(e) => setTiempoEjecutadoMinutos(e.target.value)} placeholder="0" aria-label="Minutos ejecutados" />
+                        <span>min</span>
+                      </span>
+                    ) : (
+                      formatearTiempo(ticket.tiempo_ejecutado_horas)
+                    )}
+                  </dd>
+                </div>
+              </dl>
+              {avance != null && (
+                <div className="tiempo-avance">
+                  <div className="tiempo-avance__barra" aria-hidden="true">
+                    <span
+                      className={`tiempo-avance__relleno${avance > 1 ? ' tiempo-avance__relleno--excedido' : ''}`}
+                      style={{ width: `${Math.min(avance, 1) * 100}%` }}
                     />
+                  </div>
+                  <span className={avance > 1 ? 'tiempo-avance__texto--excedido' : undefined}>
+                    {avance > 1
+                      ? `Excedido en ${formatearTiempo(tiempoEjecutado! - tiempoPropuesto!)}`
+                      : `${Math.round(avance * 100)} % del tiempo propuesto`}
+                  </span>
+                </div>
+              )}
+
+              {puedeEditarTiempos && (
+                <>
+                  <h3 className="detalle__seccion-titulo">Equipo</h3>
+                  <label className="interruptor">
+                    <input type="checkbox" checked={esGrupal} onChange={(e) => setEsGrupal(e.target.checked)} />
+                    <span className="interruptor__pista" aria-hidden="true" />
+                    Tarea en grupo
                   </label>
-                ) : (
-                  <button
-                    type="button"
-                    className="modal-link-button"
-                    onClick={() => setMostrarNuevoProyecto(true)}
-                  >
-                    + Crear proyecto nuevo
-                  </button>
-                )}
-              </div>
-
-              <div className="modal-gestion__seccion">
-                <label className="modal-toggle-row">
-                  <span>Es una tarea en grupo (varias personas)</span>
-                  <input
-                    type="checkbox"
-                    checked={esGrupal}
-                    onChange={(e) => setEsGrupal(e.target.checked)}
-                  />
-                </label>
-
-                {esGrupal && (
-                  <div className="modal-miembros">
-                    <p className="modal-miembros__label">Selecciona a las personas del grupo</p>
+                  {esGrupal && (
                     <div className="modal-miembros__lista">
                       {agentes.map((agente) => (
                         <label
@@ -413,56 +528,53 @@ export function TicketDetalleModal({
                         </label>
                       ))}
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </>
+              )}
+            </aside>
+          </form>
 
-              <div className="modal-gestion__seccion">
-                <div className="ticket-form__row">
-                  <fieldset>
-                    <legend>Tiempo propuesto</legend>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={tiempoPropuestoHoras}
-                      onChange={(e) => setTiempoPropuestoHoras(e.target.value)}
-                      placeholder="Horas"
-                      aria-label="Horas propuestas"
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      max="59"
-                      step="1"
-                      value={tiempoPropuestoMinutos}
-                      onChange={(e) => setTiempoPropuestoMinutos(e.target.value)}
-                      placeholder="Minutos"
-                      aria-label="Minutos propuestos"
-                    />
-                  </fieldset>
-                  <fieldset>
-                    <legend>Tiempo ejecutado</legend>
-                    <input type="number" min="0" step="1" value={tiempoEjecutadoHoras} onChange={(e) => setTiempoEjecutadoHoras(e.target.value)} placeholder="Horas" aria-label="Horas ejecutadas" />
-                    <input type="number" min="0" max="59" step="1" value={tiempoEjecutadoMinutos} onChange={(e) => setTiempoEjecutadoMinutos(e.target.value)} placeholder="Minutos" aria-label="Minutos ejecutados" />
-                  </fieldset>
-                </div>
-              </div>
-            </form>
-          )}
-
-          <ComentariosTicket ticketId={ticket.id} onComentado={onComentado} />
-
-          <HistorialCambios ticket={ticket} />
+          <section className="detalle__actividad" aria-label="Actividad">
+            <div className="pestanas" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={pestana === 'comentarios'}
+                className={`pestana${pestana === 'comentarios' ? ' pestana--activa' : ''}`}
+                onClick={() => setPestana('comentarios')}
+              >
+                Comentarios
+                {totalComentarios ? <span className="pestana__contador">{totalComentarios}</span> : null}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={pestana === 'historial'}
+                className={`pestana${pestana === 'historial' ? ' pestana--activa' : ''}`}
+                onClick={() => setPestana('historial')}
+              >
+                Historial
+              </button>
+            </div>
+            {pestana === 'comentarios'
+              ? <ComentariosTicket ticketId={ticket.id} onComentado={onComentado} />
+              : <HistorialCambios ticket={ticket} />}
+          </section>
         </div>
 
         {puedeEditarTiempos && (
-          <div className="modal-panel__footer">
-            {error && <p className="auth-error">{error}</p>}
-            <button type="submit" form="ticket-detalle-form" disabled={guardando}>
+          <footer className="detalle__footer">
+            {error ? (
+              <p className="auth-error">{error}</p>
+            ) : (
+              <span className="detalle__estado-guardado">
+                {hayCambios ? 'Tienes cambios sin guardar' : 'Sin cambios'}
+              </span>
+            )}
+            <button type="submit" form="ticket-detalle-form" disabled={guardando || !hayCambios}>
               {guardando ? 'Guardando...' : 'Guardar cambios'}
             </button>
-          </div>
+          </footer>
         )}
       </div>
     </div>
