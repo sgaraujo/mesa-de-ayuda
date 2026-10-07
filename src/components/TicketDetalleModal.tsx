@@ -5,6 +5,7 @@ import { useMiembrosArea } from '../hooks/useMiembrosArea'
 import { clasificacionFaltante, esImagenAdjunta, nombresAsignados } from '../lib/ticket'
 import { notificarAsignacion } from '../lib/notificaciones'
 import { separarTiempo, combinarTiempo, formatearTiempo } from '../lib/tiempo'
+import { ComentariosTicket } from './ComentariosTicket'
 import { HistorialCambios } from './HistorialCambios'
 import type { Prioridad, TicketConRelaciones } from '../types/database'
 
@@ -447,6 +448,8 @@ export function TicketDetalleModal({
               </div>
             </form>
           )}
+
+          <ComentariosTicket ticketId={ticket.id} />
 
           <HistorialCambios ticket={ticket} />
         </div>

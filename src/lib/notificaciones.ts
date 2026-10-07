@@ -26,3 +26,11 @@ export async function notificarFinalizacion(ticketId: string) {
 
   if (error) console.error('No se pudo enviar la notificación de finalización:', error.message)
 }
+
+export async function notificarMenciones(comentarioId: string) {
+  const { error } = await supabase.functions.invoke('notify-mention', {
+    body: { comentarioId },
+  })
+
+  if (error) console.error('No se pudo enviar la notificación de mención:', error.message)
+}

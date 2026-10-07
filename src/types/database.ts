@@ -86,6 +86,22 @@ export interface TicketCambio {
   changed_at: string
 }
 
+// Comentarios de un ticket y sus menciones (@), ver migración 0025.
+export interface TicketComentario {
+  id: string
+  ticket_id: string
+  autor_id: string | null
+  texto: string
+  created_at: string
+}
+
+export interface TicketMencion {
+  comentario_id: string
+  ticket_id: string
+  profile_id: string
+  notificado_at: string | null
+}
+
 export interface AllowedEmail {
   email: string
   area_id: string | null

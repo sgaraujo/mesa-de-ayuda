@@ -33,7 +33,7 @@ export function esImagenAdjunta(url: string): boolean {
   return EXTENSIONES_IMAGEN.includes(extension)
 }
 
-function normalizar(texto: string): string {
+export function normalizar(texto: string): string {
   return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
 

@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0024_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0025_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -101,6 +101,11 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   después). A diferencia de la anterior, la llenan triggers en `tickets` y
   `ticket_asignados` (migración 0024) y no tiene policies de escritura: el
   cliente no inserta ahí, solo lee (se muestra en `HistorialCambios`).
+- `ticket_comentarios` + `ticket_menciones` (migración 0025): comentarios
+  inmutables con menciones `@persona`. Se crean solo con la RPC
+  `comentar_ticket()`; se puede mencionar a cualquier usuario activo, y quien
+  es mencionado pasa a ver esa tarea (`fui_mencionado()` en
+  `puedo_ver_ticket` y `tickets_select`) y la sigue en `/mis-solicitudes`.
 - `allowed_emails`: whitelist de acceso (independiente de `profiles`).
 - RLS en casi todas las tablas. **Cuidado con la recursión**: la policy de
   `tickets` consulta `ticket_asignados` y viceversa, lo cual generaba
@@ -135,7 +140,7 @@ del frontend. Combina:
 Deno, cada una en su carpeta con `index.ts`. Código compartido en `_shared/`
 (`graph.ts` para envío de correo vía Microsoft Graph, `email-template.ts`
 para el HTML de los correos). Funciones actuales: `invite-user`,
-`reset-password`, `revoke-user`, `notify-assignment`, `send-welcome-email`,
+`reset-password`, `revoke-user`, `notify-assignment`, `notify-mention`, `send-welcome-email`,
 `admin-set-password`, `revisar-texto` (ortografía y gramática con
 LanguageTool; API pública gratuita salvo que se definan los secretos
 `LANGUAGETOOL_USERNAME`/`LANGUAGETOOL_API_KEY` o `LANGUAGETOOL_URL`). Todas usan el service role key

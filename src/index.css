@@ -2857,3 +2857,132 @@ label {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+.badge--mencion {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.comentarios {
+  list-style: none;
+  margin: 0 0 0.8rem;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.comentario {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-page);
+  min-width: 0;
+}
+
+.comentario__cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.2rem 0.6rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.comentario__cabecera strong {
+  color: var(--text-primary);
+}
+
+.comentario__texto {
+  margin: 0;
+  font-size: 0.87rem;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.comentario__mencion {
+  padding: 0 0.15rem;
+  border-radius: 4px;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-weight: 600;
+}
+
+.comentarios__vacio {
+  margin: 0 0 0.8rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.comentarios__nuevo {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.comentarios__campo {
+  position: relative;
+}
+
+.comentarios__campo textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.comentarios__sugerencias {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 10;
+  margin: 0.25rem 0 0;
+  padding: 0.25rem;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-page);
+  box-shadow: var(--shadow-md);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.comentarios__sugerencia {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.comentarios__sugerencia--activa {
+  background: var(--brand-soft);
+}
+
+.comentarios__sugerencia-correo {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.comentarios__acciones {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.8rem;
+}
+
+.comentarios__ayuda {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
