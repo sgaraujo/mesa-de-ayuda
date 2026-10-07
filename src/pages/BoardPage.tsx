@@ -29,7 +29,7 @@ const TICKET_SELECT = `
   area:areas(id, nombre),
   proyecto:proyectos(id, nombre),
   asignados:ticket_asignados(profile:profiles(id, full_name, email)),
-  comentarios:ticket_comentarios(count)
+  comentarios:ticket_comentarios!ticket_comentarios_ticket_id_fkey(count)
 `
 
 const BOARD_CHANNEL = 'ticket-board'

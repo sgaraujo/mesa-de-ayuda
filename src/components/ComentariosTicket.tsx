@@ -60,14 +60,26 @@ export function ComentariosTicket({ ticketId, onComentado }: ComentariosTicketPr
   const [indiceSugerencia, setIndiceSugerencia] = useState(0)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorCarga, setErrorCarga] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const cargar = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error: errorCarga } = await supabase
       .from('ticket_comentarios')
-      .select('*, autor:profiles(id, full_name, email), menciones:ticket_menciones(profile:profiles(id, full_name, email))')
+      // Los nombres de las FK son obligatorios: ticket_menciones también une
+      // comentarios con personas, y sin ellos PostgREST rechaza la consulta
+      // por relación ambigua.
+      .select(`
+        *,
+        autor:profiles!ticket_comentarios_autor_id_fkey(id, full_name, email),
+        menciones:ticket_menciones!ticket_menciones_comentario_id_fkey(
+          profile:profiles!ticket_menciones_profile_id_fkey(id, full_name, email)
+        )
+      `)
       .eq('ticket_id', ticketId)
       .order('created_at', { ascending: true })
+    if (errorCarga) console.error('No se pudieron cargar los comentarios:', errorCarga.message)
+    setErrorCarga(errorCarga ? 'No se pudieron cargar los comentarios.' : null)
     setComentarios((data as unknown as ComentarioConRelaciones[]) ?? [])
     setLoading(false)
   }, [ticketId])
@@ -154,6 +166,7 @@ export function ComentariosTicket({ ticketId, onComentado }: ComentariosTicketPr
     })
 
     setEnviando(false)
+    if (errorComentario) console.error('No se pudo publicar el comentario:', errorComentario.message)
     if (errorComentario || !comentarioId) {
       setError('No se pudo publicar el comentario. Intenta de nuevo.')
       return
@@ -173,6 +186,8 @@ export function ComentariosTicket({ ticketId, onComentado }: ComentariosTicketPr
 
       {loading ? (
         <p className="comentarios__vacio">Cargando comentarios...</p>
+      ) : errorCarga ? (
+        <p className="auth-error">{errorCarga}</p>
       ) : comentarios.length === 0 ? (
         <p className="comentarios__vacio">Todavía no hay comentarios.</p>
       ) : (

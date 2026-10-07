@@ -31,7 +31,11 @@ Deno.serve(async (req) => {
 
     const { data: comentario, error: comentarioError } = await supabaseAdmin
       .from('ticket_comentarios')
-      .select('id, texto, autor_id, ticket:tickets(id, numero, titulo), autor:profiles(full_name, email, activo)')
+      .select(`
+        id, texto, autor_id,
+        ticket:tickets!ticket_comentarios_ticket_id_fkey(id, numero, titulo),
+        autor:profiles!ticket_comentarios_autor_id_fkey(full_name, email, activo)
+      `)
       .eq('id', comentarioId)
       .maybeSingle()
     if (comentarioError || !comentario) return json({ ok: false, message: 'Comentario no encontrado' }, 404)
