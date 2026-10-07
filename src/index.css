@@ -4148,3 +4148,21 @@ kbd {
     flex: 1;
   }
 }
+
+.comentarios__aviso {
+  margin: 0 0 0.9rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.83rem;
+  overflow-wrap: anywhere;
+}
+
+.comentarios__aviso--ok {
+  background: color-mix(in srgb, var(--estado-finalizado) 10%, transparent);
+  color: var(--estado-finalizado);
+}
+
+.comentarios__aviso--error {
+  background: color-mix(in srgb, var(--prioridad-urgente) 9%, transparent);
+  color: var(--prioridad-urgente);
+}

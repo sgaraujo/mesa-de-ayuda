@@ -56,7 +56,9 @@ Deno.serve(async (req) => {
     if (reservaError) throw reservaError
 
     const idsDestinatarios = (reservadas ?? []).map((fila) => fila.profile_id)
-    if (idsDestinatarios.length === 0) return json({ ok: true, enviados: 0 })
+    if (idsDestinatarios.length === 0) {
+      return json({ ok: false, enviados: 0, detalle: 'No hay menciones pendientes de aviso en este comentario' }, 409)
+    }
 
     const { data: personas, error: personasError } = await supabaseAdmin
       .from('profiles')
@@ -99,15 +101,20 @@ Deno.serve(async (req) => {
       }
     }))
 
-    const fallidos = resultados.filter((resultado) => resultado.status === 'rejected')
-    fallidos.forEach((resultado) => {
-      if (resultado.status === 'rejected') console.error('Notificación de mención falló:', resultado.reason)
-    })
+    const fallidos = resultados.filter((resultado): resultado is PromiseRejectedResult => resultado.status === 'rejected')
+    fallidos.forEach((resultado) => console.error('Notificación de mención falló:', resultado.reason))
     const enviados = resultados.length - fallidos.length
-    if (fallidos.length > 0) return json({ ok: false, enviados, fallidos: fallidos.length }, 502)
+    if (fallidos.length > 0) {
+      // El motivo se devuelve a quien comentó (es una app interna) para que
+      // sepa por qué no salió el correo.
+      const motivo = fallidos[0].reason
+      const detalle = (motivo instanceof Error ? motivo.message : String(motivo)).slice(0, 300)
+      return json({ ok: false, enviados, fallidos: fallidos.length, detalle }, 502)
+    }
     return json({ ok: true, enviados })
   } catch (error) {
-    console.error('Error al notificar mención:', (error as Error).message)
-    return json({ ok: false, message: 'Error interno' }, 500)
+    const detalle = error instanceof Error ? error.message : JSON.stringify(error)
+    console.error('Error al notificar mención:', detalle)
+    return json({ ok: false, message: 'Error interno', detalle: detalle.slice(0, 300) }, 500)
   }
 })

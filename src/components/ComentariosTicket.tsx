@@ -62,6 +62,7 @@ export function ComentariosTicket({ ticketId, onComentado }: ComentariosTicketPr
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [errorCarga, setErrorCarga] = useState<string | null>(null)
+  const [avisoMencion, setAvisoMencion] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const cargar = useCallback(async () => {
@@ -155,10 +156,10 @@ export function ComentariosTicket({ ticketId, onComentado }: ComentariosTicketPr
     if (!texto.trim() || enviando) return
     setEnviando(true)
     setError(null)
+    setAvisoMencion(null)
 
-    const idsMencionados = mencionados
-      .filter((m) => texto.includes(`@${nombreDe(m)}`))
-      .map((m) => m.id)
+    const personasMencionadas = mencionados.filter((m) => texto.includes(`@${nombreDe(m)}`))
+    const idsMencionados = personasMencionadas.map((m) => m.id)
 
     const { data: comentarioId, error: errorComentario } = await supabase.rpc('comentar_ticket', {
       p_ticket_id: ticketId,
@@ -173,12 +174,32 @@ export function ComentariosTicket({ ticketId, onComentado }: ComentariosTicketPr
       return
     }
 
-    if (idsMencionados.length > 0) void notificarMenciones(comentarioId as string)
+    const textoEnviado = texto
     setTexto('')
     setMencionados([])
     setConsulta(null)
     onComentado?.()
-    await cargar()
+    void cargar()
+
+    if (idsMencionados.length === 0) {
+      // "@algo" escrito a mano, sin elegir a la persona de la lista.
+      if (/(^|\s)@[^\s@]/.test(textoEnviado)) {
+        setAvisoMencion({
+          tipo: 'error',
+          texto: 'No se mencionó a nadie: para notificar a alguien elige su nombre de la lista que aparece al escribir @.',
+        })
+      }
+      return
+    }
+
+    const nombres = personasMencionadas.map(nombreDe).join(', ')
+    const resultado = await notificarMenciones(comentarioId as string)
+    setAvisoMencion(resultado.ok
+      ? { tipo: 'ok', texto: `Se notificó por correo a ${nombres}.` }
+      : {
+          tipo: 'error',
+          texto: `El comentario se publicó, pero no se pudo enviar el correo a ${nombres}${resultado.detalle ? `: ${resultado.detalle}` : '.'}`,
+        })
   }
 
   const miNombre = profile ? profile.full_name?.trim() || profile.email : 'Yo'
@@ -216,6 +237,12 @@ export function ComentariosTicket({ ticketId, onComentado }: ComentariosTicketPr
             )
           })}
         </ul>
+      )}
+
+      {avisoMencion && (
+        <p className={`comentarios__aviso comentarios__aviso--${avisoMencion.tipo}`} role="status">
+          {avisoMencion.texto}
+        </p>
       )}
 
       <form className="comentarios__nuevo" onSubmit={enviar}>
