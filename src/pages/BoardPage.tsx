@@ -33,12 +33,34 @@ const TICKET_SELECT = `
 
 const BOARD_CHANNEL = 'ticket-board'
 
+const VISTA_TODAS_KEY = 'tablero-todas-las-areas'
+
+function leerVistaTodas(): boolean {
+  try {
+    return localStorage.getItem(VISTA_TODAS_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function guardarVistaTodas(valor: boolean) {
+  try {
+    localStorage.setItem(VISTA_TODAS_KEY, valor ? '1' : '0')
+  } catch {
+    // Sin almacenamiento disponible solo se pierde la preferencia entre visitas.
+  }
+}
+
 export function BoardPage() {
   const { profile } = useAuth()
-  const { areaActiva } = useArea()
+  const { areaActiva, esSuperadmin } = useArea()
   const areaId = areaActiva?.id
   const esLider = areaActiva?.rol === 'lider'
-  const { agentes } = useMiembrosArea(areaId)
+  // Tablero general: el superadmin puede ver las tareas de todas las áreas
+  // juntas en vez de solo las del área activa.
+  const [todasLasAreasGuardado, setTodasLasAreasGuardado] = useState(leerVistaTodas)
+  const todasLasAreas = esSuperadmin && todasLasAreasGuardado
+  const { agentes } = useMiembrosArea(areaId, todasLasAreas)
   const [tickets, setTickets] = useState<TicketConRelaciones[]>([])
   const [loading, setLoading] = useState(true)
   const [filtroAgente, setFiltroAgente] = useState('')
@@ -64,16 +86,14 @@ export function BoardPage() {
   )
 
   const cargarTickets = useCallback(async (mostrarCarga = false) => {
-    if (!areaId) return
+    if (!areaId && !todasLasAreas) return
     if (mostrarCarga) setLoading(true)
-    const { data } = await supabase
-      .from('tickets')
-      .select(TICKET_SELECT)
-      .eq('area_id', areaId)
-      .order('created_at', { ascending: false })
+    let consulta = supabase.from('tickets').select(TICKET_SELECT)
+    if (!todasLasAreas) consulta = consulta.eq('area_id', areaId!)
+    const { data } = await consulta.order('created_at', { ascending: false })
     setTickets((data as unknown as TicketConRelaciones[]) ?? [])
     setLoading(false)
-  }, [areaId])
+  }, [areaId, todasLasAreas])
 
   const notificarCambio = useCallback(async (ticketId?: string) => {
     await boardChannel.current?.send({
@@ -103,7 +123,7 @@ export function BoardPage() {
       // persona todavía pueda verlo por ser miembro de esa otra área.
       const actualizados = new Map(
         ((data as unknown as TicketConRelaciones[]) ?? [])
-          .filter((t) => t.area_id === areaId)
+          .filter((t) => todasLasAreas || t.area_id === areaId)
           .map((t) => [t.id, t]),
       )
 
@@ -117,13 +137,13 @@ export function BoardPage() {
         return [...nuevos, ...siguen]
       })
     }, 400)
-  }, [areaId])
+  }, [areaId, todasLasAreas])
 
   useEffect(() => {
     void cargarTickets(true)
 
     const channel = supabase
-      .channel(`${BOARD_CHANNEL}:${areaId}`)
+      .channel(`${BOARD_CHANNEL}:${todasLasAreas ? 'todas' : areaId}`)
       .on('broadcast', { event: 'tickets_changed' }, ({ payload }) => {
         programarActualizacion((payload as { ticketId?: string } | undefined)?.ticketId)
       })
@@ -144,7 +164,7 @@ export function BoardPage() {
       boardChannel.current = null
       void supabase.removeChannel(channel)
     }
-  }, [areaId, cargarTickets, programarActualizacion])
+  }, [areaId, todasLasAreas, cargarTickets, programarActualizacion])
 
   const ticketsFiltrados = useMemo(() => {
     const limiteFinalizados = Date.now() - DIAS_FINALIZADOS_EN_TABLERO * 24 * 60 * 60 * 1000
@@ -302,13 +322,19 @@ export function BoardPage() {
     setTicketAFinalizar(null)
   }
 
+  function cambiarVistaTodas(valor: boolean) {
+    setFiltroAgente('')
+    setTodasLasAreasGuardado(valor)
+    guardarVistaTodas(valor)
+  }
+
   if (loading) return <div className="pantalla-carga">Cargando tablero...</div>
 
   return (
     <div className="board-page">
       <div className="board-page__toolbar">
         <div>
-          <h1>{vistaHistorial ? 'Historial de finalizadas' : `Tablero · ${areaActiva?.nombre ?? ''}`}</h1>
+          <h1>{vistaHistorial ? 'Historial de finalizadas' : `Tablero · ${todasLasAreas ? 'Todas las áreas' : areaActiva?.nombre ?? ''}`}</h1>
           {vistaHistorial && <p className="board-page__subtitulo">Tareas finalizadas hace más de 30 días.</p>}
         </div>
         <div className="board-page__filtros">
@@ -320,13 +346,20 @@ export function BoardPage() {
             placeholder="Buscar por #, título, persona…"
             aria-label="Buscar tickets"
           />
+          {esSuperadmin && (
+            <select value={todasLasAreas ? 'todas' : 'area'} onChange={(e) => cambiarVistaTodas(e.target.value === 'todas')} aria-label="Áreas del tablero">
+              <option value="area">Solo {areaActiva?.nombre ?? 'esta área'}</option>
+              <option value="todas">Todas las áreas</option>
+            </select>
+          )}
           {esLider && (
             <select value={filtroAgente} onChange={(e) => setFiltroAgente(e.target.value)} aria-label="Filtrar por agente">
               <option value="">Todas las personas</option>
               <option value="sin_asignar">Sin asignar</option>
               {agentes.map((agente) => (
                 <option key={agente.id} value={agente.id}>
-                  {agente.full_name ?? agente.email} ({agente.rolArea === 'lider' ? 'Líder' : 'Agente'})
+                  {agente.full_name ?? agente.email}
+                  {!todasLasAreas && ` (${agente.rolArea === 'lider' ? 'Líder' : 'Agente'})`}
                 </option>
               ))}
             </select>

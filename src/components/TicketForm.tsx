@@ -176,18 +176,21 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   }
 
   const campoTitulo = (
-    <label>
-      Título
-      <input
-        value={titulo}
-        onChange={(e) => setTitulo(e.target.value)}
-        required
-        maxLength={140}
-        spellCheck
-        lang="es"
-        placeholder={elegirArea ? 'Ej.: Actualizar el reporte mensual de ventas' : undefined}
-      />
-    </label>
+    <>
+      <label>
+        Título
+        <input
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          required
+          maxLength={140}
+          spellCheck
+          lang="es"
+          placeholder={elegirArea ? 'Ej.: Actualizar el reporte mensual de ventas' : undefined}
+        />
+      </label>
+      <SugerenciasTexto texto={titulo} onCambiar={setTitulo} />
+    </>
   )
 
   const campoDescripcion = (
