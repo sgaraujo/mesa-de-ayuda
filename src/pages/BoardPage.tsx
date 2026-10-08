@@ -5,13 +5,14 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useArea } from '../context/AreaContext'
 import { useMiembrosArea } from '../hooks/useMiembrosArea'
-import { notificarAsignacion, notificarFinalizacion } from '../lib/notificaciones'
+import { notificarAsignacion, notificarFinalizacion, notificarMenciones } from '../lib/notificaciones'
 import { KanbanColumn, type ColumnaId } from '../components/KanbanColumn'
 import { TicketDetalleModal } from '../components/TicketDetalleModal'
 import { NuevaTareaModal } from '../components/NuevaTareaModal'
 import { FinalizarTicketModal } from '../components/FinalizarTicketModal'
 import { coincideBusqueda, estaSinAsignar, TICKET_SELECT } from '../lib/ticket'
 import type { Estado, TicketConRelaciones } from '../types/database'
+import type { UsuarioActivo } from '../hooks/useUsuariosActivos'
 
 const COLUMNAS: { id: ColumnaId; titulo: string }[] = [
   { id: 'tareas', titulo: 'Tareas (sin asignar)' },
@@ -277,7 +278,7 @@ export function BoardPage() {
     await notificarCambio(ticketId)
   }
 
-  async function confirmarFinalizacion(nota: string, tiempoEjecutadoHoras: number | null) {
+  async function confirmarFinalizacion(nota: string, tiempoEjecutadoHoras: number | null, mencionados: UsuarioActivo[]) {
     if (!ticketAFinalizar) return
     const { ticketId, cambios, estadoAnterior } = ticketAFinalizar
     setFinalizando(true)
@@ -307,6 +308,20 @@ export function BoardPage() {
       })
     }
     void notificarFinalizacion(ticketId)
+
+    // Si en la nota etiquetaron a alguien (@), la nota se publica también como
+    // comentario con esas menciones: así les llega la notificación (campanita
+    // y correo) y queda en la conversación de la tarea.
+    if (mencionados.length > 0) {
+      const { data: comentarioId, error: errorComentario } = await supabase.rpc('comentar_ticket', {
+        p_ticket_id: ticketId,
+        p_texto: `Nota de finalización: ${nota}`,
+        p_mencionados: mencionados.map((m) => m.id),
+      })
+      if (errorComentario) console.error('No se pudo publicar la nota como comentario:', errorComentario.message)
+      else if (comentarioId) void notificarMenciones(comentarioId as string)
+    }
+
     await notificarCambio(ticketId)
 
     setFinalizando(false)
@@ -460,7 +475,7 @@ export function BoardPage() {
           tiempoEjecutadoHoras={ticketAFinalizar.tiempoEjecutadoHoras}
           guardando={finalizando}
           error={errorFinalizar}
-          onConfirmar={(nota, horas) => void confirmarFinalizacion(nota, horas)}
+          onConfirmar={(nota, horas, mencionados) => void confirmarFinalizacion(nota, horas, mencionados)}
           onCancelar={() => {
             if (finalizando) return
             setTicketAFinalizar(null)

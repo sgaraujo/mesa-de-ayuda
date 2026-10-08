@@ -1,13 +1,17 @@
 import { useState, type FormEvent } from 'react'
 import { separarTiempo, combinarTiempo } from '../lib/tiempo'
 import { SugerenciasTexto } from './SugerenciasTexto'
+import { CampoMenciones } from './CampoMenciones'
+import { mencionadosEnTexto, nombreDe } from '../lib/menciones'
+import type { UsuarioActivo } from '../hooks/useUsuariosActivos'
 
 interface FinalizarTicketModalProps {
   tituloTicket: string
   tiempoEjecutadoHoras: number | null
   guardando: boolean
   error: string | null
-  onConfirmar: (nota: string, tiempoEjecutadoHoras: number | null) => void
+  // mencionados: personas etiquetadas con @ que siguen escritas en la nota.
+  onConfirmar: (nota: string, tiempoEjecutadoHoras: number | null, mencionados: UsuarioActivo[]) => void
   onCancelar: () => void
 }
 
@@ -20,13 +24,14 @@ export function FinalizarTicketModal({
   onCancelar,
 }: FinalizarTicketModalProps) {
   const [nota, setNota] = useState('')
+  const [mencionados, setMencionados] = useState<UsuarioActivo[]>([])
   const [horasIniciales, minutosIniciales] = separarTiempo(tiempoEjecutadoHoras)
   const [horas, setHoras] = useState(horasIniciales)
   const [minutos, setMinutos] = useState(minutosIniciales)
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    onConfirmar(nota.trim(), combinarTiempo(horas, minutos))
+    onConfirmar(nota.trim(), combinarTiempo(horas, minutos), mencionadosEnTexto(nota, mencionados))
   }
 
   return (
@@ -65,17 +70,28 @@ export function FinalizarTicketModal({
               aria-label="Minutos ejecutados"
             />
           </fieldset>
-          <label>
-            Nota para el solicitante <small>Opcional</small>
-            <textarea
-              value={nota}
-              onChange={(e) => setNota(e.target.value)}
-              rows={4}
-              spellCheck
-              lang="es"
-              placeholder="ej. Quedó lista, cualquier ajuste me avisas."
-            />
+          <label htmlFor="nota-finalizacion">
+            Nota para el solicitante <small>Opcional · usa @ para etiquetar a alguien</small>
           </label>
+          <div className="comentarios__caja">
+          <CampoMenciones
+            id="nota-finalizacion"
+            valor={nota}
+            onCambiar={setNota}
+            mencionados={mencionados}
+            onCambiarMencionados={setMencionados}
+            rows={4}
+            spellCheck
+            lang="es"
+            placeholder="ej. Quedó lista. @Ana López revisa el informe final, por favor."
+          />
+          </div>
+          {mencionadosEnTexto(nota, mencionados).length > 0 && (
+            <p className="finalizar__mencionados">
+              Se notificará a {mencionadosEnTexto(nota, mencionados).map(nombreDe).join(', ')}.
+              La nota también quedará como comentario de la tarea.
+            </p>
+          )}
           <SugerenciasTexto texto={nota} onCambiar={setNota} />
           {error && <p className="auth-error">{error}</p>}
           <button type="submit" disabled={guardando}>

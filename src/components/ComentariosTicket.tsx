@@ -1,9 +1,10 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { Fragment, useCallback, useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { Avatar } from './Avatar'
-import { useUsuariosActivos, type UsuarioActivo } from '../hooks/useUsuariosActivos'
-import { normalizar } from '../lib/ticket'
+import { CampoMenciones } from './CampoMenciones'
+import { mencionadosEnTexto, nombreDe } from '../lib/menciones'
+import type { UsuarioActivo } from '../hooks/useUsuariosActivos'
 import { notificarMenciones } from '../lib/notificaciones'
 import type { Profile, TicketComentario } from '../types/database'
 
@@ -12,12 +13,6 @@ type PerfilCorto = Pick<Profile, 'id' | 'full_name' | 'email'>
 type ComentarioConRelaciones = TicketComentario & {
   autor: PerfilCorto | null
   menciones: { profile: PerfilCorto | null }[]
-}
-
-const MAX_SUGERENCIAS = 6
-
-function nombreDe(persona: PerfilCorto): string {
-  return persona.full_name?.trim() || persona.email
 }
 
 function formatearFecha(iso: string): string {
@@ -50,20 +45,16 @@ interface ComentariosTicketProps {
 
 export function ComentariosTicket({ ticketId, onComentado }: ComentariosTicketProps) {
   const { profile } = useAuth()
-  const usuarios = useUsuariosActivos()
   const [comentarios, setComentarios] = useState<ComentarioConRelaciones[]>([])
   const [loading, setLoading] = useState(true)
   const [texto, setTexto] = useState('')
   // Personas elegidas en el autocompletado; al enviar solo cuentan las que
   // siguen escritas en el texto.
   const [mencionados, setMencionados] = useState<UsuarioActivo[]>([])
-  const [consulta, setConsulta] = useState<{ termino: string; inicio: number } | null>(null)
-  const [indiceSugerencia, setIndiceSugerencia] = useState(0)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [errorCarga, setErrorCarga] = useState<string | null>(null)
   const [avisoMencion, setAvisoMencion] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const cargar = useCallback(async () => {
     const { data, error: errorCarga } = await supabase
@@ -90,67 +81,6 @@ export function ComentariosTicket({ ticketId, onComentado }: ComentariosTicketPr
     void cargar()
   }, [cargar])
 
-  const sugerencias = useMemo(() => {
-    if (!consulta) return []
-    const termino = normalizar(consulta.termino)
-    return usuarios
-      .filter((u) => u.id !== profile?.id)
-      .filter((u) => normalizar(nombreDe(u)).includes(termino) || u.email.toLowerCase().includes(termino))
-      .slice(0, MAX_SUGERENCIAS)
-  }, [consulta, usuarios, profile?.id])
-
-  function actualizarConsulta(valor: string, cursor: number) {
-    // "@" al inicio o después de un espacio, seguido de lo que se va escribiendo.
-    const coincidencia = valor.slice(0, cursor).match(/(?:^|\s)@([^\s@]{0,30})$/)
-    if (coincidencia) {
-      setConsulta({ termino: coincidencia[1], inicio: cursor - coincidencia[1].length - 1 })
-      setIndiceSugerencia(0)
-    } else {
-      setConsulta(null)
-    }
-  }
-
-  function elegir(usuario: UsuarioActivo) {
-    if (!consulta) return
-    const cursor = consulta.inicio + 1 + consulta.termino.length
-    const insercion = `@${nombreDe(usuario)} `
-    const nuevoTexto = texto.slice(0, consulta.inicio) + insercion + texto.slice(cursor)
-    const nuevoCursor = consulta.inicio + insercion.length
-    setTexto(nuevoTexto)
-    setMencionados((prev) => (prev.some((m) => m.id === usuario.id) ? prev : [...prev, usuario]))
-    setConsulta(null)
-    requestAnimationFrame(() => {
-      textareaRef.current?.focus()
-      textareaRef.current?.setSelectionRange(nuevoCursor, nuevoCursor)
-    })
-  }
-
-  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (consulta && sugerencias.length > 0) {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault()
-        const paso = e.key === 'ArrowDown' ? 1 : -1
-        setIndiceSugerencia((i) => (i + paso + sugerencias.length) % sugerencias.length)
-        return
-      }
-      if (e.key === 'Enter' || e.key === 'Tab') {
-        e.preventDefault()
-        elegir(sugerencias[indiceSugerencia])
-        return
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        e.stopPropagation()
-        setConsulta(null)
-        return
-      }
-    }
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault()
-      void enviar()
-    }
-  }
-
   async function enviar(e?: FormEvent) {
     e?.preventDefault()
     if (!texto.trim() || enviando) return
@@ -158,7 +88,7 @@ export function ComentariosTicket({ ticketId, onComentado }: ComentariosTicketPr
     setError(null)
     setAvisoMencion(null)
 
-    const personasMencionadas = mencionados.filter((m) => texto.includes(`@${nombreDe(m)}`))
+    const personasMencionadas = mencionadosEnTexto(texto, mencionados)
     const idsMencionados = personasMencionadas.map((m) => m.id)
 
     const { data: comentarioId, error: errorComentario } = await supabase.rpc('comentar_ticket', {
@@ -177,7 +107,6 @@ export function ComentariosTicket({ ticketId, onComentado }: ComentariosTicketPr
     const textoEnviado = texto
     setTexto('')
     setMencionados([])
-    setConsulta(null)
     onComentado?.()
     void cargar()
 
@@ -248,46 +177,22 @@ export function ComentariosTicket({ ticketId, onComentado }: ComentariosTicketPr
       <form className="comentarios__nuevo" onSubmit={enviar}>
         <Avatar nombre={miNombre} />
         <div className="comentarios__caja">
-          <div className="comentarios__campo">
-            <textarea
-              ref={textareaRef}
-              value={texto}
-              onChange={(e) => {
-                setTexto(e.target.value)
-                actualizarConsulta(e.target.value, e.target.selectionStart)
-              }}
-              onKeyDown={handleKeyDown}
-              onClick={(e) => actualizarConsulta(texto, e.currentTarget.selectionStart)}
-              onBlur={() => setConsulta(null)}
-              placeholder="Escribe un comentario… usa @ para mencionar a alguien"
-              rows={2}
-              maxLength={5000}
-              aria-label="Nuevo comentario"
-              aria-autocomplete="list"
-              aria-expanded={sugerencias.length > 0}
-            />
-            {sugerencias.length > 0 && (
-              <ul className="comentarios__sugerencias" role="listbox">
-                {sugerencias.map((usuario, indice) => (
-                  <li
-                    key={usuario.id}
-                    role="option"
-                    aria-selected={indice === indiceSugerencia}
-                    className={`comentarios__sugerencia${indice === indiceSugerencia ? ' comentarios__sugerencia--activa' : ''}`}
-                    // mousedown para que el blur del textarea no cierre la lista antes del clic.
-                    onMouseDown={(e) => {
-                      e.preventDefault()
-                      elegir(usuario)
-                    }}
-                  >
-                    <Avatar nombre={nombreDe(usuario)} tamano="sm" />
-                    <span className="comentarios__sugerencia-nombre">{nombreDe(usuario)}</span>
-                    <span className="comentarios__sugerencia-correo">{usuario.email}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <CampoMenciones
+            valor={texto}
+            onCambiar={setTexto}
+            mencionados={mencionados}
+            onCambiarMencionados={setMencionados}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault()
+                void enviar()
+              }
+            }}
+            placeholder="Escribe un comentario… usa @ para mencionar a alguien"
+            rows={2}
+            maxLength={5000}
+            aria-label="Nuevo comentario"
+          />
           <div className="comentarios__acciones">
             {error
               ? <p className="auth-error">{error}</p>
