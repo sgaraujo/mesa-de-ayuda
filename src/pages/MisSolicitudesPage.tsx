@@ -3,17 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { TicketDetalleModal } from '../components/TicketDetalleModal'
-import { coincideBusqueda, nombresAsignados } from '../lib/ticket'
+import { coincideBusqueda, nombresAsignados, TICKET_SELECT } from '../lib/ticket'
 import type { Estado, TicketConRelaciones } from '../types/database'
-
-const TICKET_SELECT = `
-  *,
-  solicitante:profiles!tickets_solicitante_id_fkey(id, full_name, email),
-  asignado:profiles!tickets_asignado_a_fkey(id, full_name, email),
-  area:areas(id, nombre),
-  proyecto:proyectos(id, nombre),
-  asignados:ticket_asignados(profile:profiles(id, full_name, email))
-`
 
 const ESTADO_LABEL: Record<Estado, string> = {
   pendiente: 'Pendiente',

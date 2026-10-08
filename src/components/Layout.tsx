@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useArea } from '../context/AreaContext'
 import { CompletarPerfilForm } from './CompletarPerfilForm'
 import { Avatar } from './Avatar'
+import { CentroNotificaciones } from './CentroNotificaciones'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
@@ -60,6 +61,7 @@ export function Layout() {
           {esSuperadmin && <NavLink to="/admin/whitelist">Whitelist</NavLink>}
         </nav>
         <div className="app-header__user">
+          <CentroNotificaciones />
           {profile && <Avatar nombre={profile.full_name ?? profile.email} />}
           <span className="app-header__user-nombre">{profile?.full_name ?? profile?.email}</span>
           <button type="button" className="app-header__salir" onClick={signOut} title="Cerrar sesión">

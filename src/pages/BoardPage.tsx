@@ -10,7 +10,7 @@ import { KanbanColumn, type ColumnaId } from '../components/KanbanColumn'
 import { TicketDetalleModal } from '../components/TicketDetalleModal'
 import { NuevaTareaModal } from '../components/NuevaTareaModal'
 import { FinalizarTicketModal } from '../components/FinalizarTicketModal'
-import { coincideBusqueda, estaSinAsignar } from '../lib/ticket'
+import { coincideBusqueda, estaSinAsignar, TICKET_SELECT } from '../lib/ticket'
 import type { Estado, TicketConRelaciones } from '../types/database'
 
 const COLUMNAS: { id: ColumnaId; titulo: string }[] = [
@@ -21,16 +21,6 @@ const COLUMNAS: { id: ColumnaId; titulo: string }[] = [
 ]
 
 const DIAS_FINALIZADOS_EN_TABLERO = 30
-
-const TICKET_SELECT = `
-  *,
-  solicitante:profiles!tickets_solicitante_id_fkey(id, full_name, email),
-  asignado:profiles!tickets_asignado_a_fkey(id, full_name, email),
-  area:areas(id, nombre),
-  proyecto:proyectos(id, nombre),
-  asignados:ticket_asignados(profile:profiles(id, full_name, email)),
-  comentarios:ticket_comentarios!ticket_comentarios_ticket_id_fkey(count)
-`
 
 const BOARD_CHANNEL = 'ticket-board'
 

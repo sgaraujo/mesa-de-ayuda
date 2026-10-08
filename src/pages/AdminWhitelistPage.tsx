@@ -4,6 +4,7 @@ import { useAreas } from '../hooks/useAreas'
 import type { Area, AllowedEmail, Role } from '../types/database'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { SetPasswordDialog } from '../components/SetPasswordDialog'
+import { CambiarCorreoDialog } from '../components/CambiarCorreoDialog'
 import { RowActionsMenu } from '../components/RowActionsMenu'
 
 const TAMANO_BLOQUE_EQUIPO = 1000
@@ -83,6 +84,9 @@ export function AdminWhitelistPage() {
   const [asignandoPassword, setAsignandoPassword] = useState(false)
   const [errorPassword, setErrorPassword] = useState<string | null>(null)
   const [passwordAsignada, setPasswordAsignada] = useState<string | null>(null)
+  const [emailParaCambio, setEmailParaCambio] = useState<string | null>(null)
+  const [cambiandoCorreo, setCambiandoCorreo] = useState(false)
+  const [errorCambioCorreo, setErrorCambioCorreo] = useState<string | null>(null)
   const cargaInicialRef = useRef(true)
   const cargaIdRef = useRef(0)
 
@@ -414,6 +418,37 @@ export function AdminWhitelistPage() {
     void cargar()
   }
 
+  function abrirCambioCorreo(email: string) {
+    setEmailParaCambio(email)
+    setErrorCambioCorreo(null)
+  }
+
+  async function confirmarCambioCorreo(emailNuevo: string) {
+    if (!emailParaCambio) return
+    const emailActual = emailParaCambio
+    setCambiandoCorreo(true)
+    setErrorCambioCorreo(null)
+    const { data, error } = await supabase.functions.invoke('admin-change-email', {
+      body: { emailActual, emailNuevo },
+    })
+    setCambiandoCorreo(false)
+    if (error) {
+      setErrorCambioCorreo(await mensajeDeErrorFuncion(error, 'No se pudo cambiar el correo.'))
+      return
+    }
+    setEmailParaCambio(null)
+    setSeleccionados((actuales) => {
+      const siguientes = new Set(actuales)
+      siguientes.delete(emailActual)
+      return siguientes
+    })
+    const avisoCorreo = (data as { avisoCorreo?: string } | null)?.avisoCorreo
+    setMensajeAccion(avisoCorreo && avisoCorreo !== 'enviado'
+      ? { email: emailNuevo, texto: `Correo cambiado (antes: ${emailActual}), pero ${avisoCorreo.charAt(0).toLowerCase()}${avisoCorreo.slice(1)}.`, tipo: 'error' }
+      : { email: emailNuevo, texto: `Correo cambiado (antes: ${emailActual}). Se le avisó por correo.`, tipo: 'exito' })
+    void cargar()
+  }
+
   function alternarSeleccion(email: string) {
     setSeleccionados((actuales) => {
       const siguientes = new Set(actuales)
@@ -630,6 +665,15 @@ export function AdminWhitelistPage() {
                       {enviandoBienvenida === e.email ? 'Enviando...' : 'Enviar bienvenida'}
                     </button>
                   )}
+                  <button
+                    type="button"
+                    className="row-menu__item"
+                    role="menuitem"
+                    onClick={() => abrirCambioCorreo(e.email)}
+                    title="Cambiar su correo (whitelist e inicio de sesión) conservando su cuenta"
+                  >
+                    Cambiar correo
+                  </button>
                   <button
                     type="button"
                     className="row-menu__item"
@@ -974,6 +1018,13 @@ export function AdminWhitelistPage() {
         contrasenaAsignada={passwordAsignada}
         onConfirmar={confirmarAsignarPassword}
         onCerrar={cerrarAsignarPassword}
+      />
+      <CambiarCorreoDialog
+        email={emailParaCambio}
+        procesando={cambiandoCorreo}
+        error={errorCambioCorreo}
+        onConfirmar={(emailNuevo) => void confirmarCambioCorreo(emailNuevo)}
+        onCerrar={() => !cambiandoCorreo && setEmailParaCambio(null)}
       />
     </div>
   )

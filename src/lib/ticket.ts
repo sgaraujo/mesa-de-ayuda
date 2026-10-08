@@ -1,5 +1,17 @@
 import type { TicketConRelaciones } from '../types/database'
 
+// Columnas y relaciones con que se cargan los tickets en tablero, Mis
+// solicitudes y al abrir uno desde una notificación.
+export const TICKET_SELECT = `
+  *,
+  solicitante:profiles!tickets_solicitante_id_fkey(id, full_name, email),
+  asignado:profiles!tickets_asignado_a_fkey(id, full_name, email),
+  area:areas(id, nombre),
+  proyecto:proyectos(id, nombre),
+  asignados:ticket_asignados(profile:profiles(id, full_name, email)),
+  comentarios:ticket_comentarios!ticket_comentarios_ticket_id_fkey(count)
+`
+
 export function nombresAsignados(ticket: TicketConRelaciones): string[] {
   if (ticket.es_grupal) {
     return ticket.asignados.map((a) => a.profile.full_name ?? a.profile.email)

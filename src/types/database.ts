@@ -104,6 +104,21 @@ export interface TicketMencion {
   notificado_at: string | null
 }
 
+// Centro de notificaciones (migración 0026); las crean triggers.
+export type TipoNotificacion = 'mencion' | 'comentario' | 'asignacion' | 'estado'
+
+export interface Notificacion {
+  id: string
+  destinatario_id: string
+  tipo: TipoNotificacion
+  ticket_id: string
+  comentario_id: string | null
+  actor_id: string | null
+  detalle: string | null
+  leida_at: string | null
+  created_at: string
+}
+
 export interface AllowedEmail {
   email: string
   area_id: string | null
