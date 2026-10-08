@@ -29,21 +29,31 @@ Deno.serve(async (req) => {
     const { comentarioId } = await req.json()
     if (typeof comentarioId !== 'string') return json({ ok: false, message: 'Datos inválidos' }, 400)
 
+    // Consultas simples, sin relaciones anidadas: ticket_menciones también une
+    // comentarios con tickets y con perfiles, y un embed ambiguo hace fallar
+    // toda la consulta.
     const { data: comentario, error: comentarioError } = await supabaseAdmin
       .from('ticket_comentarios')
-      .select(`
-        id, texto, autor_id,
-        ticket:tickets!ticket_comentarios_ticket_id_fkey(id, numero, titulo),
-        autor:profiles!ticket_comentarios_autor_id_fkey(full_name, email, activo)
-      `)
+      .select('id, texto, autor_id, ticket_id')
       .eq('id', comentarioId)
       .maybeSingle()
-    if (comentarioError || !comentario) return json({ ok: false, message: 'Comentario no encontrado' }, 404)
+    if (comentarioError) {
+      return json({ ok: false, message: 'No se pudo leer el comentario', detalle: comentarioError.message }, 500)
+    }
+    if (!comentario) return json({ ok: false, message: 'Comentario no encontrado', detalle: `No existe el comentario ${comentarioId}` }, 404)
+    if (comentario.autor_id !== authData.user.id) {
+      return json({ ok: false, message: 'No autorizado', detalle: 'Solo quien escribió el comentario puede enviar el aviso' }, 403)
+    }
 
-    const autor = Array.isArray(comentario.autor) ? comentario.autor[0] : comentario.autor
-    const ticket = Array.isArray(comentario.ticket) ? comentario.ticket[0] : comentario.ticket
-    if (comentario.autor_id !== authData.user.id || !autor || autor.activo === false || !ticket) {
-      return json({ ok: false, message: 'No autorizado' }, 403)
+    const [{ data: autor, error: autorError }, { data: ticket, error: ticketError }] = await Promise.all([
+      supabaseAdmin.from('profiles').select('full_name, email, activo').eq('id', comentario.autor_id).maybeSingle(),
+      supabaseAdmin.from('tickets').select('id, numero, titulo').eq('id', comentario.ticket_id).maybeSingle(),
+    ])
+    if (autorError || ticketError) {
+      return json({ ok: false, message: 'No se pudo leer la tarea', detalle: (autorError ?? ticketError)!.message }, 500)
+    }
+    if (!autor || autor.activo === false || !ticket) {
+      return json({ ok: false, message: 'No autorizado', detalle: 'La cuenta está inactiva o la tarea ya no existe' }, 403)
     }
 
     // Reserva atómica: solo se envía a las menciones que nadie notificó aún.
