@@ -2227,10 +2227,6 @@ label {
   min-width: 0;
 }
 
-.grupo-card--abierto {
-  grid-column: 1 / -1;
-}
-
 .grupo-card__header {
   display: flex;
   justify-content: space-between;
@@ -2286,83 +2282,6 @@ label {
 
 .grupo-card__tablero .grupo-card__estado--finalizado {
   border-top-color: var(--estado-finalizado);
-}
-
-.grupo-card__roles {
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-}
-
-.grupo-card__rol-titulo {
-  margin: 0 0 0.35rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: var(--text-muted);
-}
-
-.grupo-card__rol-titulo span {
-  font-variant-numeric: tabular-nums;
-}
-
-.grupo-card__personas {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.grupo-card__personas li {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.2rem 0.6rem 0.2rem 0.2rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 0.85rem;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.grupo-card__avatar {
-  display: inline-grid;
-  place-items: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 50%;
-  background: var(--brand-soft);
-  color: var(--brand-text);
-  font-size: 0.65rem;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.grupo-card__persona--revocada {
-  opacity: 0.5;
-  text-decoration: line-through;
-}
-
-.miembros-area {
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-}
-
-.miembros-area__alta {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.miembros-area__alta label {
-  flex: 1 1 200px;
 }
 
 @media (max-width: 720px) {
@@ -4165,4 +4084,310 @@ kbd {
 .comentarios__aviso--error {
   background: color-mix(in srgb, var(--prioridad-urgente) 9%, transparent);
   color: var(--prioridad-urgente);
+}
+
+/* ---- Equipo de un grupo: zonas Líderes / Agentes con arrastrar y soltar ---- */
+
+.grupos-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 540px), 1fr));
+}
+
+.miembros-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.equipo-zonas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.equipo-zona {
+  --zona-color: var(--series-1);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 9rem;
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-page);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.equipo-zona--lider { --zona-color: var(--series-5); }
+.equipo-zona--agente { --zona-color: var(--series-1); }
+
+/* Mientras se arrastra a alguien, ambas zonas muestran que reciben. */
+.equipo-zona--activa {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--zona-color) 45%, transparent);
+}
+
+.equipo-zona--encima {
+  border-style: solid;
+  border-color: var(--zona-color);
+  background: color-mix(in srgb, var(--zona-color) 8%, var(--surface-page));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--zona-color) 18%, transparent);
+}
+
+.equipo-zona__cabecera {
+  display: grid;
+  gap: 0.1rem;
+  margin-bottom: 0.6rem;
+  padding: 0 0.15rem;
+}
+
+.equipo-zona__titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--zona-color);
+}
+
+.equipo-zona__titulo::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--zona-color);
+}
+
+.equipo-zona__cantidad {
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--zona-color) 14%, transparent);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.equipo-zona__descripcion {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.equipo-zona__lista {
+  display: grid;
+  align-content: start;
+  gap: 0.4rem;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.equipo-zona__vacia {
+  display: grid;
+  place-items: center;
+  min-height: 3.5rem;
+  padding: 0.6rem;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.equipo-persona {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.35rem 0.35rem 0.35rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.equipo-persona:hover {
+  border-color: color-mix(in srgb, var(--text-primary) 18%, transparent);
+}
+
+.equipo-persona--arrastrando {
+  z-index: 20;
+  box-shadow: 0 12px 28px rgba(11, 11, 11, 0.2);
+  transform-origin: center;
+}
+
+.equipo-persona--guardando {
+  opacity: 0.6;
+}
+
+.equipo-persona--revocada .equipo-persona__nombre {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.equipo-persona__agarre {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex: 1;
+  min-width: 0;
+  cursor: grab;
+  touch-action: none;
+  border-radius: 6px;
+}
+
+.equipo-persona--arrastrando .equipo-persona__agarre {
+  cursor: grabbing;
+}
+
+.equipo-persona--fija .equipo-persona__agarre {
+  cursor: default;
+}
+
+.equipo-persona__datos {
+  display: grid;
+  min-width: 0;
+}
+
+.equipo-persona__nombre {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.equipo-persona__correo {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.equipo-persona__etiqueta {
+  flex-shrink: 0;
+  padding: 0 0.35rem;
+  border-radius: 5px;
+  background: var(--gridline);
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.equipo-persona__etiqueta--tu {
+  margin-right: 0.2rem;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+
+/* Botones visibles al pasar el mouse o con el teclado. */
+.equipo-persona__acciones {
+  display: flex;
+  gap: 0.1rem;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.equipo-persona:hover .equipo-persona__acciones,
+.equipo-persona:focus-within .equipo-persona__acciones {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .equipo-persona__acciones {
+    opacity: 1;
+  }
+}
+
+.equipo-persona__boton {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.equipo-persona__boton svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.equipo-persona__boton:hover:not(:disabled) {
+  filter: none;
+  background: var(--surface-page);
+  color: var(--text-primary);
+}
+
+.equipo-persona__boton--peligro:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--prioridad-urgente) 12%, transparent);
+  color: var(--prioridad-urgente);
+}
+
+.miembros-area__agregar {
+  align-self: flex-start;
+  padding: 0.4rem 0.75rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--brand-text);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.miembros-area__agregar:hover:not(:disabled) {
+  filter: none;
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.miembros-area__alta {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-page);
+}
+
+.miembros-area__alta label {
+  flex: 1 1 200px;
+  font-size: 0.8rem;
+}
+
+.miembros-area__alta select {
+  height: 2.25rem;
+  padding: 0 0.6rem;
+  font-size: 0.85rem;
+}
+
+.miembros-area__alta-botones {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.miembros-area__alta-botones button {
+  height: 2.25rem;
+  padding: 0 0.9rem;
+  font-size: 0.85rem;
+}
+
+.miembros-area__ayuda {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.75rem;
 }

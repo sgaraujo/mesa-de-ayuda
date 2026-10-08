@@ -4,12 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useArea } from '../context/AreaContext'
 import { MiembrosArea } from '../components/MiembrosArea'
 import type { MiembroArea } from '../hooks/useMiembrosArea'
-import type { Profile, RolArea, Ticket } from '../types/database'
-
-const ROLES_EN_ORDEN: { rol: RolArea; titulo: string }[] = [
-  { rol: 'lider', titulo: 'Líderes' },
-  { rol: 'agente', titulo: 'Agentes' },
-]
+import type { Profile, Ticket } from '../types/database'
 
 type TicketResumen = Pick<Ticket, 'area_id' | 'estado' | 'asignado_a' | 'es_grupal'>
 
@@ -31,15 +26,6 @@ function resumir(tickets: TicketResumen[]): ResumenTablero {
   return resumen
 }
 
-function iniciales(nombre: string): string {
-  return nombre
-    .split(/[\s@.]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((parte) => parte[0]!.toUpperCase())
-    .join('')
-}
-
 // Vista de todos los grupos (áreas) que la persona lidera: quiénes están
 // en cada uno, cómo va su tablero y acceso directo a él. El superadmin ve
 // todas las áreas.
@@ -54,7 +40,6 @@ export function GruposPage() {
   const [perfiles, setPerfiles] = useState<Pick<Profile, 'id' | 'full_name' | 'email'>[]>([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
-  const [gestionando, setGestionando] = useState<string | null>(null)
 
   const cargarMiembros = useCallback(async () => {
     if (idsAreas.length === 0) return
@@ -124,8 +109,8 @@ export function GruposPage() {
         <div>
           <h1>Grupos</h1>
           <p className="board-page__subtitulo">
-            Cada grupo tiene su propio tablero. Solo su líder y sus agentes lo ven y lo trabajan; cualquier
-            persona puede enviarle solicitudes.
+            Cada grupo tiene su propio tablero cerrado: solo sus líderes y agentes lo ven. Arrastra a una
+            persona entre Líderes y Agentes para cambiar su rol.
           </p>
         </div>
         <div className="board-page__filtros">
@@ -144,9 +129,8 @@ export function GruposPage() {
         {areasVisibles.map((area) => {
           const miembros = miembrosPorArea.get(area.id) ?? []
           const resumen = resumir(ticketsPorArea.get(area.id) ?? [])
-          const abierto = gestionando === area.id
           return (
-            <section key={area.id} className={`grupo-card${abierto ? ' grupo-card--abierto' : ''}`}>
+            <section key={area.id} className="grupo-card">
               <header className="grupo-card__header">
                 <div>
                   <h2>{area.nombre}</h2>
@@ -156,9 +140,6 @@ export function GruposPage() {
                   </span>
                 </div>
                 <div className="grupo-card__acciones">
-                  <button type="button" className="admin-table__accion-secundaria" onClick={() => setGestionando(abierto ? null : area.id)} aria-expanded={abierto}>
-                    {abierto ? 'Cerrar' : 'Gestionar miembros'}
-                  </button>
                   <button type="button" onClick={() => abrirTablero(area.id)}>
                     Abrir tablero
                   </button>
@@ -184,41 +165,13 @@ export function GruposPage() {
                 </div>
               </dl>
 
-              {abierto ? (
-                <MiembrosArea
-                  areaId={area.id}
-                  areaNombre={area.nombre}
-                  miembros={miembros}
-                  perfiles={perfiles}
-                  onCambio={cargarMiembros}
-                />
-              ) : (
-                <div className="grupo-card__roles">
-                  {ROLES_EN_ORDEN.map(({ rol, titulo }) => {
-                    const deRol = miembros.filter((m) => m.rol === rol)
-                    if (deRol.length === 0) return null
-                    return (
-                      <div key={rol}>
-                        <p className="grupo-card__rol-titulo">
-                          {titulo} <span>{deRol.length}</span>
-                        </p>
-                        <ul className="grupo-card__personas">
-                          {deRol.map((m) => {
-                            const nombre = m.profile.full_name ?? m.profile.email
-                            return (
-                              <li key={m.profile.id} title={m.profile.email} className={m.profile.activo ? undefined : 'grupo-card__persona--revocada'}>
-                                <span className="grupo-card__avatar" aria-hidden="true">{iniciales(nombre)}</span>
-                                {nombre}
-                              </li>
-                            )
-                          })}
-                        </ul>
-                      </div>
-                    )
-                  })}
-                  {miembros.length === 0 && <p className="admin-table__texto-sutil">Todavía no tiene miembros.</p>}
-                </div>
-              )}
+              <MiembrosArea
+                areaId={area.id}
+                areaNombre={area.nombre}
+                miembros={miembros}
+                perfiles={perfiles}
+                onCambio={cargarMiembros}
+              />
             </section>
           )
         })}
