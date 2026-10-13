@@ -67,8 +67,6 @@ export interface TicketConRelaciones extends Ticket {
   area: Pick<Area, 'id' | 'nombre'> | null
   proyecto: Pick<Proyecto, 'id' | 'nombre'> | null
   asignados: { profile: Pick<Profile, 'id' | 'full_name' | 'email'> }[]
-  // null si no es un duplicado o si quien mira no puede ver el original.
-  origen?: Pick<Ticket, 'id' | 'numero'> | null
   // Solo lo trae el tablero (conteo agregado de ticket_comentarios).
   comentarios?: { count: number }[]
 }

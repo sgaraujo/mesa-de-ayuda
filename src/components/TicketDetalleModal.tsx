@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useProyectos } from '../hooks/useProyectos'
@@ -85,6 +85,26 @@ export function TicketDetalleModal({
   const [guardando, setGuardando] = useState(false)
   const [eliminando, setEliminando] = useState(false)
   const [duplicando, setDuplicando] = useState(false)
+  // Número de la tarea de la que se duplicó esta. Se consulta aparte y no
+  // dentro de TICKET_SELECT: si esa consulta falla, el tablero no se queda vacío.
+  // Queda en null si quien mira no puede ver el original.
+  const [numeroOrigen, setNumeroOrigen] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!ticket.duplicado_de) return
+    let vigente = true
+    void supabase
+      .from('tickets')
+      .select('numero')
+      .eq('id', ticket.duplicado_de)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (vigente) setNumeroOrigen(data?.numero ?? null)
+      })
+    return () => {
+      vigente = false
+    }
+  }, [ticket.duplicado_de])
   const [error, setError] = useState<string | null>(null)
   const [pestana, setPestana] = useState<'comentarios' | 'historial'>('comentarios')
 
@@ -383,7 +403,7 @@ export function TicketDetalleModal({
                 <span>
                   <strong>{solicitanteNombre}</strong> lo solicitó el {formatearFecha(ticket.created_at)}
                   {ticket.empresa_solicitante && <> · {ticket.empresa_solicitante}</>}
-                  {ticket.origen && <> · Duplicada de #{ticket.origen.numero}</>}
+                  {numeroOrigen != null && <> · Duplicada de #{numeroOrigen}</>}
                 </span>
               </p>
 
