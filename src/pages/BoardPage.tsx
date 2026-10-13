@@ -440,6 +440,9 @@ export function BoardPage() {
 
       {ticketSeleccionado && (
         <TicketDetalleModal
+          // Al duplicar se abre la copia: la key remonta el modal para que su
+          // estado interno parta de la tarea nueva.
+          key={ticketSeleccionado.id}
           ticket={ticketSeleccionado}
           puedeEditarTiempos
           puedeEliminar={esLider}
@@ -456,6 +459,11 @@ export function BoardPage() {
           }}
           // Refresca la tarjeta (contador de comentarios) aquí y en los demás tableros abiertos.
           onComentado={() => void notificarCambio(ticketSeleccionado.id)}
+          onDuplicado={(copia) => {
+            setTickets((prev) => (prev.some((t) => t.id === copia.id) ? prev : [copia, ...prev]))
+            setTicketSeleccionado(copia)
+            void notificarCambio(copia.id)
+          }}
         />
       )}
 

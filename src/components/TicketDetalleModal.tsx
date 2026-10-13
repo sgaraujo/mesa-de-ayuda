@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import { useProyectos } from '../hooks/useProyectos'
 import { useMiembrosArea } from '../hooks/useMiembrosArea'
-import { clasificacionFaltante, esImagenAdjunta, nombresAsignados } from '../lib/ticket'
+import { clasificacionFaltante, esImagenAdjunta, nombresAsignados, TICKET_SELECT } from '../lib/ticket'
 import { notificarAsignacion } from '../lib/notificaciones'
 import { separarTiempo, combinarTiempo, formatearTiempo } from '../lib/tiempo'
 import { ComentariosTicket } from './ComentariosTicket'
@@ -46,6 +47,8 @@ interface TicketDetalleModalProps {
   onGuardado: (ticket: TicketConRelaciones) => void
   onEliminado: (ticketId: string) => void
   onComentado?: () => void
+  // Sin este callback no se ofrece duplicar (solo el tablero lo maneja).
+  onDuplicado?: (ticket: TicketConRelaciones) => void
 }
 
 export function TicketDetalleModal({
@@ -56,7 +59,9 @@ export function TicketDetalleModal({
   onGuardado,
   onEliminado,
   onComentado,
+  onDuplicado,
 }: TicketDetalleModalProps) {
+  const { profile } = useAuth()
   const areaId = ticket.area_id
   const { proyectos, recargar: recargarProyectos } = useProyectos(areaId)
   const { agentes } = useMiembrosArea(areaId)
@@ -79,6 +84,7 @@ export function TicketDetalleModal({
   const [tiempoEjecutadoMinutos, setTiempoEjecutadoMinutos] = useState(ejecutadoInicialMinutos)
   const [guardando, setGuardando] = useState(false)
   const [eliminando, setEliminando] = useState(false)
+  const [duplicando, setDuplicando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pestana, setPestana] = useState<'comentarios' | 'historial'>('comentarios')
 
@@ -197,6 +203,67 @@ export function TicketDetalleModal({
     onEliminado(ticket.id)
   }
 
+  // Copia la tarea guardada (no los cambios sin guardar del formulario) para
+  // procesos recurrentes. Conserva contenido, adjunto, proyecto, prioridad,
+  // tiempo propuesto y responsables; arranca en curso, sin tiempo ejecutado,
+  // sin fecha requerida (la del original suele haber pasado) y sin
+  // comentarios. Si el original no tenía responsable, queda a cargo de quien
+  // duplica.
+  async function handleDuplicar() {
+    if (!profile) return
+    if (!confirm(`¿Duplicar la tarea #${ticket.numero}? Se creará una tarea nueva en curso con el mismo contenido, sin los comentarios.`)) return
+    setError(null)
+    setDuplicando(true)
+
+    const asignadoA = ticket.es_grupal ? null : ticket.asignado_a ?? profile.id
+    const { data: creado, error: errorCrear } = await supabase
+      .from('tickets')
+      .insert({
+        titulo: ticket.titulo,
+        descripcion: ticket.descripcion,
+        solicitante_id: profile.id,
+        empresa_solicitante: profile.empresa,
+        area_id: ticket.area_id,
+        proyecto_id: ticket.proyecto_id,
+        prioridad: ticket.prioridad,
+        es_grupal: ticket.es_grupal,
+        asignado_a: asignadoA,
+        estado: 'en_curso',
+        tiempo_propuesto_horas: ticket.tiempo_propuesto_horas,
+        archivo_url: ticket.archivo_url,
+        duplicado_de: ticket.id,
+      })
+      .select('id')
+      .single()
+
+    if (errorCrear || !creado) {
+      setDuplicando(false)
+      setError('No se pudo duplicar la tarea. Intenta de nuevo.')
+      return
+    }
+
+    const miembrosOriginales = ticket.asignados.map((a) => a.profile.id)
+    if (ticket.es_grupal && miembrosOriginales.length > 0) {
+      await supabase
+        .from('ticket_asignados')
+        .insert(miembrosOriginales.map((profile_id) => ({ ticket_id: creado.id, profile_id })))
+    }
+    await supabase.from('ticket_status_history').insert({
+      ticket_id: creado.id,
+      estado: 'en_curso',
+      changed_by: profile.id,
+    })
+    void notificarAsignacion(creado.id, asignadoA ? [asignadoA] : miembrosOriginales)
+
+    const { data: copia } = await supabase.from('tickets').select(TICKET_SELECT).eq('id', creado.id).single()
+    setDuplicando(false)
+    if (!copia) {
+      setError('La tarea se duplicó, pero no se pudo abrir. Recarga el tablero para verla.')
+      return
+    }
+    onDuplicado?.(copia as unknown as TicketConRelaciones)
+  }
+
   const solicitanteNombre = ticket.solicitante?.full_name ?? ticket.solicitante?.email ?? 'Alguien'
   const asignados = nombresAsignados(ticket)
   const faltan = clasificacionFaltante(ticket)
@@ -251,6 +318,21 @@ export function TicketDetalleModal({
             )}
           </nav>
           <div className="detalle__header-acciones">
+            {puedeEditarTiempos && onDuplicado && (
+              <button
+                type="button"
+                className="detalle__boton-icono"
+                onClick={handleDuplicar}
+                disabled={duplicando || hayCambios}
+                title={hayCambios ? 'Guarda los cambios antes de duplicar' : 'Duplicar tarea'}
+                aria-label="Duplicar tarea"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="9" y="9" width="12" height="12" rx="2" />
+                  <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+                </svg>
+              </button>
+            )}
             {puedeEliminar && (
               <button
                 type="button"
@@ -301,6 +383,7 @@ export function TicketDetalleModal({
                 <span>
                   <strong>{solicitanteNombre}</strong> lo solicitó el {formatearFecha(ticket.created_at)}
                   {ticket.empresa_solicitante && <> · {ticket.empresa_solicitante}</>}
+                  {ticket.origen && <> · Duplicada de #{ticket.origen.numero}</>}
                 </span>
               </p>
 
