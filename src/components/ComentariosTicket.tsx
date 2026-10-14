@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { Avatar } from './Avatar'
 import { CampoMenciones } from './CampoMenciones'
+import { SugerenciasTexto } from './SugerenciasTexto'
 import { mencionadosEnTexto, nombreDe } from '../lib/menciones'
 import type { UsuarioActivo } from '../hooks/useUsuariosActivos'
 import { notificarMenciones } from '../lib/notificaciones'
@@ -191,7 +192,14 @@ export function ComentariosTicket({ ticketId, onComentado }: ComentariosTicketPr
             placeholder="Escribe un comentario… usa @ para mencionar a alguien"
             rows={2}
             maxLength={5000}
+            spellCheck
+            lang="es"
             aria-label="Nuevo comentario"
+          />
+          <SugerenciasTexto
+            texto={texto}
+            onCambiar={setTexto}
+            protegidos={mencionados.map((m) => `@${nombreDe(m)}`)}
           />
           <div className="comentarios__acciones">
             {error

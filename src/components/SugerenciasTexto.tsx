@@ -11,12 +11,31 @@ const CONTEXTO_CARACTERES = 28
 interface SugerenciasTextoProps {
   texto: string
   onCambiar: (texto: string) => void
+  // Fragmentos que no se corrigen, p. ej. los "@Nombre" de las menciones:
+  // cambiarlos rompería la mención y la persona no recibiría el aviso.
+  protegidos?: string[]
+}
+
+function rangosProtegidos(texto: string, protegidos: string[]): [number, number][] {
+  const rangos: [number, number][] = []
+  for (const fragmento of protegidos) {
+    if (!fragmento) continue
+    for (let i = texto.indexOf(fragmento); i !== -1; i = texto.indexOf(fragmento, i + 1)) {
+      rangos.push([i, i + fragmento.length])
+    }
+  }
+  return rangos
 }
 
 // Panel bajo un campo de texto con los errores ortográficos y gramaticales
 // detectados y sus correcciones, al estilo del revisor de Word.
-export function SugerenciasTexto({ texto, onCambiar }: SugerenciasTextoProps) {
-  const { sugerencias, revisando, revisado, noDisponible, aplicar, ignorar } = useRevisionTexto(texto)
+export function SugerenciasTexto({ texto, onCambiar, protegidos = [] }: SugerenciasTextoProps) {
+  const revision = useRevisionTexto(texto)
+  const { revisando, revisado, noDisponible, aplicar, ignorar } = revision
+  const rangos = rangosProtegidos(texto, protegidos)
+  const sugerencias = revision.sugerencias.filter(
+    (s) => !rangos.some(([inicio, fin]) => s.inicio < fin && s.inicio + s.largo > inicio),
+  )
 
   if (noDisponible && sugerencias.length === 0) {
     return <p className="revision-texto__estado">La revisión ortográfica no está disponible en este momento.</p>
