@@ -3,12 +3,13 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useProyectos } from '../hooks/useProyectos'
 import { useMiembrosArea } from '../hooks/useMiembrosArea'
-import { clasificacionFaltante, esImagenAdjunta, nombresAsignados, TICKET_SELECT } from '../lib/ticket'
+import { clasificacionFaltante, esImagenAdjunta, estaSinAsignar, nombresAsignados, TICKET_SELECT } from '../lib/ticket'
 import { notificarAsignacion } from '../lib/notificaciones'
 import { separarTiempo, combinarTiempo, formatearTiempo } from '../lib/tiempo'
 import { ComentariosTicket } from './ComentariosTicket'
 import { HistorialCambios } from './HistorialCambios'
 import { Avatar } from './Avatar'
+import type { ColumnaId } from './KanbanColumn'
 import type { Prioridad, TicketConRelaciones } from '../types/database'
 
 const PRIORIDAD_LABEL: Record<string, string> = {
@@ -19,6 +20,13 @@ const PRIORIDAD_LABEL: Record<string, string> = {
 }
 
 const ESTADO_LABEL: Record<string, string> = {
+  pendiente: 'Pendiente',
+  en_curso: 'En curso',
+  finalizado: 'Finalizado',
+}
+
+const COLUMNA_LABEL: Record<ColumnaId, string> = {
+  tareas: 'Tareas (sin asignar)',
   pendiente: 'Pendiente',
   en_curso: 'En curso',
   finalizado: 'Finalizado',
@@ -49,6 +57,8 @@ interface TicketDetalleModalProps {
   onComentado?: () => void
   // Sin este callback no se ofrece duplicar (solo el tablero lo maneja).
   onDuplicado?: (ticket: TicketConRelaciones) => void
+  // Mueve la tarea de columna igual que arrastrarla; sin él, el estado solo se muestra.
+  onMover?: (destino: ColumnaId) => void
 }
 
 export function TicketDetalleModal({
@@ -60,6 +70,7 @@ export function TicketDetalleModal({
   onEliminado,
   onComentado,
   onDuplicado,
+  onMover,
 }: TicketDetalleModalProps) {
   const { profile } = useAuth()
   const areaId = ticket.area_id
@@ -288,6 +299,7 @@ export function TicketDetalleModal({
   const asignados = nombresAsignados(ticket)
   const faltan = clasificacionFaltante(ticket)
   const totalComentarios = ticket.comentarios?.[0]?.count
+  const columnaActual: ColumnaId = estaSinAsignar(ticket) ? 'tareas' : ticket.estado
 
   const tiempoPropuesto = combinarTiempo(tiempoPropuestoHoras, tiempoPropuestoMinutos)
   const tiempoEjecutado = combinarTiempo(tiempoEjecutadoHoras, tiempoEjecutadoMinutos)
@@ -468,6 +480,28 @@ export function TicketDetalleModal({
             <aside className="detalle__lateral" aria-label="Detalles de la tarea">
               <h3 className="detalle__seccion-titulo">Detalles</h3>
               <dl className="propiedades">
+                {puedeEditarTiempos && onMover && (
+                  <div className="propiedad">
+                    <dt><label htmlFor="detalle-estado">Estado</label></dt>
+                    <dd>
+                      {/* Se aplica al instante, como al arrastrar; no espera a "Guardar cambios". */}
+                      <select
+                        id="detalle-estado"
+                        value={columnaActual}
+                        onChange={(e) => onMover(e.target.value as ColumnaId)}
+                      >
+                        {(Object.keys(COLUMNA_LABEL) as ColumnaId[])
+                          // Las tareas en grupo no vuelven a la bandeja: sus
+                          // personas se quitan desde la sección Equipo.
+                          .filter((columna) => columna !== 'tareas' || !ticket.es_grupal)
+                          .map((columna) => (
+                            <option key={columna} value={columna}>{COLUMNA_LABEL[columna]}</option>
+                          ))}
+                      </select>
+                    </dd>
+                  </div>
+                )}
+
                 <div className="propiedad">
                   <dt>Asignado a</dt>
                   <dd>

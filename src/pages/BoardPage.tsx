@@ -190,10 +190,14 @@ export function BoardPage() {
     const { active, over } = event
     if (!over) return
 
-    const ticketId = String(active.id)
-    const destino = over.id as ColumnaId
-    const ticket = tickets.find((t) => t.id === ticketId)
+    const ticket = tickets.find((t) => t.id === String(active.id))
     if (!ticket) return
+    await moverTicket(ticket, over.id as ColumnaId)
+  }
+
+  // Mover a una columna, ya sea arrastrando o desde el campo Estado del detalle.
+  async function moverTicket(ticket: TicketConRelaciones, destino: ColumnaId) {
+    const ticketId = ticket.id
 
     // Las tareas en grupo no se (des)asignan arrastrando; eso se maneja
     // desde el panel de detalle. Solo se les actualiza el estado.
@@ -336,6 +340,12 @@ export function BoardPage() {
 
   if (loading) return <div className="pantalla-carga">Cargando tablero...</div>
 
+  // El detalle muestra la versión del tablero, que se actualiza al moverla
+  // desde el campo Estado (y con realtime), no la copia de cuando se abrió.
+  const ticketAbierto = ticketSeleccionado
+    ? tickets.find((t) => t.id === ticketSeleccionado.id) ?? ticketSeleccionado
+    : null
+
   const totalActivas = ticketsFiltrados.filter((t) => t.estado !== 'finalizado').length
   const totalSinAsignar = ticketsFiltrados.filter((t) => estaSinAsignar(t)).length
 
@@ -438,12 +448,12 @@ export function BoardPage() {
         </div>
       </DndContext>
 
-      {ticketSeleccionado && (
+      {ticketAbierto && (
         <TicketDetalleModal
           // Al duplicar se abre la copia: la key remonta el modal para que su
           // estado interno parta de la tarea nueva.
-          key={ticketSeleccionado.id}
-          ticket={ticketSeleccionado}
+          key={ticketAbierto.id}
+          ticket={ticketAbierto}
           puedeEditarTiempos
           puedeEliminar={esLider}
           onClose={() => setTicketSeleccionado(null)}
@@ -458,7 +468,8 @@ export function BoardPage() {
             void notificarCambio(ticketId)
           }}
           // Refresca la tarjeta (contador de comentarios) aquí y en los demás tableros abiertos.
-          onComentado={() => void notificarCambio(ticketSeleccionado.id)}
+          onComentado={() => void notificarCambio(ticketAbierto.id)}
+          onMover={(destino) => void moverTicket(ticketAbierto, destino)}
           onDuplicado={(copia) => {
             setTickets((prev) => (prev.some((t) => t.id === copia.id) ? prev : [copia, ...prev]))
             setTicketSeleccionado(copia)
