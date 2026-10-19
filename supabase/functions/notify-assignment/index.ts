@@ -60,7 +60,9 @@ Deno.serve(async (req) => {
     let destinatariosIds = idsGestores
 
     if (esNuevaTarea) {
-      if (ticket.solicitante_id !== remitente.id || ticket.asignado_a !== null || ticket.es_grupal) {
+      // También la dispara el superadmin al cambiar la tarea de área.
+      const puedeAvisar = ticket.solicitante_id === remitente.id || remitente.role === 'admin'
+      if (!puedeAvisar || ticket.asignado_a !== null || ticket.es_grupal) {
         return json({ ok: false, message: 'No autorizado' }, 403)
       }
     } else {

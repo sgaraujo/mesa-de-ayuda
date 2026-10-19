@@ -458,7 +458,11 @@ export function BoardPage() {
           puedeEliminar={esLider}
           onClose={() => setTicketSeleccionado(null)}
           onGuardado={(actualizado) => {
-            setTickets((prev) => prev.map((t) => (t.id === actualizado.id ? { ...t, ...actualizado } : t)))
+            // Si el superadmin la envió a otra área, sale de este tablero.
+            const sigueAqui = todasLasAreas || actualizado.area_id === areaId
+            setTickets((prev) => prev.flatMap((t) => (
+              t.id !== actualizado.id ? [t] : sigueAqui ? [{ ...t, ...actualizado }] : []
+            )))
             setTicketSeleccionado(null)
             void notificarCambio(actualizado.id)
           }}

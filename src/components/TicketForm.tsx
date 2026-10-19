@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useArea } from '../context/AreaContext'
 import { useAreas } from '../hooks/useAreas'
+import { useTiposSolicitud } from '../hooks/useTiposSolicitud'
 import { SugerenciasTexto } from './SugerenciasTexto'
 import type { Prioridad } from '../types/database'
 import { notificarAsignacion, notificarNuevaTarea } from '../lib/notificaciones'
@@ -50,6 +51,10 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   const [areaDestinoId, setAreaDestinoId] = useState(elegirArea ? '' : areaActiva?.id ?? '')
   const areaId = areaDestinoId
   const rolEnDestino = misAreas.find((a) => a.id === areaId)?.rol
+  const { tipos } = useTiposSolicitud(areaId)
+  const [tipoId, setTipoId] = useState('')
+  // El tipo es del área: si cambia el destino, se vuelve a elegir.
+  useEffect(() => setTipoId(''), [areaId])
 
   const [titulo, setTitulo] = useState('')
   const [descripcion, setDescripcion] = useState('')
@@ -112,6 +117,10 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!profile || !areaId) return
+    if (tipos.length > 0 && !tipoId) {
+      setError('Elige el tipo de solicitud.')
+      return
+    }
     setError(null)
     setEnviando(true)
     const puedeAutoasignarse = rolEnDestino === 'agente' || rolEnDestino === 'lider'
@@ -138,6 +147,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
         solicitante_id: profile.id,
         empresa_solicitante: profile.empresa,
         area_id: areaId,
+        tipo_id: tipos.length > 0 ? tipoId || null : null,
         asignado_a: asignadoA,
         prioridad,
         estado: 'pendiente',
@@ -158,6 +168,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
     }
 
     setExito(true)
+    setTipoId('')
     setTitulo('')
     setDescripcion('')
     setPrioridad('media')
@@ -165,6 +176,19 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
     if (archivoInputRef.current) archivoInputRef.current.value = ''
     setTimeout(() => onCreado?.(), 900)
   }
+
+  // Solo para áreas con catálogo de tipos (p. ej. Talento Humano).
+  const campoTipo = tipos.length > 0 && (
+    <label>
+      Tipo de solicitud
+      <select value={tipoId} onChange={(e) => setTipoId(e.target.value)} required>
+        <option value="" disabled>-- Selecciona --</option>
+        {tipos.map((tipo) => (
+          <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
+        ))}
+      </select>
+    </label>
+  )
 
   const campoTitulo = (
     <>
@@ -277,6 +301,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
     const nombreAreaDestino = todasLasAreas.find((a) => a.id === areaId)?.nombre ?? areaActiva?.nombre ?? ''
     return (
       <form onSubmit={handleSubmit} className="ticket-form">
+        {campoTipo}
         {campoTitulo}
         {campoDescripcion}
         <div className="ticket-form__row">
@@ -322,7 +347,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   // Solicitud a cualquier área: pasos numerados con el destino siempre visible.
   const indiceDestino = todasLasAreas.findIndex((a) => a.id === areaDestinoId)
   const areaDestino = indiceDestino >= 0 ? todasLasAreas[indiceDestino] : null
-  const detalleCompleto = titulo.trim() !== '' && descripcion.trim() !== ''
+  const detalleCompleto = titulo.trim() !== '' && descripcion.trim() !== '' && (tipos.length === 0 || tipoId !== '')
 
   return (
     <form onSubmit={handleSubmit} className="solicitud-form">
@@ -381,6 +406,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
           ayuda="Un título corto y una descripción clara ayudan a que la atiendan más rápido."
         />
         <div className="solicitud-paso__campos">
+          {campoTipo}
           {campoTitulo}
           {campoDescripcion}
         </div>

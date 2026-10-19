@@ -1,10 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useArea } from '../context/AreaContext'
+import { useAreas } from '../hooks/useAreas'
 import { useProyectos } from '../hooks/useProyectos'
+import { useTiposSolicitud } from '../hooks/useTiposSolicitud'
 import { useMiembrosArea } from '../hooks/useMiembrosArea'
 import { clasificacionFaltante, esImagenAdjunta, estaSinAsignar, nombresAsignados, TICKET_SELECT } from '../lib/ticket'
-import { notificarAsignacion } from '../lib/notificaciones'
+import { notificarAsignacion, notificarNuevaTarea } from '../lib/notificaciones'
 import { separarTiempo, combinarTiempo, formatearTiempo } from '../lib/tiempo'
 import { ArchivosTicket } from './ArchivosTicket'
 import { ComentariosTicket } from './ComentariosTicket'
@@ -74,9 +77,13 @@ export function TicketDetalleModal({
   onMover,
 }: TicketDetalleModalProps) {
   const { profile } = useAuth()
+  const { esSuperadmin } = useArea()
+  // Solo el superadmin necesita la lista: es quien puede cambiar el área.
+  const { areas } = useAreas()
   const areaId = ticket.area_id
   const { proyectos, recargar: recargarProyectos } = useProyectos(areaId)
   const { agentes } = useMiembrosArea(areaId)
+  const { tipos } = useTiposSolicitud(areaId)
 
   const [titulo, setTitulo] = useState(ticket.titulo)
   const [descripcion, setDescripcion] = useState(ticket.descripcion)
@@ -84,6 +91,7 @@ export function TicketDetalleModal({
   const fechaRequeridaInicial = aInputFecha(ticket.fecha_requerida)
   const [fechaRequerida, setFechaRequerida] = useState(fechaRequeridaInicial)
   const [proyectoId, setProyectoId] = useState(ticket.proyecto_id ?? '')
+  const [tipoId, setTipoId] = useState(ticket.tipo_id ?? '')
   const [nuevoProyecto, setNuevoProyecto] = useState('')
   const [mostrarNuevoProyecto, setMostrarNuevoProyecto] = useState(false)
   const [esGrupal, setEsGrupal] = useState(ticket.es_grupal)
@@ -97,6 +105,7 @@ export function TicketDetalleModal({
   const [guardando, setGuardando] = useState(false)
   const [eliminando, setEliminando] = useState(false)
   const [duplicando, setDuplicando] = useState(false)
+  const [cambiandoArea, setCambiandoArea] = useState(false)
   // Número de la tarea de la que se duplicó esta. Se consulta aparte y no
   // dentro de TICKET_SELECT: si esa consulta falla, el tablero no se queda vacío.
   // Queda en null si quien mira no puede ver el original.
@@ -163,6 +172,7 @@ export function TicketDetalleModal({
           ? ticket.fecha_requerida
           : fechaRequerida ? new Date(fechaRequerida).toISOString() : null,
         proyecto_id: proyectoIdFinal,
+        tipo_id: tipoId || null,
         es_grupal: esGrupal,
         asignado_a: esGrupal ? null : ticket.asignado_a,
         tiempo_propuesto_horas: combinarTiempo(tiempoPropuestoHoras, tiempoPropuestoMinutos),
@@ -215,6 +225,7 @@ export function TicketDetalleModal({
       ...ticket,
       ...data,
       proyecto: proyectoActualizado,
+      tipo: tipos.find((t) => t.id === data.tipo_id) ?? (data.tipo_id === ticket.tipo_id ? ticket.tipo : null),
       asignados: asignadosActualizados,
     })
   }
@@ -257,6 +268,7 @@ export function TicketDetalleModal({
         empresa_solicitante: profile.empresa,
         area_id: ticket.area_id,
         proyecto_id: ticket.proyecto_id,
+        tipo_id: ticket.tipo_id,
         prioridad: ticket.prioridad,
         es_grupal: ticket.es_grupal,
         asignado_a: asignadoA,
@@ -296,6 +308,38 @@ export function TicketDetalleModal({
     onDuplicado?.(copia as unknown as TicketConRelaciones)
   }
 
+  // Corrige una tarea enviada al área equivocada (solo superadmin). Llega a la
+  // bandeja del área nueva: sin proyecto, sin responsables y en pendiente.
+  async function handleCambiarArea(nuevaAreaId: string) {
+    const destino = areas.find((area) => area.id === nuevaAreaId)
+    if (!destino || nuevaAreaId === ticket.area_id) return
+    if (!confirm(
+      `¿Enviar la tarea #${ticket.numero} al área ${destino.nombre}?\n\n`
+      + 'Quedará sin asignar en la bandeja de esa área, en Pendiente y sin proyecto. '
+      + 'Se conservan comentarios, archivos e historial.',
+    )) return
+    setError(null)
+    setCambiandoArea(true)
+
+    const { error: errorArea } = await supabase.rpc('cambiar_area_ticket', {
+      p_ticket_id: ticket.id,
+      p_area_id: nuevaAreaId,
+    })
+    if (errorArea) {
+      console.error('No se pudo cambiar el área:', errorArea.message)
+      setCambiandoArea(false)
+      setError('No se pudo cambiar el área. Intenta de nuevo.')
+      return
+    }
+
+    void notificarNuevaTarea(ticket.id)
+    const { data: actualizado } = await supabase.from('tickets').select(TICKET_SELECT).eq('id', ticket.id).single()
+    setCambiandoArea(false)
+    onGuardado(actualizado
+      ? (actualizado as unknown as TicketConRelaciones)
+      : { ...ticket, area_id: destino.id, area: { id: destino.id, nombre: destino.nombre } })
+  }
+
   const solicitanteNombre = ticket.solicitante?.full_name ?? ticket.solicitante?.email ?? 'Alguien'
   const asignados = nombresAsignados(ticket)
   const faltan = clasificacionFaltante(ticket)
@@ -313,6 +357,7 @@ export function TicketDetalleModal({
     || prioridad !== ticket.prioridad
     || fechaRequerida !== fechaRequeridaInicial
     || proyectoId !== (ticket.proyecto_id ?? '')
+    || tipoId !== (ticket.tipo_id ?? '')
     || nuevoProyecto.trim() !== ''
     || esGrupal !== ticket.es_grupal
     || miembros.length !== miembrosIniciales.length
@@ -551,9 +596,49 @@ export function TicketDetalleModal({
                 </div>
 
                 <div className="propiedad">
-                  <dt>Área</dt>
-                  <dd>{ticket.area?.nombre ?? <span className="propiedad__vacio">Sin definir</span>}</dd>
+                  <dt>{esSuperadmin ? <label htmlFor="detalle-area">Área</label> : 'Área'}</dt>
+                  <dd>
+                    {esSuperadmin ? (
+                      // Se aplica al instante (con confirmación), como el estado.
+                      <select
+                        id="detalle-area"
+                        value={ticket.area_id}
+                        onChange={(e) => void handleCambiarArea(e.target.value)}
+                        disabled={cambiandoArea || hayCambios}
+                        title={hayCambios ? 'Guarda los cambios antes de cambiar el área' : 'Enviar la tarea a otra área'}
+                      >
+                        {areas.length === 0 && ticket.area && <option value={ticket.area.id}>{ticket.area.nombre}</option>}
+                        {areas.map((area) => (
+                          <option key={area.id} value={area.id}>{area.nombre}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      ticket.area?.nombre ?? <span className="propiedad__vacio">Sin definir</span>
+                    )}
+                  </dd>
                 </div>
+
+                {(tipos.length > 0 || ticket.tipo) && (
+                  <div className="propiedad">
+                    <dt><label htmlFor="detalle-tipo">Tipo</label></dt>
+                    <dd>
+                      {puedeEditarTiempos && tipos.length > 0 ? (
+                        <select id="detalle-tipo" value={tipoId} onChange={(e) => setTipoId(e.target.value)}>
+                          <option value="">Sin definir</option>
+                          {/* Un tipo ya desactivado sigue visible en las tareas que lo usan. */}
+                          {ticket.tipo && !tipos.some((t) => t.id === ticket.tipo!.id) && (
+                            <option value={ticket.tipo.id}>{ticket.tipo.nombre}</option>
+                          )}
+                          {tipos.map((tipo) => (
+                            <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        ticket.tipo?.nombre ?? <span className="propiedad__vacio">Sin definir</span>
+                      )}
+                    </dd>
+                  </div>
+                )}
 
                 <div className="propiedad">
                   <dt><label htmlFor="detalle-proyecto">Proyecto</label></dt>

@@ -18,6 +18,15 @@ export interface Proyecto {
   area_id: string
 }
 
+// Catálogo de tipos de solicitud por área (migración 0031).
+export interface TipoSolicitud {
+  id: string
+  area_id: string
+  nombre: string
+  orden: number
+  activo: boolean
+}
+
 export interface AreaMiembro {
   area_id: string
   profile_id: string
@@ -59,6 +68,8 @@ export interface Ticket {
   nota_finalizacion: string | null
   // Tarea de la que se duplicó esta (migración 0028).
   duplicado_de: string | null
+  // Solo en áreas con catálogo de tipos (migración 0031).
+  tipo_id: string | null
 }
 
 export interface TicketConRelaciones extends Ticket {
@@ -66,6 +77,7 @@ export interface TicketConRelaciones extends Ticket {
   asignado: Pick<Profile, 'id' | 'full_name' | 'email'> | null
   area: Pick<Area, 'id' | 'nombre'> | null
   proyecto: Pick<Proyecto, 'id' | 'nombre'> | null
+  tipo: Pick<TipoSolicitud, 'id' | 'nombre'> | null
   asignados: { profile: Pick<Profile, 'id' | 'full_name' | 'email'> }[]
   // Solo lo trae el tablero (conteo agregado de ticket_comentarios).
   comentarios?: { count: number }[]

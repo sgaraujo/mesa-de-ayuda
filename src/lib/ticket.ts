@@ -8,6 +8,7 @@ export const TICKET_SELECT = `
   asignado:profiles!tickets_asignado_a_fkey(id, full_name, email),
   area:areas(id, nombre),
   proyecto:proyectos(id, nombre),
+  tipo:tipos_solicitud(id, nombre),
   asignados:ticket_asignados(profile:profiles(id, full_name, email)),
   comentarios:ticket_comentarios!ticket_comentarios_ticket_id_fkey(count)
 `
