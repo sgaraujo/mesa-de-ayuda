@@ -637,20 +637,45 @@ label {
   border-radius: 12px;
   background: var(--surface-1);
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
 }
 
 .solicitud-area:hover {
-  border-color: color-mix(in srgb, var(--area-color) 55%, transparent);
+  border-color: color-mix(in srgb, var(--brand) 55%, transparent);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--text-primary) 8%, transparent);
   transform: translateY(-1px);
 }
 
+/* Seleccionada: color institucional (borde, fondo y halo) en vez del color
+   del área, que se confundía con el de las demás tarjetas. */
 .solicitud-area--seleccionada,
 .solicitud-area--seleccionada:hover {
-  border-color: var(--area-color);
-  background: color-mix(in srgb, var(--area-color) 8%, var(--surface-1));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--area-color) 18%, transparent);
+  border-color: var(--brand);
+  border-width: 2px;
+  padding: calc(0.8rem - 0.5px) calc(0.9rem - 0.5px);
+  background: var(--brand-soft);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--brand) 18%, transparent),
+    0 6px 16px color-mix(in srgb, var(--brand) 18%, transparent);
   transform: none;
+}
+
+.solicitud-area--seleccionada .solicitud-area__avatar {
+  background: var(--area-color);
+  color: white;
+}
+
+.solicitud-area--seleccionada .solicitud-area__texto strong {
+  color: var(--brand-text);
+}
+
+/* Con un área elegida, las demás pasan a segundo plano. */
+.solicitud-areas:has(.solicitud-area--seleccionada) .solicitud-area:not(.solicitud-area--seleccionada) {
+  opacity: 0.7;
+}
+
+.solicitud-areas:has(.solicitud-area--seleccionada) .solicitud-area:not(.solicitud-area--seleccionada):hover {
+  opacity: 1;
 }
 
 .solicitud-area:has(input:focus-visible),
@@ -712,7 +737,7 @@ label {
   border-radius: 50%;
   border: 1.5px solid var(--baseline);
   color: transparent;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
 .solicitud-area__check svg {
@@ -721,9 +746,10 @@ label {
 }
 
 .solicitud-area--seleccionada .solicitud-area__check {
-  border-color: var(--area-color);
-  background: var(--area-color);
+  border-color: var(--brand);
+  background: var(--brand);
   color: white;
+  transform: scale(1.1);
 }
 
 /* Prioridad */

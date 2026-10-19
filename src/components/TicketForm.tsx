@@ -364,7 +364,6 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
           <div className="solicitud-areas" role="radiogroup" aria-label="Área destino">
             {todasLasAreas.map((area, i) => {
               const seleccionada = area.id === areaDestinoId
-              const miRol = misAreas.find((a) => a.id === area.id)?.rol
               return (
                 <label
                   key={area.id}
@@ -384,7 +383,6 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
                   </span>
                   <span className="solicitud-area__texto">
                     <strong>{area.nombre}</strong>
-                    <small>{miRol ? `Eres ${miRol === 'lider' ? 'líder' : 'agente'} aquí` : 'Bandeja general'}</small>
                   </span>
                   <span className="solicitud-area__check" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
