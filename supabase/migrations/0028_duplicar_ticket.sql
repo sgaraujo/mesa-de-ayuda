@@ -7,3 +7,4 @@ alter table tickets
   add column if not exists duplicado_de uuid references tickets(id) on delete set null;
 
 create index if not exists tickets_duplicado_de_idx on tickets(duplicado_de);
+  

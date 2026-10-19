@@ -45,9 +45,10 @@ Deno.serve(async (req) => {
       return json({ ok: false, message: 'No autorizado', detalle: 'Solo quien escribió el comentario puede enviar el aviso' }, 403)
     }
 
-    const [{ data: autor, error: autorError }, { data: ticket, error: ticketError }] = await Promise.all([
+    const [{ data: autor, error: autorError }, { data: ticket, error: ticketError }, { data: archivos }] = await Promise.all([
       supabaseAdmin.from('profiles').select('full_name, email, activo').eq('id', comentario.autor_id).maybeSingle(),
       supabaseAdmin.from('tickets').select('id, numero, titulo').eq('id', comentario.ticket_id).maybeSingle(),
+      supabaseAdmin.from('ticket_archivos').select('nombre').eq('comentario_id', comentarioId).order('created_at'),
     ])
     if (autorError || ticketError) {
       return json({ ok: false, message: 'No se pudo leer la tarea', detalle: (autorError ?? ticketError)!.message }, 500)
@@ -80,6 +81,7 @@ Deno.serve(async (req) => {
     const nombreAutor = escaparHtml(autor.full_name?.trim() || autor.email)
     const tituloTicket = escaparHtml(`#${ticket.numero} ${ticket.titulo}`)
     const textoComentario = escaparHtml(comentario.texto).replace(/\n/g, '<br>')
+    const nombresArchivos = (archivos ?? []).map((archivo) => escaparHtml(archivo.nombre))
     const siteUrl = Deno.env.get('SITE_URL') ?? ''
 
     const resultados = await Promise.allSettled((personas ?? []).map(async (persona) => {
@@ -95,6 +97,7 @@ Deno.serve(async (req) => {
             parrafos: [
               `Hola <strong>${nombre}</strong>, <strong>${nombreAutor}</strong> te mencionó en la tarea <strong>${tituloTicket}</strong>:`,
               `<em>${textoComentario}</em>`,
+              ...(nombresArchivos.length > 0 ? [`📎 Adjuntó: ${nombresArchivos.join(', ')}`] : []),
             ],
             botonTexto: 'Ver la tarea',
             botonUrl: `${siteUrl}/mis-solicitudes?ticket=${ticket.id}`,

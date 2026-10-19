@@ -6,6 +6,7 @@ import { useMiembrosArea } from '../hooks/useMiembrosArea'
 import { clasificacionFaltante, esImagenAdjunta, estaSinAsignar, nombresAsignados, TICKET_SELECT } from '../lib/ticket'
 import { notificarAsignacion } from '../lib/notificaciones'
 import { separarTiempo, combinarTiempo, formatearTiempo } from '../lib/tiempo'
+import { ArchivosTicket } from './ArchivosTicket'
 import { ComentariosTicket } from './ComentariosTicket'
 import { HistorialCambios } from './HistorialCambios'
 import { Avatar } from './Avatar'
@@ -117,7 +118,7 @@ export function TicketDetalleModal({
     }
   }, [ticket.duplicado_de])
   const [error, setError] = useState<string | null>(null)
-  const [pestana, setPestana] = useState<'comentarios' | 'historial'>('comentarios')
+  const [pestana, setPestana] = useState<'comentarios' | 'archivos' | 'historial'>('comentarios')
 
   function alternarMiembro(id: string) {
     setMiembros((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]))
@@ -686,6 +687,15 @@ export function TicketDetalleModal({
               <button
                 type="button"
                 role="tab"
+                aria-selected={pestana === 'archivos'}
+                className={`pestana${pestana === 'archivos' ? ' pestana--activa' : ''}`}
+                onClick={() => setPestana('archivos')}
+              >
+                Archivos
+              </button>
+              <button
+                type="button"
+                role="tab"
                 aria-selected={pestana === 'historial'}
                 className={`pestana${pestana === 'historial' ? ' pestana--activa' : ''}`}
                 onClick={() => setPestana('historial')}
@@ -693,9 +703,9 @@ export function TicketDetalleModal({
                 Historial
               </button>
             </div>
-            {pestana === 'comentarios'
-              ? <ComentariosTicket ticketId={ticket.id} onComentado={onComentado} />
-              : <HistorialCambios ticket={ticket} />}
+            {pestana === 'comentarios' && <ComentariosTicket ticketId={ticket.id} onComentado={onComentado} />}
+            {pestana === 'archivos' && <ArchivosTicket ticket={ticket} />}
+            {pestana === 'historial' && <HistorialCambios ticket={ticket} />}
           </section>
         </div>
 

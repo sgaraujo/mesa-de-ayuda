@@ -6,6 +6,7 @@ import { useAreas } from '../hooks/useAreas'
 import { SugerenciasTexto } from './SugerenciasTexto'
 import type { Prioridad } from '../types/database'
 import { notificarAsignacion, notificarNuevaTarea } from '../lib/notificaciones'
+import { extensionDe, pesoLegible } from '../lib/archivos'
 
 const ARCHIVO_MAX_MB = 10
 const EXTENSIONES_PERMITIDAS = [
@@ -19,10 +20,6 @@ const PRIORIDADES: { valor: Prioridad; etiqueta: string; ayuda: string }[] = [
   { valor: 'alta', etiqueta: 'Alta', ayuda: 'Lo antes posible' },
   { valor: 'urgente', etiqueta: 'Urgente', ayuda: 'Bloquea el trabajo' },
 ]
-
-function extensionDe(nombreArchivo: string): string {
-  return nombreArchivo.includes('.') ? nombreArchivo.split('.').pop()!.toLowerCase() : ''
-}
 
 function iniciales(nombre: string): string {
   const palabras = nombre.trim().split(/\s+/)
@@ -110,12 +107,6 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
     setArchivo(null)
     setError(null)
     if (archivoInputRef.current) archivoInputRef.current.value = ''
-  }
-
-  function pesoLegible(bytes: number) {
-    return bytes < 1024 * 1024
-      ? `${Math.max(1, Math.round(bytes / 1024))} KB`
-      : `${(bytes / 1024 / 1024).toFixed(1)} MB`
   }
 
   async function handleSubmit(e: FormEvent) {

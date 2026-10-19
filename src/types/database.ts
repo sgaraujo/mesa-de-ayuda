@@ -99,6 +99,20 @@ export interface TicketComentario {
   created_at: string
 }
 
+// Archivos adjuntos en comentarios (migración 0029). El adjunto de la
+// creación sigue en tickets.archivo_url.
+export interface TicketArchivo {
+  id: string
+  ticket_id: string
+  comentario_id: string | null
+  subido_por: string | null
+  ruta: string
+  nombre: string
+  tamano: number
+  tipo: string | null
+  created_at: string
+}
+
 export interface TicketMencion {
   comentario_id: string
   ticket_id: string
