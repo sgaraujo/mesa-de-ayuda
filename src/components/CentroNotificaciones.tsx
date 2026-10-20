@@ -62,6 +62,10 @@ function Mensaje({ n }: { n: NotificacionConRelaciones }) {
       return n.detalle === 'finalizado'
         ? <>{actor} finalizó tu solicitud {tarea}</>
         : <>{actor} pasó tu solicitud {tarea} a <strong>{ESTADO_LABEL[n.detalle ?? ''] ?? n.detalle}</strong></>
+    case 'aprobacion':
+      return <>{actor} aprobó la finalización de {tarea}</>
+    case 'rechazo':
+      return <>{actor} rechazó la finalización de {tarea}; volvió a <strong>Pendiente</strong></>
   }
 }
 
@@ -70,6 +74,8 @@ const ICONO_TIPO: Record<Notificacion['tipo'], string> = {
   comentario: '💬',
   asignacion: '→',
   estado: '✓',
+  aprobacion: '👍',
+  rechazo: '↩',
 }
 
 // Campanita del encabezado con el panel de notificaciones. Al tocar una se

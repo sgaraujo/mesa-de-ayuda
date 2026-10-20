@@ -70,7 +70,14 @@ export interface Ticket {
   duplicado_de: string | null
   // Solo en áreas con catálogo de tipos (migración 0031).
   tipo_id: string | null
+  // Respuesta de quien pidió la tarea a su finalización (migración 0032). En
+  // una tarea finalizada, null = por aprobar; 'rechazada' sigue en la tarea
+  // reabierta hasta que la vuelvan a finalizar.
+  aprobacion: Aprobacion | null
+  aprobacion_at: string | null
 }
+
+export type Aprobacion = 'aprobada' | 'rechazada'
 
 export interface TicketConRelaciones extends Ticket {
   solicitante: Pick<Profile, 'id' | 'full_name' | 'email'> | null
@@ -133,7 +140,7 @@ export interface TicketMencion {
 }
 
 // Centro de notificaciones (migración 0026); las crean triggers.
-export type TipoNotificacion = 'mencion' | 'comentario' | 'asignacion' | 'estado'
+export type TipoNotificacion = 'mencion' | 'comentario' | 'asignacion' | 'estado' | 'aprobacion' | 'rechazo'
 
 export interface Notificacion {
   id: string

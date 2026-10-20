@@ -1,5 +1,5 @@
 import { useDraggable } from '@dnd-kit/core'
-import { clasificacionFaltante, nombresAsignados } from '../lib/ticket'
+import { clasificacionFaltante, esperaAprobacion, fueRechazada, nombresAsignados } from '../lib/ticket'
 import { Avatar } from './Avatar'
 import type { TicketConRelaciones } from '../types/database'
 
@@ -61,6 +61,8 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true, mostrarArea
   const totalComentarios = ticket.comentarios?.[0]?.count ?? 0
   const asignados = nombresAsignados(ticket)
   const finalizada = ticket.estado === 'finalizado'
+  const porAprobar = esperaAprobacion(ticket)
+  const rechazada = fueRechazada(ticket)
   const vencida = !finalizada && ticket.fecha_requerida !== null && new Date(ticket.fecha_requerida).getTime() < Date.now()
 
   const clases = [
@@ -89,8 +91,18 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true, mostrarArea
       <h3 className="ticket-card__titulo">{ticket.titulo}</h3>
       {ticket.descripcion && <p className="ticket-card__descripcion">{ticket.descripcion}</p>}
 
-      {(ticket.proyecto || ticket.es_grupal || (mostrarArea && ticket.area)) && (
+      {(ticket.proyecto || ticket.es_grupal || (mostrarArea && ticket.area) || porAprobar || rechazada) && (
         <div className="ticket-card__etiquetas">
+          {porAprobar && (
+            <span className="ticket-card__etiqueta ticket-card__etiqueta--por-aprobar" title="Esperando que quien la pidió apruebe la finalización">
+              Por aprobar
+            </span>
+          )}
+          {rechazada && (
+            <span className="ticket-card__etiqueta ticket-card__etiqueta--rechazada" title="Quien la pidió rechazó la finalización; mira el motivo en los comentarios">
+              Rechazada
+            </span>
+          )}
           {mostrarArea && ticket.area && (
             <span className="ticket-card__etiqueta ticket-card__etiqueta--area">{ticket.area.nombre}</span>
           )}

@@ -6,12 +6,21 @@ import { useAreas } from '../hooks/useAreas'
 import { useProyectos } from '../hooks/useProyectos'
 import { useTiposSolicitud } from '../hooks/useTiposSolicitud'
 import { useMiembrosArea } from '../hooks/useMiembrosArea'
-import { clasificacionFaltante, esImagenAdjunta, estaSinAsignar, nombresAsignados, TICKET_SELECT } from '../lib/ticket'
+import {
+  clasificacionFaltante,
+  esImagenAdjunta,
+  esperaAprobacion,
+  estaSinAsignar,
+  fueRechazada,
+  nombresAsignados,
+  TICKET_SELECT,
+} from '../lib/ticket'
 import { notificarAsignacion, notificarNuevaTarea } from '../lib/notificaciones'
 import { separarTiempo, combinarTiempo, formatearTiempo } from '../lib/tiempo'
 import { ArchivosTicket } from './ArchivosTicket'
 import { ComentariosTicket } from './ComentariosTicket'
 import { HistorialCambios } from './HistorialCambios'
+import { RespuestaFinalizacion } from './RespuestaFinalizacion'
 import { Avatar } from './Avatar'
 import type { ColumnaId } from './KanbanColumn'
 import type { Prioridad, TicketConRelaciones } from '../types/database'
@@ -440,6 +449,11 @@ export function TicketDetalleModal({
                 <span className={`badge badge--estado-${ticket.estado}`}>{ESTADO_LABEL[ticket.estado]}</span>
                 <span className={`badge badge--prioridad-${ticket.prioridad}`}>{PRIORIDAD_LABEL[ticket.prioridad]}</span>
                 {ticket.es_grupal && <span className="badge badge--equipo">En grupo</span>}
+                {esperaAprobacion(ticket) && <span className="badge badge--por-aprobar">Por aprobar</span>}
+                {ticket.estado === 'finalizado' && ticket.aprobacion === 'aprobada' && (
+                  <span className="badge badge--aprobada">Aprobada</span>
+                )}
+                {fueRechazada(ticket) && <span className="badge badge--rechazada">Rechazada por el solicitante</span>}
               </div>
 
               {puedeEditarTiempos ? (
@@ -464,6 +478,10 @@ export function TicketDetalleModal({
                   {numeroOrigen != null && <> · Duplicada de #{numeroOrigen}</>}
                 </span>
               </p>
+
+              {esperaAprobacion(ticket) && profile?.id === ticket.solicitante_id && (
+                <RespuestaFinalizacion ticket={ticket} onRespondido={onGuardado} />
+              )}
 
               {faltan.length > 0 && (
                 <div className="detalle__alerta" role="status">

@@ -91,10 +91,10 @@ Deno.serve(async (req) => {
           parrafos: [
             `Hola <strong>${nombre}</strong>, tu solicitud <strong>${escaparHtml(ticket.titulo)}</strong> fue marcada como finalizada.`,
             ...(nota ? [`Nota de quien la finalizó: <em>${escaparHtml(nota)}</em>`] : []),
-            'Ingresa al tablero si quieres revisar el detalle.',
+            'Revísala y <strong>apruébala</strong> si quedó resuelta, o <strong>recházala</strong> indicando qué falta para que vuelva a Pendiente.',
           ],
-          botonTexto: 'Ver en el tablero',
-          botonUrl: `${siteUrl}/tablero`,
+          botonTexto: 'Aprobar o rechazar',
+          botonUrl: `${siteUrl}/mis-solicitudes?ticket=${ticketId}`,
         }),
       )
     } catch (error) {

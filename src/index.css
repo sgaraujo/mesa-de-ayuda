@@ -2469,6 +2469,139 @@ label {
   font-weight: 500;
 }
 
+.badge--por-aprobar {
+  background: color-mix(in srgb, var(--prioridad-media) 18%, transparent);
+  color: var(--text-primary);
+}
+
+.badge--aprobada {
+  background: color-mix(in srgb, var(--estado-finalizado) 16%, transparent);
+  color: var(--estado-finalizado);
+}
+
+.badge--rechazada {
+  background: color-mix(in srgb, var(--prioridad-urgente) 14%, transparent);
+  color: var(--prioridad-urgente);
+}
+
+.mis-solicitudes__aprobacion {
+  margin-left: 0.35rem;
+}
+
+.mis-solicitudes__aviso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--prioridad-media) 45%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--prioridad-media) 12%, transparent);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.mis-solicitudes__aviso button {
+  padding: 0.45rem 0.95rem;
+  font-size: 0.85rem;
+}
+
+/* Aprobar o rechazar la finalización (solo quien pidió la tarea) */
+.aprobacion {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0 0 1.5rem;
+  padding: 1rem 1.1rem;
+  border: 1.5px solid var(--brand);
+  border-radius: 12px;
+  background: var(--brand-soft);
+}
+
+.aprobacion__encabezado {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.aprobacion__encabezado h3 {
+  margin: 0 0 0.2rem;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.aprobacion__encabezado p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+
+.aprobacion__icono {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--brand);
+  color: white;
+}
+
+.aprobacion__icono svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.aprobacion__rechazo {
+  display: grid;
+  gap: 0.45rem;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+}
+
+.aprobacion__rechazo textarea {
+  width: 100%;
+  resize: vertical;
+  font-size: 0.9rem;
+}
+
+.aprobacion__rechazo .auth-error {
+  margin: 0;
+}
+
+.aprobacion__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.aprobacion__acciones button {
+  padding: 0.5rem 1rem;
+  font-size: 0.86rem;
+}
+
+.aprobacion__boton-aprobar {
+  background: var(--estado-finalizado);
+}
+
+.aprobacion__boton-rechazar {
+  background: var(--prioridad-urgente);
+}
+
+.aprobacion__acciones .aprobacion__boton-rechazar--suave,
+.aprobacion__acciones .aprobacion__boton-cancelar {
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.aprobacion__boton-rechazar--suave:hover:not(:disabled) {
+  filter: none;
+  border-color: var(--prioridad-urgente);
+  color: var(--prioridad-urgente);
+}
+
 .badge--mencion {
   margin-left: 0.4rem;
   padding: 0.05rem 0.4rem;
@@ -3916,6 +4049,20 @@ kbd {
   border-color: color-mix(in srgb, var(--series-5) 30%, transparent);
   background: color-mix(in srgb, var(--series-5) 10%, transparent);
   color: var(--series-5);
+}
+
+.ticket-card__etiqueta--por-aprobar {
+  border-color: color-mix(in srgb, var(--prioridad-media) 40%, transparent);
+  background: color-mix(in srgb, var(--prioridad-media) 12%, transparent);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.ticket-card__etiqueta--rechazada {
+  border-color: color-mix(in srgb, var(--prioridad-urgente) 40%, transparent);
+  background: color-mix(in srgb, var(--prioridad-urgente) 10%, transparent);
+  color: var(--prioridad-urgente);
+  font-weight: 600;
 }
 
 .ticket-card__aviso {

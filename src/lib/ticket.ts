@@ -39,6 +39,16 @@ export function clasificacionFaltante(ticket: TicketConRelaciones): string[] {
   return faltan
 }
 
+// Finalizada y esperando que quien la pidió la apruebe o la rechace.
+export function esperaAprobacion(ticket: Pick<TicketConRelaciones, 'estado' | 'aprobacion'>): boolean {
+  return ticket.estado === 'finalizado' && ticket.aprobacion === null
+}
+
+// Rechazada por quien la pidió y todavía sin volver a finalizar.
+export function fueRechazada(ticket: Pick<TicketConRelaciones, 'estado' | 'aprobacion'>): boolean {
+  return ticket.estado !== 'finalizado' && ticket.aprobacion === 'rechazada'
+}
+
 const EXTENSIONES_IMAGEN = ['png', 'jpg', 'jpeg', 'webp', 'gif']
 
 export function esImagenAdjunta(url: string): boolean {

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { TicketDetalleModal } from '../components/TicketDetalleModal'
-import { coincideBusqueda, nombresAsignados, TICKET_SELECT } from '../lib/ticket'
+import { coincideBusqueda, esperaAprobacion, fueRechazada, nombresAsignados, TICKET_SELECT } from '../lib/ticket'
 import type { Estado, TicketConRelaciones } from '../types/database'
 
 const ESTADO_LABEL: Record<Estado, string> = {
@@ -21,13 +21,14 @@ function formatearFechaCorta(iso: string): string {
 // tablero, así que sigue esas tareas desde aquí; RLS solo le devuelve sus
 // propios tickets (solicitante_id) y aquellos en que fue mencionada.
 type Relacion = '' | 'pedidas' | 'mencionado'
+type FiltroEstado = Estado | '' | 'por_aprobar'
 export function MisSolicitudesPage() {
   const { profile } = useAuth()
   const profileId = profile?.id
   const [tickets, setTickets] = useState<TicketConRelaciones[]>([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
-  const [filtroEstado, setFiltroEstado] = useState<Estado | ''>('')
+  const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('')
   const [filtroRelacion, setFiltroRelacion] = useState<Relacion>('')
   const [idsMencionado, setIdsMencionado] = useState<Set<string>>(new Set())
   const [ticketSeleccionado, setTicketSeleccionado] = useState<TicketConRelaciones | null>(null)
@@ -81,13 +82,17 @@ export function MisSolicitudesPage() {
 
   const visibles = useMemo(
     () => tickets.filter((t) => {
-      if (filtroEstado && t.estado !== filtroEstado) return false
+      if (filtroEstado === 'por_aprobar') {
+        if (!(esperaAprobacion(t) && t.solicitante_id === profileId)) return false
+      } else if (filtroEstado && t.estado !== filtroEstado) return false
       if (filtroRelacion === 'pedidas' && t.solicitante_id !== profileId) return false
       if (filtroRelacion === 'mencionado' && !idsMencionado.has(t.id)) return false
       return coincideBusqueda(t, busqueda)
     }),
     [tickets, filtroEstado, filtroRelacion, idsMencionado, profileId, busqueda],
   )
+
+  const porAprobar = tickets.filter((t) => esperaAprobacion(t) && t.solicitante_id === profileId).length
 
   if (loading) return <div className="pantalla-carga">Cargando solicitudes...</div>
 
@@ -112,14 +117,26 @@ export function MisSolicitudesPage() {
             <option value="pedidas">Pedidas por mí</option>
             <option value="mencionado">Me mencionaron</option>
           </select>
-          <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value as Estado | '')} aria-label="Filtrar por estado">
+          <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value as FiltroEstado)} aria-label="Filtrar por estado">
             <option value="">Todos los estados</option>
+            <option value="por_aprobar">Por aprobar</option>
             <option value="pendiente">Pendiente</option>
             <option value="en_curso">En curso</option>
             <option value="finalizado">Finalizado</option>
           </select>
         </div>
       </div>
+
+      {porAprobar > 0 && filtroEstado !== 'por_aprobar' && (
+        <div className="mis-solicitudes__aviso" role="status">
+          <span>
+            {porAprobar === 1
+              ? <>Tienes <strong>1 solicitud finalizada</strong> esperando tu aprobación.</>
+              : <>Tienes <strong>{porAprobar} solicitudes finalizadas</strong> esperando tu aprobación.</>}
+          </span>
+          <button type="button" onClick={() => setFiltroEstado('por_aprobar')}>Revisarlas</button>
+        </div>
+      )}
 
       <div className="admin-table-scroll">
         <table className="admin-table mis-solicitudes">
@@ -144,6 +161,10 @@ export function MisSolicitudesPage() {
                 <td>{t.area?.nombre ?? '—'}</td>
                 <td>
                   <span className={`badge badge--estado-${t.estado}`}>{ESTADO_LABEL[t.estado]}</span>
+                  {esperaAprobacion(t) && t.solicitante_id === profileId && (
+                    <span className="badge badge--por-aprobar mis-solicitudes__aprobacion">Por aprobar</span>
+                  )}
+                  {fueRechazada(t) && <span className="badge badge--rechazada mis-solicitudes__aprobacion">Rechazada</span>}
                 </td>
                 <td>
                   <span className="admin-table__texto-sutil">{nombresAsignados(t).join(', ') || 'Sin asignar'}</span>

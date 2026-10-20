@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0031_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0032_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -95,6 +95,10 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
 - `tickets`: entidad central (estado, prioridad, asignación, tiempos,
   proyecto/área). Puede ser individual (`asignado_a`) o grupal
   (`es_grupal` + tabla `ticket_asignados`, N agentes por ticket).
+- `tickets.aprobacion` (migración 0032): al finalizarse, la tarea queda por
+  aprobar (`null`) hasta que quien la pidió la apruebe o la rechace con
+  `responder_finalizacion()`; rechazada vuelve a `pendiente`. La columna la
+  controla un trigger: el cliente no la escribe directamente.
 - `ticket_status_history`: auditoría de cada cambio de estado (se inserta a
   mano junto con cada `update` de `tickets.estado`, no hay trigger).
 - `ticket_cambios`: trazabilidad campo por campo (quién, cuándo, antes →
