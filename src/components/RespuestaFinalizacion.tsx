@@ -31,7 +31,8 @@ export function RespuestaFinalizacion({ ticket, onRespondido }: RespuestaFinaliz
     if (errorRespuesta) {
       console.error('No se pudo responder la finalización:', errorRespuesta.message)
       setEnviando(false)
-      setError('No se pudo registrar tu respuesta. Intenta de nuevo.')
+      // El motivo se muestra (app interna): sin él no hay forma de saber qué falló.
+      setError(`No se pudo registrar tu respuesta: ${errorRespuesta.message}`)
       return
     }
     const { data } = await supabase.from('tickets').select(TICKET_SELECT).eq('id', ticket.id).single()
