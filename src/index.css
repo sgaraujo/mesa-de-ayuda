@@ -1823,6 +1823,47 @@ label {
   width: min(100%, 240px);
 }
 
+/* Filtros de la whitelist: área, estado y origen, bajo las pestañas de rol. */
+.admin-filtros {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-filtros label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.admin-filtros select {
+  min-width: 11rem;
+}
+
+.admin-filtros__limpiar {
+  padding: 0.55rem 0.9rem;
+  border: none;
+  background: none;
+  color: var(--brand);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .admin-filtros label {
+    flex: 1 1 100%;
+  }
+
+  .admin-filtros select {
+    width: 100%;
+  }
+}
+
 .admin-busqueda .admin-table__accion-eliminar {
   padding: 0.58rem 0.9rem;
   border-color: var(--prioridad-urgente);

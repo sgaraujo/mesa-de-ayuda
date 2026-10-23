@@ -19,6 +19,11 @@ const ETIQUETAS_ROL: Record<Role, string> = {
 }
 
 type FiltroRol = 'todos' | Role
+// '' = todas las áreas; 'sin-area' = correos sin área asignada.
+type FiltroArea = string
+type FiltroEstado = 'todos' | 'registrado' | 'invitado' | 'sin-invitar'
+type FiltroOrigen = 'todos' | 'manual' | 'nelyoda'
+const SIN_AREA = 'sin-area'
 
 function etiquetaRol(role: Role) {
   return ETIQUETAS_ROL[role]
@@ -61,6 +66,10 @@ export function AdminWhitelistPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [filtroRol, setFiltroRol] = useState<FiltroRol>('todos')
+  const [filtroArea, setFiltroArea] = useState<FiltroArea>('')
+  const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('todos')
+  const [filtroOrigen, setFiltroOrigen] = useState<FiltroOrigen>('todos')
+  const hayFiltros = filtroArea !== '' || filtroEstado !== 'todos' || filtroOrigen !== 'todos'
   const [mostrarAlta, setMostrarAlta] = useState(false)
   const [mostrarAreas, setMostrarAreas] = useState(false)
 
@@ -101,23 +110,34 @@ export function AdminWhitelistPage() {
       .eq('role', 'solicitante')
       .order('invited_at', { ascending: false, nullsFirst: true })
       .order('email', { ascending: true })
-    if (busquedaAplicada) {
-      consultaSolicitantes = consultaSolicitantes.ilike('email', `%${busquedaAplicada}%`)
+    // Búsqueda y filtros se aplican igual al equipo y a los solicitantes, en
+    // el servidor, para que contadores y paginación respeten los filtros.
+    const filtrar = (consulta: typeof consultaSolicitantes) => {
+      let filtrada = consulta
+      if (busquedaAplicada) filtrada = filtrada.ilike('email', `%${busquedaAplicada}%`)
+      if (filtroArea === SIN_AREA) filtrada = filtrada.is('area_id', null)
+      else if (filtroArea) filtrada = filtrada.eq('area_id', filtroArea)
+      if (filtroEstado === 'registrado') filtrada = filtrada.not('used_at', 'is', null)
+      else if (filtroEstado === 'invitado') filtrada = filtrada.is('used_at', null).not('invited_at', 'is', null)
+      else if (filtroEstado === 'sin-invitar') filtrada = filtrada.is('used_at', null).is('invited_at', null)
+      if (filtroOrigen !== 'todos') filtrada = filtrada.eq('origen', filtroOrigen)
+      return filtrada
     }
+    consultaSolicitantes = filtrar(consultaSolicitantes)
 
     const cargarEquipoCompleto = async () => {
       const equipo: AllowedEmail[] = []
       let desde = 0
 
       while (true) {
-        let consulta = supabase
-          .from('allowed_emails')
-          .select('*')
-          .in('role', ['admin', 'lider', 'agente'])
-          .order('role', { ascending: true })
-          .order('email', { ascending: true })
-
-        if (busquedaAplicada) consulta = consulta.ilike('email', `%${busquedaAplicada}%`)
+        const consulta = filtrar(
+          supabase
+            .from('allowed_emails')
+            .select('*', { count: 'exact' })
+            .in('role', ['admin', 'lider', 'agente'])
+            .order('role', { ascending: true })
+            .order('email', { ascending: true }),
+        )
 
         const resultado = await consulta.range(desde, desde + TAMANO_BLOQUE_EQUIPO - 1)
         if (resultado.error) return { equipo, error: true }
@@ -142,7 +162,7 @@ export function AdminWhitelistPage() {
     cargaInicialRef.current = false
     setLoading(false)
     setActualizando(false)
-  }, [busquedaAplicada, limite, pagina])
+  }, [busquedaAplicada, filtroArea, filtroEstado, filtroOrigen, limite, pagina])
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -560,6 +580,7 @@ export function AdminWhitelistPage() {
 
   function mensajeVacio() {
     if (busquedaAplicada) return 'No se encontraron personas con ese correo.'
+    if (hayFiltros) return 'No hay personas con esos filtros.'
     if (filtroRol === 'admin') return 'No hay superadmins.'
     if (filtroRol === 'lider') return 'No hay líderes.'
     if (filtroRol === 'agente') return 'No hay agentes.'
@@ -889,6 +910,68 @@ export function AdminWhitelistPage() {
             </button>
           )}
         </div>
+      </div>
+
+      <div className="admin-filtros" aria-label="Filtros">
+        <label>
+          Área
+          <select
+            value={filtroArea}
+            onChange={(e) => {
+              setFiltroArea(e.target.value)
+              setPagina(0)
+            }}
+          >
+            <option value="">Todas</option>
+            <option value={SIN_AREA}>Sin área</option>
+            {areas.map((area) => (
+              <option key={area.id} value={area.id}>{area.nombre}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Estado
+          <select
+            value={filtroEstado}
+            onChange={(e) => {
+              setFiltroEstado(e.target.value as FiltroEstado)
+              setPagina(0)
+            }}
+          >
+            <option value="todos">Todos</option>
+            <option value="registrado">Registrado</option>
+            <option value="invitado">Invitado, sin registrarse</option>
+            <option value="sin-invitar">Sin invitar</option>
+          </select>
+        </label>
+        <label>
+          Origen
+          <select
+            value={filtroOrigen}
+            onChange={(e) => {
+              setFiltroOrigen(e.target.value as FiltroOrigen)
+              setPagina(0)
+            }}
+          >
+            <option value="todos">Todos</option>
+            <option value="manual">Agregado manualmente</option>
+            <option value="nelyoda">Desde Nelyoda</option>
+          </select>
+        </label>
+        {hayFiltros && (
+          <button
+            type="button"
+            className="admin-filtros__limpiar"
+            onClick={() => {
+              setFiltroArea('')
+              setFiltroEstado('todos')
+              setFiltroOrigen('todos')
+              setPagina(0)
+            }}
+          >
+            Limpiar filtros
+          </button>
+        )}
       </div>
 
       {seleccionados.size > 0 && (

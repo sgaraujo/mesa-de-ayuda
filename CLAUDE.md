@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0036_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0037_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -135,6 +135,11 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   correo; el cliente solo lee las propias y las marca con
   `marcar_notificaciones_leidas()`. Publicada en realtime.
 - `allowed_emails`: whitelist de acceso (independiente de `profiles`).
+  Su `role`/`area_id` y `area_miembros` se sincronizan en ambos sentidos:
+  editar la whitelist crea la membresía (`sincronizar_whitelist_con_perfil`)
+  y cada cambio en `area_miembros` recalcula el rol de la whitelist
+  (`sincronizar_rol_whitelist`, migración 0037). La marca de transacción
+  `app.sincronizando_rol_area` corta el ciclo entre los dos triggers.
   `origen = 'nelyoda'` marca los correos que agregó la sincronización.
 - `personas_nelyoda` (migración 0034): datos corporativos que envía Nelyoda
   (Inteegrados, la plataforma de Talento Humano en Firebase, repo aparte):
