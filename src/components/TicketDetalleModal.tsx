@@ -381,6 +381,11 @@ export function TicketDetalleModal({
   }
 
   const solicitanteNombre = ticket.solicitante?.full_name ?? ticket.solicitante?.email ?? 'Alguien'
+  // La fecha y el tipo que puso quien pidió la tarea solo los cambia esa
+  // persona (migración 0036); si los dejó vacíos, el equipo puede definirlos.
+  const esSolicitante = profile?.id === ticket.solicitante_id
+  const fechaBloqueada = !!ticket.fecha_requerida && !esSolicitante
+  const tipoBloqueado = !!ticket.tipo_id && !esSolicitante
   const asignados = nombresAsignados(ticket)
   const faltan = clasificacionFaltante(ticket)
   const totalComentarios = ticket.comentarios?.[0]?.count
@@ -640,8 +645,8 @@ export function TicketDetalleModal({
 
                 <div className="propiedad">
                   <dt><label htmlFor="detalle-fecha">Para cuándo</label></dt>
-                  <dd>
-                    {puedeEditarTiempos ? (
+                  <dd title={fechaBloqueada && puedeEditarTiempos ? 'La definió quien hizo la solicitud' : undefined}>
+                    {puedeEditarTiempos && !fechaBloqueada ? (
                       <input id="detalle-fecha" type="datetime-local" value={fechaRequerida} onChange={(e) => setFechaRequerida(e.target.value)} />
                     ) : (
                       formatearFecha(ticket.fecha_requerida)
@@ -675,8 +680,8 @@ export function TicketDetalleModal({
                 {(tipos.length > 0 || ticket.tipo) && (
                   <div className="propiedad">
                     <dt><label htmlFor="detalle-tipo">Tipo</label></dt>
-                    <dd>
-                      {puedeEditarTiempos && tipos.length > 0 ? (
+                    <dd title={tipoBloqueado && puedeEditarTiempos ? 'Lo definió quien hizo la solicitud' : undefined}>
+                      {puedeEditarTiempos && !tipoBloqueado && tipos.length > 0 ? (
                         <select id="detalle-tipo" value={tipoId} onChange={(e) => setTipoId(e.target.value)}>
                           <option value="">Sin definir</option>
                           {/* Un tipo ya desactivado sigue visible en las tareas que lo usan. */}

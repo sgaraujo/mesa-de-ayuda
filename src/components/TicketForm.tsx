@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useArea } from '../context/AreaContext'
 import { useAreas } from '../hooks/useAreas'
 import { useTiposSolicitud } from '../hooks/useTiposSolicitud'
+import { useMiembrosArea } from '../hooks/useMiembrosArea'
 import { SugerenciasTexto } from './SugerenciasTexto'
 import type { Prioridad } from '../types/database'
 import { notificarAsignacion, notificarNuevaTarea } from '../lib/notificaciones'
@@ -46,8 +47,9 @@ function estiloArea(indice: number): CSSProperties {
 interface TicketFormProps {
   asignadoAPorDefecto?: string
   // true: formulario por pasos para elegir a qué área enviar la solicitud.
-  // false: formulario compacto del tablero; parte del área activa pero deja
-  // elegir cualquier área del sistema, sea o no miembro.
+  // false: formulario compacto del tablero ("Nueva tarea"): siempre en el
+  // área activa, sin cambiarla (para otra área está Nueva solicitud); el
+  // líder puede asignarla a alguien de su equipo.
   elegirArea?: boolean
   onCreado?: () => void
   onDirtyChange?: (dirty: boolean) => void
@@ -58,10 +60,13 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   const { areaActiva, areas: misAreas } = useArea()
   const { areas: todasLasAreas, loading: cargandoAreas } = useAreas()
   // En el formulario por pasos no hay área preseleccionada: quien envía la
-  // solicitud debe elegir el destino a conciencia. Desde el tablero parte del área activa.
-  const [areaDestinoId, setAreaDestinoId] = useState(elegirArea ? '' : areaActiva?.id ?? '')
-  const areaId = areaDestinoId
+  // solicitud debe elegir el destino a conciencia. Desde el tablero es siempre el área activa.
+  const [areaDestinoId, setAreaDestinoId] = useState('')
+  const areaId = elegirArea ? areaDestinoId : areaActiva?.id ?? ''
   const rolEnDestino = misAreas.find((a) => a.id === areaId)?.rol
+  // Solo el formulario del tablero ofrece asignar; el líder elige a quién.
+  const { agentes: equipo } = useMiembrosArea(elegirArea ? undefined : areaId)
+  const [asignadoA, setAsignadoA] = useState(asignadoAPorDefecto)
   const { tipos } = useTiposSolicitud(areaId)
   const [tipoId, setTipoId] = useState('')
   // El tipo es del área: si cambia el destino, se vuelve a elegir.
@@ -151,7 +156,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
       archivoUrl = supabase.storage.from('ticket-imagenes').getPublicUrl(ruta).data.publicUrl
     }
 
-    const asignadoA = puedeAutoasignarse ? asignadoAPorDefecto || null : null
+    const asignadoFinal = puedeAutoasignarse ? asignadoA || null : null
     const { data: ticketCreado, error } = await supabase
       .from('tickets')
       .insert({
@@ -161,7 +166,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
         empresa_solicitante: profile.empresa,
         area_id: areaId,
         tipo_id: tipos.length > 0 ? tipoId || null : null,
-        asignado_a: asignadoA,
+        asignado_a: asignadoFinal,
         prioridad,
         fecha_requerida: fechaRequeridaIso(fechaRequerida),
         estado: 'pendiente',
@@ -177,7 +182,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
     }
 
     if (ticketCreado) {
-      if (asignadoA) void notificarAsignacion(ticketCreado.id, [asignadoA])
+      if (asignadoFinal) void notificarAsignacion(ticketCreado.id, [asignadoFinal])
       else void notificarNuevaTarea(ticketCreado.id)
     }
 
@@ -187,6 +192,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
     setDescripcion('')
     setPrioridad('media')
     setFechaRequerida('')
+    setAsignadoA(asignadoAPorDefecto)
     setArchivo(null)
     if (archivoInputRef.current) archivoInputRef.current.value = ''
     setTimeout(() => onCreado?.(), 900)
@@ -322,10 +328,8 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
     </div>
   )
 
-  // Desde el tablero (modal): formulario compacto, por defecto en el área activa.
+  // Desde el tablero (modal): formulario compacto, fijo en el área activa.
   if (!elegirArea) {
-    const enviadaAOtraArea = areaId !== areaActiva?.id
-    const nombreAreaDestino = todasLasAreas.find((a) => a.id === areaId)?.nombre ?? areaActiva?.nombre ?? ''
     return (
       <form onSubmit={handleSubmit} className="ticket-form">
         {campoTipo}
@@ -334,16 +338,22 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
         <div className="ticket-form__row">
           <label>
             Área
-            <select value={areaId} onChange={(e) => setAreaDestinoId(e.target.value)} required disabled={cargandoAreas}>
-              {/* Mientras cargan todas las áreas, al menos se ve la activa. */}
-              {cargandoAreas && areaActiva && <option value={areaActiva.id}>{areaActiva.nombre}</option>}
-              {todasLasAreas.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.nombre}
-                </option>
-              ))}
-            </select>
+            {/* Fija: para enviarla a otra área está Nueva solicitud. */}
+            <input value={areaActiva?.nombre ?? ''} readOnly disabled title="Para enviar a otra área usa Nueva solicitud" />
           </label>
+          {rolEnDestino === 'lider' && (
+            <label>
+              Asignar a
+              <select value={asignadoA} onChange={(e) => setAsignadoA(e.target.value)}>
+                <option value="">Sin asignar (bandeja)</option>
+                {equipo.map((miembro) => (
+                  <option key={miembro.id} value={miembro.id}>
+                    {miembro.id === profile?.id ? 'A mí' : miembro.full_name ?? miembro.email}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             Prioridad
             <select value={prioridad} onChange={(e) => setPrioridad(e.target.value as Prioridad)}>
@@ -359,11 +369,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
         {campoAdjunto}
         {error && <p className="auth-error">{error}</p>}
         {exito && (
-          <p className="auth-success">
-            {enviadaAOtraArea
-              ? `Solicitud enviada a ${nombreAreaDestino}. Puedes seguirla en Mis solicitudes.`
-              : 'Solicitud creada correctamente.'}
-          </p>
+          <p className="auth-success">Solicitud creada correctamente.</p>
         )}
         <button type="submit" disabled={enviando}>
           {enviando ? 'Enviando...' : 'Crear solicitud'}

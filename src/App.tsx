@@ -34,7 +34,8 @@ const RequestAccessPage = lazyConReintento(() => import('./pages/RequestAccessPa
 const CreatePasswordPage = lazyConReintento(() => import('./pages/CreatePasswordPage').then((m) => ({ default: m.CreatePasswordPage })))
 const ForgotPasswordPage = lazyConReintento(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })))
 const ResetPasswordPage = lazyConReintento(() => import('./pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })))
-const NewTicketPage = lazyConReintento(() => import('./pages/NewTicketPage').then((m) => ({ default: m.NewTicketPage })))
+const IngresoCedulaPage = lazyConReintento(() => import('./pages/IngresoCedulaPage').then((m) => ({ default: m.IngresoCedulaPage })))
+const NewTicketPage =lazyConReintento(() => import('./pages/NewTicketPage').then((m) => ({ default: m.NewTicketPage })))
 const MisSolicitudesPage = lazyConReintento(() => import('./pages/MisSolicitudesPage').then((m) => ({ default: m.MisSolicitudesPage })))
 const BoardPage = lazyConReintento(() => import('./pages/BoardPage').then((m) => ({ default: m.BoardPage })))
 const StatsPage = lazyConReintento(() => import('./pages/StatsPage').then((m) => ({ default: m.StatsPage })))
@@ -53,6 +54,7 @@ export default function App() {
           <Route path="/crear-password" element={<CreatePasswordPage />} />
           <Route path="/olvide-password" element={<ForgotPasswordPage />} />
           <Route path="/restablecer-password" element={<ResetPasswordPage />} />
+          <Route path="/ingreso-cedula" element={<IngresoCedulaPage />} />
 
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>

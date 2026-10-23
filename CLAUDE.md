@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0034_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0036_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -52,6 +52,16 @@ No hay auto-registro: un admin da de alta correos en `allowed_emails`
    correo está en la whitelist.
 2. `/crear-password` define la contraseña desde el link del correo.
 2. Login normal en `/login` después de eso.
+
+**Ingreso por cédula** (`/ingreso-cedula`, migración 0035): para quien no
+tiene correo corporativo. La Edge Function `acceso-cedula` le pide a Nelyoda
+(`ticketBoardIdentity`) que envíe un código de 6 dígitos al contacto personal
+del empleado vigente y luego lo verifique; Nelyoda guarda el código y limita
+envíos por cédula, aquí se limita por IP (`accesos_cedula`). Si es válido se
+crea o reutiliza la cuenta —con su correo corporativo o, si no tiene, un
+correo interno `cc-…@cedula.local` (`_shared/cedula.ts`) al que
+`enviarCorreo()` nunca envía— y se devuelve un `hashed_token` que el cliente
+canjea con `verifyOtp`. Esas cuentas no tienen contraseña.
 
 Cada área es un **tablero cerrado** (migraciones 0022 y 0023; la 0022 además
 creó el área `Desarrollo` y movió ahí todas las tareas, proyectos, agentes y
@@ -99,6 +109,8 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   aprobar (`null`) hasta que quien la pidió la apruebe o la rechace con
   `responder_finalizacion()`; rechazada vuelve a `pendiente`. La columna la
   controla un trigger: el cliente no la escribe directamente.
+- `fecha_requerida` y `tipo_id`, una vez definidos, solo los cambia quien
+  pidió la tarea (trigger `proteger_datos_solicitante`, migración 0036).
 - `ticket_status_history`: auditoría de cada cambio de estado (se inserta a
   mano junto con cada `update` de `tickets.estado`, no hay trigger).
 - `ticket_cambios`: trazabilidad campo por campo (quién, cuándo, antes →
@@ -168,7 +180,8 @@ para el HTML de los correos). Funciones actuales: `invite-user`,
 `reset-password`, `revoke-user`, `notify-assignment`, `notify-mention`, `send-welcome-email`,
 `admin-set-password`, `admin-change-email` (cambia el correo en Auth, whitelist y perfil conservando la cuenta),
 `sincronizar-nelyoda` (la llaman las Cloud Functions de Nelyoda con el header
-`x-sync-key` = secreto `NELYODA_SYNC_KEY`; se despliega con `--no-verify-jwt`), `revisar-texto` (ortografía y gramática con
+`x-sync-key` = secreto `NELYODA_SYNC_KEY`; se despliega con `--no-verify-jwt`),
+`acceso-cedula` (ingreso por cédula; usa además el secreto `NELYODA_IDENTITY_URL`), `revisar-texto` (ortografía y gramática con
 LanguageTool; API pública gratuita salvo que se definan los secretos
 `LANGUAGETOOL_USERNAME`/`LANGUAGETOOL_API_KEY` o `LANGUAGETOOL_URL`). Todas usan el service role key
 (`SUPABASE_SERVICE_ROLE_KEY`, disponible automáticamente en runtime) para

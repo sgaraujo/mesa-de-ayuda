@@ -13,13 +13,16 @@
 //     Nelyoda no puede dejar la Mesa de Ayuda sin quien la administre.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { correoInterno } from '../_shared/cedula.ts'
 
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
-const DOMINIOS_PERMITIDOS = ['inteegra.net.co', 'triangulum.net.co', 'netcol.net.co']
+// Se acepta cualquier dominio: Nelyoda incluye empresas del grupo con
+// dominios propios (inteegra.co, itaccol.com, uteip.com, netia.com.co...).
+const PATRON_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 // Los filtros .in() viajan en la URL: lotes chicos para no pasar su límite.
 const MAX_PERSONAS_POR_LLAMADO = 100
 const BLOQUEO_INDEFINIDO = '876000h'
@@ -36,6 +39,9 @@ interface RelacionLaboral {
 interface PersonaNelyoda {
   ref: string
   email: string
+  // Sin correo corporativo en Nelyoda: solo entra por cédula (acceso-cedula),
+  // con su correo interno. No se agrega a la whitelist.
+  sinCorreo: boolean
   nombre: string | null
   telefono: string | null
   activo: boolean
@@ -70,9 +76,10 @@ function normalizarPersona(valor: unknown): PersonaNelyoda | null {
   if (!valor || typeof valor !== 'object') return null
   const p = valor as Record<string, unknown>
   const ref = texto(p.ref, 128)
-  const email = texto(p.email, 320)?.toLowerCase() ?? null
-  if (!ref || !email || typeof p.activo !== 'boolean') return null
-  if (!DOMINIOS_PERMITIDOS.includes(email.split('@')[1] ?? '')) return null
+  if (!ref || !/^[0-9a-f]{64}$/.test(ref) || typeof p.activo !== 'boolean') return null
+  const recibido = texto(p.email, 320)?.toLowerCase() ?? null
+  if (recibido && !PATRON_CORREO.test(recibido)) return null
+  const email = recibido ?? correoInterno(ref)
 
   const relaciones = (Array.isArray(p.relaciones) ? p.relaciones : [])
     .slice(0, 20)
@@ -89,6 +96,7 @@ function normalizarPersona(valor: unknown): PersonaNelyoda | null {
   return {
     ref,
     email,
+    sinCorreo: !recibido,
     nombre: texto(p.nombre),
     telefono: texto(p.telefono, 40),
     activo: p.activo,
@@ -184,7 +192,7 @@ Deno.serve(async (req) => {
       if (persona.activo) {
         // Sin perfil ni whitelist: nunca tuvo acceso. Con perfil y sin
         // whitelist: un admin le revocó el acceso, y eso no se deshace aquí.
-        if (!perfil && !enWhitelist) habilitar.push(persona.email)
+        if (!perfil && !enWhitelist && !persona.sinCorreo) habilitar.push(persona.email)
         if (perfil && !perfil.activo && desactivadaPorSync.has(persona.ref)) {
           reactivar.push({ id: perfil.id, ref: persona.ref })
         }

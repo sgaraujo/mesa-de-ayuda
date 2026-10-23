@@ -238,6 +238,24 @@ label {
   margin: 0;
 }
 
+/* Acción con aspecto de enlace dentro de un formulario de auth (no envía). */
+.auth-card .auth-link-boton {
+  display: inline;
+  width: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--brand);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-card .auth-link-boton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .auth-forgot-link {
   align-self: flex-end;
   margin-top: -0.55rem;

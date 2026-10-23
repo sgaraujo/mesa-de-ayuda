@@ -2,6 +2,8 @@
 // Se usa porque el tenant de Microsoft 365 no permite SMTP AUTH básico,
 // así que no se puede usar el SMTP nativo de Supabase Auth.
 
+import { esCorreoInterno } from './cedula.ts'
+
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -36,6 +38,9 @@ async function obtenerTokenGraph(): Promise<string> {
 }
 
 export async function enviarCorreo(destino: string, asunto: string, htmlBody: string) {
+  // Cuentas de ingreso por cédula sin correo corporativo: no hay buzón.
+  if (esCorreoInterno(destino)) return
+
   const token = await obtenerTokenGraph()
 
   const resp = await fetch(`${MS_GRAPH_URL}/users/${MS_SENDER_UPN}/sendMail`, {
