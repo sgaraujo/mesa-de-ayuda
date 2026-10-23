@@ -22,6 +22,17 @@ const PRIORIDADES: { valor: Prioridad; etiqueta: string; ayuda: string }[] = [
   { valor: 'urgente', etiqueta: 'Urgente', ayuda: 'Bloquea el trabajo' },
 ]
 
+function hoyLocal(): string {
+  const hoy = new Date()
+  return new Date(hoy.getTime() - hoy.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}
+
+// La fecha elegida cuenta hasta el final de ese día (hora local): la tarea
+// solo aparece vencida cuando el día ya pasó.
+function fechaRequeridaIso(fecha: string): string | null {
+  return fecha ? new Date(`${fecha}T23:59:00`).toISOString() : null
+}
+
 function iniciales(nombre: string): string {
   const palabras = nombre.trim().split(/\s+/)
   return (palabras.length > 1 ? palabras[0][0] + palabras[1][0] : nombre.slice(0, 2)).toUpperCase()
@@ -59,6 +70,8 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   const [titulo, setTitulo] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [prioridad, setPrioridad] = useState<Prioridad>('media')
+  // "AAAA-MM-DD" del <input type="date">; vacío = sin fecha.
+  const [fechaRequerida, setFechaRequerida] = useState('')
   const [archivo, setArchivo] = useState<File | null>(null)
   const [archivoPreview, setArchivoPreview] = useState<string | null>(null)
   const [arrastrandoArchivo, setArrastrandoArchivo] = useState(false)
@@ -78,8 +91,8 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   }, [archivo])
 
   useEffect(() => {
-    onDirtyChange?.(titulo.trim() !== '' || descripcion.trim() !== '' || archivo !== null)
-  }, [titulo, descripcion, archivo, onDirtyChange])
+    onDirtyChange?.(titulo.trim() !== '' || descripcion.trim() !== '' || archivo !== null || fechaRequerida !== '')
+  }, [titulo, descripcion, archivo, fechaRequerida, onDirtyChange])
 
   function seleccionarArchivo(file: File | null) {
     if (file && !EXTENSIONES_PERMITIDAS.includes(extensionDe(file.name))) {
@@ -150,6 +163,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
         tipo_id: tipos.length > 0 ? tipoId || null : null,
         asignado_a: asignadoA,
         prioridad,
+        fecha_requerida: fechaRequeridaIso(fechaRequerida),
         estado: 'pendiente',
         archivo_url: archivoUrl,
       })
@@ -172,6 +186,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
     setTitulo('')
     setDescripcion('')
     setPrioridad('media')
+    setFechaRequerida('')
     setArchivo(null)
     if (archivoInputRef.current) archivoInputRef.current.value = ''
     setTimeout(() => onCreado?.(), 900)
@@ -187,6 +202,18 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
           <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
         ))}
       </select>
+    </label>
+  )
+
+  const campoFecha = (
+    <label>
+      <span>Para cuándo la necesitas <small className="ticket-form__opcional">Opcional</small></span>
+      <input
+        type="date"
+        value={fechaRequerida}
+        min={hoyLocal()}
+        onChange={(e) => setFechaRequerida(e.target.value)}
+      />
     </label>
   )
 
@@ -327,6 +354,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
               ))}
             </select>
           </label>
+          {campoFecha}
         </div>
         {campoAdjunto}
         {error && <p className="auth-error">{error}</p>}
@@ -411,7 +439,12 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
       </section>
 
       <section className="solicitud-paso">
-        <PasoEncabezado numero={3} completo titulo="¿Qué tan urgente es?" />
+        <PasoEncabezado
+          numero={3}
+          completo
+          titulo="¿Qué tan urgente es?"
+          ayuda="Si la necesitas para una fecha concreta, indícala: el equipo la verá en la tarjeta y se marcará si se vence."
+        />
         <div className="solicitud-prioridades" role="radiogroup" aria-label="Prioridad">
           {PRIORIDADES.map((p) => (
             <label
@@ -434,6 +467,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
             </label>
           ))}
         </div>
+        <div className="solicitud-paso__fecha">{campoFecha}</div>
       </section>
 
       <section className="solicitud-paso">

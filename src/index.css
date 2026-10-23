@@ -333,8 +333,20 @@ label {
 
 .ticket-form__row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 1rem;
+}
+
+.ticket-form__opcional {
+  margin-left: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.solicitud-paso__fecha {
+  margin-top: 1rem;
+  max-width: 260px;
 }
 
 .ticket-form__attachment-field {

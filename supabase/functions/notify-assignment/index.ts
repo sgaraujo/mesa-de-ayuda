@@ -60,8 +60,19 @@ Deno.serve(async (req) => {
     let destinatariosIds = idsGestores
 
     if (esNuevaTarea) {
-      // También la dispara el superadmin al cambiar la tarea de área.
-      const puedeAvisar = ticket.solicitante_id === remitente.id || remitente.role === 'admin'
+      // También la dispara quien cambia la tarea de área: el superadmin o un
+      // líder/agente de un área que reasigna (Desarrollo, migración 0033).
+      let puedeAvisar = ticket.solicitante_id === remitente.id || remitente.role === 'admin'
+      if (!puedeAvisar) {
+        const { data: reasignadoras } = await supabaseAdmin
+          .from('area_miembros')
+          .select('area_id, areas!inner(reasigna_areas)')
+          .eq('profile_id', remitente.id)
+          .in('rol', ['lider', 'agente'])
+          .eq('areas.reasigna_areas', true)
+          .limit(1)
+        puedeAvisar = (reasignadoras ?? []).length > 0
+      }
       if (!puedeAvisar || ticket.asignado_a !== null || ticket.es_grupal) {
         return json({ ok: false, message: 'No autorizado' }, 403)
       }

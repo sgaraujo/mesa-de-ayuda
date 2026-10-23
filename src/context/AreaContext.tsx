@@ -12,6 +12,9 @@ interface AreaContextValue {
   areaActiva: AreaConRol | null
   seleccionarArea: (areaId: string) => void
   esSuperadmin: boolean
+  // Puede enviar una tarea a otra área: superadmin o líder/agente de
+  // Desarrollo (puedo_cambiar_area(), migración 0033).
+  puedeCambiarArea: boolean
   loading: boolean
   recargar: () => Promise<void>
 }
@@ -44,6 +47,7 @@ export function AreaProvider({ children }: { children: ReactNode }) {
   const [areas, setAreas] = useState<AreaConRol[]>([])
   const [areaActivaId, setAreaActivaId] = useState<string | null>(leerAreaGuardada)
   const [loading, setLoading] = useState(true)
+  const [puedeCambiarAreaBd, setPuedeCambiarAreaBd] = useState(false)
 
   const esSuperadmin = profile?.role === 'admin' && profile.activo
   const profileId = profile?.id
@@ -51,14 +55,20 @@ export function AreaProvider({ children }: { children: ReactNode }) {
   const recargar = useCallback(async () => {
     if (!profileId) {
       setAreas([])
+      setPuedeCambiarAreaBd(false)
       setLoading(false)
       return
     }
 
-    const { data: membresias } = await supabase
-      .from('area_miembros')
-      .select('rol, area:areas(id, nombre, orden)')
-      .eq('profile_id', profileId)
+    const [{ data: membresias }, { data: puedeCambiar }] = await Promise.all([
+      supabase
+        .from('area_miembros')
+        .select('rol, area:areas(id, nombre, orden)')
+        .eq('profile_id', profileId),
+      // Aparte y tolerante a error: si falla, solo se oculta el selector.
+      supabase.rpc('puedo_cambiar_area'),
+    ])
+    setPuedeCambiarAreaBd(puedeCambiar === true)
 
     const propias = ((membresias ?? []) as unknown as { rol: RolArea; area: Area | null }[])
       .filter((m) => m.area)
@@ -87,7 +97,17 @@ export function AreaProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AreaContext.Provider value={{ areas, areaActiva, seleccionarArea, esSuperadmin, loading, recargar }}>
+    <AreaContext.Provider
+      value={{
+        areas,
+        areaActiva,
+        seleccionarArea,
+        esSuperadmin,
+        puedeCambiarArea: esSuperadmin || puedeCambiarAreaBd,
+        loading,
+        recargar,
+      }}
+    >
       {children}
     </AreaContext.Provider>
   )

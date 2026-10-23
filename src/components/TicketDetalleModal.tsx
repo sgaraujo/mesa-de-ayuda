@@ -88,8 +88,8 @@ export function TicketDetalleModal({
   onMover,
 }: TicketDetalleModalProps) {
   const { profile } = useAuth()
-  const { esSuperadmin } = useArea()
-  // Solo el superadmin necesita la lista: es quien puede cambiar el área.
+  // Superadmin o líder/agente de Desarrollo; las demás áreas solo ven el área.
+  const { puedeCambiarArea } = useArea()
   const { areas } = useAreas()
   const areaId = ticket.area_id
   const { proyectos, recargar: recargarProyectos } = useProyectos(areaId)
@@ -321,7 +321,7 @@ export function TicketDetalleModal({
     onDuplicado?.(copia as unknown as TicketConRelaciones)
   }
 
-  // Corrige una tarea enviada al área equivocada (solo superadmin). Llega a la
+  // Corrige una tarea enviada al área equivocada (superadmin o Desarrollo). Llega a la
   // bandeja del área nueva: sin proyecto, sin responsables y en pendiente.
   async function handleCambiarArea(nuevaAreaId: string) {
     const destino = areas.find((area) => area.id === nuevaAreaId)
@@ -618,9 +618,9 @@ export function TicketDetalleModal({
                 </div>
 
                 <div className="propiedad">
-                  <dt>{esSuperadmin ? <label htmlFor="detalle-area">Área</label> : 'Área'}</dt>
+                  <dt>{puedeCambiarArea ? <label htmlFor="detalle-area">Área</label> : 'Área'}</dt>
                   <dd>
-                    {esSuperadmin ? (
+                    {puedeCambiarArea ? (
                       // Se aplica al instante (con confirmación), como el estado.
                       <select
                         id="detalle-area"
