@@ -621,6 +621,11 @@ export function AdminWhitelistPage() {
           <span className={`estado-punto ${e.used_at ? 'estado-punto--usado' : 'estado-punto--pendiente'}`}>
             {e.used_at ? 'Registrado' : 'Pendiente'}
           </span>
+          {e.origen === 'nelyoda' && (
+            <span className="admin-table__texto-sutil" title="Habilitado automáticamente por ser empleado vigente en Nelyoda">
+              {' '}· Desde Nelyoda
+            </span>
+          )}
         </td>
         <td>
           <div className="admin-table__acciones">

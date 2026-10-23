@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0033_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0034_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -123,6 +123,15 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   correo; el cliente solo lee las propias y las marca con
   `marcar_notificaciones_leidas()`. Publicada en realtime.
 - `allowed_emails`: whitelist de acceso (independiente de `profiles`).
+  `origen = 'nelyoda'` marca los correos que agregó la sincronización.
+- `personas_nelyoda` (migración 0034): datos corporativos que envía Nelyoda
+  (Inteegrados, la plataforma de Talento Humano en Firebase, repo aparte):
+  nombre, teléfono corporativo, si está vigente y sus relaciones laborales
+  (empresa, área, cargo, jefe). Solo la escribe la Edge Function
+  `sincronizar-nelyoda`, que además habilita como solicitante a todo empleado
+  vigente, desactiva la cuenta de quien se retira y la reactiva si vuelve
+  (solo si ella la desactivó; nunca a un superadmin). El cliente solo lee las
+  columnas de directorio (grants por columna).
 - RLS en casi todas las tablas. **Cuidado con la recursión**: la policy de
   `tickets` consulta `ticket_asignados` y viceversa, lo cual generaba
   "infinite recursion detected in policy". Se resolvió con funciones
@@ -157,7 +166,9 @@ Deno, cada una en su carpeta con `index.ts`. Código compartido en `_shared/`
 (`graph.ts` para envío de correo vía Microsoft Graph, `email-template.ts`
 para el HTML de los correos). Funciones actuales: `invite-user`,
 `reset-password`, `revoke-user`, `notify-assignment`, `notify-mention`, `send-welcome-email`,
-`admin-set-password`, `admin-change-email` (cambia el correo en Auth, whitelist y perfil conservando la cuenta), `revisar-texto` (ortografía y gramática con
+`admin-set-password`, `admin-change-email` (cambia el correo en Auth, whitelist y perfil conservando la cuenta),
+`sincronizar-nelyoda` (la llaman las Cloud Functions de Nelyoda con el header
+`x-sync-key` = secreto `NELYODA_SYNC_KEY`; se despliega con `--no-verify-jwt`), `revisar-texto` (ortografía y gramática con
 LanguageTool; API pública gratuita salvo que se definan los secretos
 `LANGUAGETOOL_USERNAME`/`LANGUAGETOOL_API_KEY` o `LANGUAGETOOL_URL`). Todas usan el service role key
 (`SUPABASE_SERVICE_ROLE_KEY`, disponible automáticamente en runtime) para

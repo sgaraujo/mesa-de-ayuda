@@ -46,7 +46,18 @@ Deno.serve(async (req) => {
       )
     }
 
-    if (whitelistRow && !whitelistRow.used_at) {
+    // Retirado en Nelyoda (migración 0034): no se invita aunque siga en la
+    // whitelist; se responde igual que siempre para no revelar nada.
+    const { data: retirado } = whitelistRow && !whitelistRow.used_at
+      ? await supabaseAdmin
+        .from('personas_nelyoda')
+        .select('email')
+        .eq('email', correo)
+        .eq('activo', false)
+        .maybeSingle()
+      : { data: null }
+
+    if (whitelistRow && !whitelistRow.used_at && !retirado) {
       const redirectTo = `${Deno.env.get('SITE_URL') ?? ''}/crear-password`
 
       let { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({

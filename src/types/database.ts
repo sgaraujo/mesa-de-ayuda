@@ -160,4 +160,26 @@ export interface AllowedEmail {
   role: Role
   invited_at: string | null
   used_at: string | null
+  origen: 'manual' | 'nelyoda'
+}
+
+// Relación laboral vigente según Nelyoda (migración 0034).
+export interface RelacionLaboralNelyoda {
+  empresa: string | null
+  proyecto: string | null
+  area: string | null
+  cuentaAnalitica: string | null
+  cargo: string | null
+  jefe: string | null
+}
+
+export interface PersonaNelyoda {
+  ref: string
+  email: string
+  nombre: string | null
+  telefono: string | null
+  activo: boolean
+  relaciones: RelacionLaboralNelyoda[]
+  desactivo_cuenta: boolean
+  actualizado_at: string
 }

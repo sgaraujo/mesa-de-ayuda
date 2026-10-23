@@ -23,7 +23,7 @@ import { HistorialCambios } from './HistorialCambios'
 import { RespuestaFinalizacion } from './RespuestaFinalizacion'
 import { Avatar } from './Avatar'
 import type { ColumnaId } from './KanbanColumn'
-import type { Prioridad, TicketConRelaciones } from '../types/database'
+import type { Prioridad, RelacionLaboralNelyoda, TicketConRelaciones } from '../types/database'
 
 const PRIORIDAD_LABEL: Record<string, string> = {
   baja: 'Baja',
@@ -53,6 +53,11 @@ function formatearFecha(iso: string | null): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   })
+}
+
+// Si Nelyoda no trae el área, se muestra la cuenta analítica o el proyecto.
+function areaLaboral(relacion: RelacionLaboralNelyoda): string | null {
+  return relacion.area ?? relacion.cuentaAnalitica ?? relacion.proyecto
 }
 
 // <input type="datetime-local"> trabaja en hora local y sin zona horaria.
@@ -137,6 +142,28 @@ export function TicketDetalleModal({
       vigente = false
     }
   }, [ticket.duplicado_de])
+
+  // Cargo y área del solicitante según Nelyoda (migración 0034). Aparte por la
+  // misma razón: si no hay datos o la consulta falla, solo no se muestran.
+  const [relacionSolicitante, setRelacionSolicitante] = useState<RelacionLaboralNelyoda | null>(null)
+  const correoSolicitante = ticket.solicitante?.email
+
+  useEffect(() => {
+    if (!correoSolicitante) return
+    let vigente = true
+    void supabase
+      .from('personas_nelyoda')
+      .select('relaciones')
+      .eq('email', correoSolicitante)
+      .maybeSingle()
+      .then(({ data }) => {
+        const relaciones = (data?.relaciones ?? []) as RelacionLaboralNelyoda[]
+        if (vigente) setRelacionSolicitante(relaciones[0] ?? null)
+      })
+    return () => {
+      vigente = false
+    }
+  }, [correoSolicitante])
   const [error, setError] = useState<string | null>(null)
   const [pestana, setPestana] = useState<'comentarios' | 'archivos' | 'historial'>('comentarios')
 
@@ -480,6 +507,11 @@ export function TicketDetalleModal({
                   <strong>{solicitanteNombre}</strong> lo solicitó el {formatearFecha(ticket.created_at)}
                   {ticket.empresa_solicitante && <> · {ticket.empresa_solicitante}</>}
                   {numeroOrigen != null && <> · Duplicada de #{numeroOrigen}</>}
+                  {relacionSolicitante && (relacionSolicitante.cargo || areaLaboral(relacionSolicitante)) && (
+                    <span className="detalle__autor-cargo">
+                      {[relacionSolicitante.cargo, areaLaboral(relacionSolicitante)].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
                 </span>
               </p>
 
