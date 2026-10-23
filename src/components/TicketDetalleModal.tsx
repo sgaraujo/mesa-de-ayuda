@@ -32,6 +32,8 @@ const PRIORIDAD_LABEL: Record<string, string> = {
   urgente: 'Urgente',
 }
 
+const PREFIJO_COPIA = 'Copy - '
+
 const ESTADO_LABEL: Record<string, string> = {
   pendiente: 'Pendiente',
   en_curso: 'En curso',
@@ -271,7 +273,9 @@ export function TicketDetalleModal({
     const { data: creado, error: errorCrear } = await supabase
       .from('tickets')
       .insert({
-        titulo: ticket.titulo,
+        // El prefijo distingue la copia del original a simple vista. Una copia
+        // de otra copia no lo repite ("Copy - Copy - ...").
+        titulo: ticket.titulo.startsWith(PREFIJO_COPIA) ? ticket.titulo : `${PREFIJO_COPIA}${ticket.titulo}`,
         descripcion: ticket.descripcion,
         solicitante_id: profile.id,
         empresa_solicitante: profile.empresa,
