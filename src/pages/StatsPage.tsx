@@ -11,6 +11,7 @@ import {
   type Agrupacion,
   type ConteoCategoria,
   type RangoFecha,
+  type RangoPersonalizado,
 } from '../lib/agregaciones'
 import { nombresAsignados } from '../lib/ticket'
 import { exportarReporteDetalladoExcel, exportarTicketsCSV } from '../lib/exportarCsv'
@@ -43,6 +44,18 @@ function contarPorPersonaAsignada(tickets: TicketConRelaciones[]): ConteoCategor
     .sort((a, b) => b.total - a.total)
 }
 
+const DIAS_MAXIMOS_POR_DIA = 92
+
+// La tendencia va por día en rangos cortos y por mes en los largos o abiertos,
+// para que la gráfica no quede con cientos de puntos.
+function agrupacionPara(rango: RangoFecha, personalizado: RangoPersonalizado): Agrupacion {
+  if (rango === 'todo') return 'mes'
+  if (rango !== 'personalizado') return 'dia'
+  if (!personalizado.desde || !personalizado.hasta) return 'mes'
+  const dias = (new Date(personalizado.hasta).getTime() - new Date(personalizado.desde).getTime()) / 86400000
+  return dias > DIAS_MAXIMOS_POR_DIA ? 'mes' : 'dia'
+}
+
 export function StatsPage() {
   const [tickets, setTickets] = useState<TicketConRelaciones[]>([])
   const [loading, setLoading] = useState(true)
@@ -53,6 +66,7 @@ export function StatsPage() {
   const [filtroProyecto, setFiltroProyecto] = useState('')
   const [filtroEstado, setFiltroEstado] = useState<Estado | ''>('')
   const [filtroRango, setFiltroRango] = useState<RangoFecha>('todo')
+  const [rangoPersonalizado, setRangoPersonalizado] = useState<RangoPersonalizado>({ desde: '', hasta: '' })
 
   useEffect(() => {
     if (!areaId) return
@@ -70,9 +84,9 @@ export function StatsPage() {
     return tickets.filter(
       (t) =>
         (!filtroProyecto || t.proyecto_id === filtroProyecto) &&
-        dentroDeRango(t.created_at, filtroRango),
+        dentroDeRango(t.created_at, filtroRango, rangoPersonalizado),
     )
-  }, [tickets, filtroProyecto, filtroRango])
+  }, [tickets, filtroProyecto, filtroRango, rangoPersonalizado])
 
   const ticketsFiltrados = useMemo(() => {
     return ticketsBase.filter((t) => !filtroEstado || t.estado === filtroEstado)
@@ -101,8 +115,8 @@ export function StatsPage() {
   const porEmpresa = contarPor(ticketsFiltrados, (t) => t.empresa_solicitante)
   const porProyecto = contarPor(ticketsFiltrados, (t) => t.proyecto?.nombre ?? null)
   const porPersonaResuelto = contarPorPersonaAsignada(ticketsBase.filter((t) => t.estado === 'finalizado'))
-  const agrupacionTendencia: Agrupacion = filtroRango === 'todo' ? 'mes' : 'dia'
-  const tendencia = serieTemporal(ticketsBase, agrupacionTendencia, filtroRango)
+  const agrupacionTendencia = agrupacionPara(filtroRango, rangoPersonalizado)
+  const tendencia = serieTemporal(ticketsBase, agrupacionTendencia, filtroRango, rangoPersonalizado)
 
   return (
     <div className="stats-page">
@@ -144,7 +158,30 @@ export function StatsPage() {
           <option value="30d">Últimos 30 días</option>
           <option value="mes_actual">Este mes</option>
           <option value="mes_anterior">Mes anterior</option>
+          <option value="personalizado">Rango personalizado…</option>
         </select>
+        {filtroRango === 'personalizado' && (
+          <div className="stats-filtros__rango" role="group" aria-label="Rango de fechas">
+            <label>
+              Desde
+              <input
+                type="date"
+                value={rangoPersonalizado.desde}
+                max={rangoPersonalizado.hasta || undefined}
+                onChange={(e) => setRangoPersonalizado((r) => ({ ...r, desde: e.target.value }))}
+              />
+            </label>
+            <label>
+              Hasta
+              <input
+                type="date"
+                value={rangoPersonalizado.hasta}
+                min={rangoPersonalizado.desde || undefined}
+                onChange={(e) => setRangoPersonalizado((r) => ({ ...r, hasta: e.target.value }))}
+              />
+            </label>
+          </div>
+        )}
       </div>
 
       <div className="stat-tiles">

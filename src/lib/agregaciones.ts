@@ -20,11 +20,23 @@ export function formatearDuracion(horas: number): string {
   return `${(horas / 24).toFixed(1)} d`
 }
 
-export type RangoFecha = 'todo' | '7d' | '30d' | 'mes_actual' | 'mes_anterior'
+export type RangoFecha = 'todo' | '7d' | '30d' | 'mes_actual' | 'mes_anterior' | 'personalizado'
 
-export function dentroDeRango(fechaIso: string, rango: RangoFecha): boolean {
+// Fechas "AAAA-MM-DD" del <input type="date">, en hora local y ambas
+// incluidas. Vacía = sin límite por ese lado.
+export interface RangoPersonalizado {
+  desde: string
+  hasta: string
+}
+
+export function dentroDeRango(fechaIso: string, rango: RangoFecha, personalizado?: RangoPersonalizado): boolean {
   if (rango === 'todo') return true
   const fecha = new Date(fechaIso)
+  if (rango === 'personalizado') {
+    if (personalizado?.desde && fecha < new Date(`${personalizado.desde}T00:00:00`)) return false
+    if (personalizado?.hasta && fecha > new Date(`${personalizado.hasta}T23:59:59.999`)) return false
+    return true
+  }
   const ahora = new Date()
   if (rango === '7d') return ahora.getTime() - fecha.getTime() <= 7 * 24 * 60 * 60 * 1000
   if (rango === '30d') return ahora.getTime() - fecha.getTime() <= 30 * 24 * 60 * 60 * 1000
@@ -52,6 +64,7 @@ export function serieTemporal(
   tickets: { created_at: string; finalizado_at: string | null }[],
   agrupacion: Agrupacion,
   rango: RangoFecha = 'todo',
+  personalizado?: RangoPersonalizado,
 ): PuntoSerieTemporal[] {
   const mapa = new Map<string, { creados: number; resueltos: number }>()
 
@@ -62,10 +75,10 @@ export function serieTemporal(
   }
 
   for (const t of tickets) {
-    if (dentroDeRango(t.created_at, rango)) {
+    if (dentroDeRango(t.created_at, rango, personalizado)) {
       sumar(claveFecha(new Date(t.created_at), agrupacion), 'creados')
     }
-    if (t.finalizado_at && dentroDeRango(t.finalizado_at, rango)) {
+    if (t.finalizado_at && dentroDeRango(t.finalizado_at, rango, personalizado)) {
       sumar(claveFecha(new Date(t.finalizado_at), agrupacion), 'resueltos')
     }
   }
