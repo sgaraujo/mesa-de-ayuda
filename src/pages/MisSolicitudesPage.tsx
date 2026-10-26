@@ -10,6 +10,7 @@ const ESTADO_LABEL: Record<Estado, string> = {
   pendiente: 'Pendiente',
   en_curso: 'En curso',
   finalizado: 'Finalizado',
+  rechazado: 'Rechazada',
 }
 
 function formatearFechaCorta(iso: string): string {
@@ -123,6 +124,7 @@ export function MisSolicitudesPage() {
             <option value="pendiente">Pendiente</option>
             <option value="en_curso">En curso</option>
             <option value="finalizado">Finalizado</option>
+            <option value="rechazado">Rechazada</option>
           </select>
         </div>
       </div>

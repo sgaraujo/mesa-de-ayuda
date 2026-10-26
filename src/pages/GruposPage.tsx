@@ -18,6 +18,8 @@ interface ResumenTablero {
 function resumir(tickets: TicketResumen[]): ResumenTablero {
   const resumen: ResumenTablero = { sinAsignar: 0, pendiente: 0, enCurso: 0, finalizado: 0 }
   for (const t of tickets) {
+    // Las rechazadas ya no están en el tablero.
+    if (t.estado === 'rechazado') continue
     if (t.estado === 'finalizado') resumen.finalizado++
     else if (!t.es_grupal && t.asignado_a === null) resumen.sinAsignar++
     else if (t.estado === 'en_curso') resumen.enCurso++

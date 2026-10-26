@@ -1316,6 +1316,10 @@ label {
   background: color-mix(in srgb, var(--estado-finalizado) 16%, transparent);
   color: var(--estado-finalizado);
 }
+.badge--estado-rechazado {
+  background: color-mix(in srgb, var(--prioridad-urgente) 14%, transparent);
+  color: var(--prioridad-urgente);
+}
 
 .badge--grupal {
   margin-left: 0.4rem;
@@ -1408,6 +1412,9 @@ label {
 }
 .stat-tile--finalizado {
   border-top-color: var(--estado-finalizado);
+}
+.stat-tile--rechazado {
+  border-top-color: var(--prioridad-urgente);
 }
 
 .stat-tile__label {
@@ -2540,6 +2547,105 @@ label {
   font-weight: 500;
 }
 
+/* Asistente de redacción con IA (AsistenteSolicitud) */
+.asistente {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.asistente__barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+}
+
+.asistente__boton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-size: 0.85rem;
+}
+
+.asistente__boton svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.asistente__ayuda {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.asistente .auth-error {
+  margin: 0;
+}
+
+.asistente__propuesta {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.85rem 1rem;
+  border: 1.5px solid var(--brand);
+  border-radius: 12px;
+  background: var(--brand-soft);
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+
+.asistente__propuesta p {
+  margin: 0;
+}
+
+.asistente__etiqueta {
+  color: var(--brand-text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.asistente__titulo {
+  font-weight: 600;
+}
+
+.asistente__descripcion {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.asistente__preguntas {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.asistente__preguntas ul {
+  margin: 0.3rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.asistente__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.asistente__acciones button {
+  padding: 0.45rem 0.95rem;
+  font-size: 0.85rem;
+}
+
+.asistente__acciones .asistente__descartar {
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
 .badge--por-aprobar {
   background: color-mix(in srgb, var(--prioridad-media) 18%, transparent);
   color: var(--text-primary);
@@ -2593,6 +2699,30 @@ label {
 .aprobacion__encabezado {
   display: flex;
   gap: 0.75rem;
+}
+
+/* El mismo panel, para que el equipo rechace una solicitud. */
+.aprobacion--rechazo {
+  border-color: var(--prioridad-urgente);
+  background: color-mix(in srgb, var(--prioridad-urgente) 7%, transparent);
+}
+
+.aprobacion--rechazo .aprobacion__icono {
+  background: var(--prioridad-urgente);
+}
+
+.detalle__motivo-rechazo {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-left: 3px solid var(--prioridad-urgente);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--prioridad-urgente) 7%, transparent);
+  color: var(--text-primary);
+  white-space: pre-wrap;
+}
+
+.propiedad__enlace--peligro {
+  color: var(--prioridad-urgente);
 }
 
 .aprobacion__encabezado h3 {

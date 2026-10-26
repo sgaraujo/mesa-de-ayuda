@@ -27,6 +27,15 @@ export async function notificarFinalizacion(ticketId: string) {
   if (error) console.error('No se pudo enviar la notificación de finalización:', error.message)
 }
 
+// La misma función envía el correo de rechazo según el estado de la tarea.
+export async function notificarRechazo(ticketId: string) {
+  const { error } = await supabase.functions.invoke('notify-finalizacion', {
+    body: { ticketId },
+  })
+
+  if (error) console.error('No se pudo enviar la notificación de rechazo:', error.message)
+}
+
 export interface ResultadoMenciones {
   ok: boolean
   enviados: number

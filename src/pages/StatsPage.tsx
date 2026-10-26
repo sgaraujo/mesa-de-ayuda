@@ -84,6 +84,7 @@ export function StatsPage() {
   const pendientes = ticketsFiltrados.filter((t) => t.estado === 'pendiente').length
   const enCurso = ticketsFiltrados.filter((t) => t.estado === 'en_curso').length
   const finalizados = ticketsFiltrados.filter((t) => t.estado === 'finalizado').length
+  const rechazados = ticketsFiltrados.filter((t) => t.estado === 'rechazado').length
 
   const finalizadosConTiempo = ticketsFiltrados.filter((t) => t.estado === 'finalizado' && t.finalizado_at)
   const promedioHoras =
@@ -135,6 +136,7 @@ export function StatsPage() {
           <option value="pendiente">Pendiente</option>
           <option value="en_curso">En curso</option>
           <option value="finalizado">Finalizado</option>
+          <option value="rechazado">Rechazado</option>
         </select>
         <select value={filtroRango} onChange={(e) => setFiltroRango(e.target.value as RangoFecha)}>
           <option value="todo">Todo el tiempo</option>
@@ -161,6 +163,10 @@ export function StatsPage() {
         <div className="stat-tile stat-tile--finalizado">
           <p className="stat-tile__label">Finalizadas</p>
           <p className="stat-tile__value">{finalizados}</p>
+        </div>
+        <div className="stat-tile stat-tile--rechazado">
+          <p className="stat-tile__label">Rechazadas</p>
+          <p className="stat-tile__value">{rechazados}</p>
         </div>
         <div className="stat-tile">
           <p className="stat-tile__label">Tiempo promedio de resolución</p>

@@ -6,6 +6,7 @@ const ESTADO_LABEL: Record<string, string> = {
   pendiente: 'Pendiente',
   en_curso: 'En curso',
   finalizado: 'Finalizado',
+  rechazado: 'Rechazado',
 }
 
 const PRIORIDAD_LABEL: Record<string, string> = {

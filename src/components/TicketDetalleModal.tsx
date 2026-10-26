@@ -21,6 +21,7 @@ import { ArchivosTicket } from './ArchivosTicket'
 import { ComentariosTicket } from './ComentariosTicket'
 import { HistorialCambios } from './HistorialCambios'
 import { RespuestaFinalizacion } from './RespuestaFinalizacion'
+import { RechazarSolicitud } from './RechazarSolicitud'
 import { Avatar } from './Avatar'
 import type { ColumnaId } from './KanbanColumn'
 import type { Prioridad, RelacionLaboralNelyoda, TicketConRelaciones } from '../types/database'
@@ -38,6 +39,7 @@ const ESTADO_LABEL: Record<string, string> = {
   pendiente: 'Pendiente',
   en_curso: 'En curso',
   finalizado: 'Finalizado',
+  rechazado: 'Rechazada',
 }
 
 const COLUMNA_LABEL: Record<ColumnaId, string> = {
@@ -166,6 +168,7 @@ export function TicketDetalleModal({
   }, [correoSolicitante])
   const [error, setError] = useState<string | null>(null)
   const [pestana, setPestana] = useState<'comentarios' | 'archivos' | 'historial'>('comentarios')
+  const [rechazando, setRechazando] = useState(false)
 
   function alternarMiembro(id: string) {
     setMiembros((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]))
@@ -389,7 +392,10 @@ export function TicketDetalleModal({
   const asignados = nombresAsignados(ticket)
   const faltan = clasificacionFaltante(ticket)
   const totalComentarios = ticket.comentarios?.[0]?.count
-  const columnaActual: ColumnaId = estaSinAsignar(ticket) ? 'tareas' : ticket.estado
+  const rechazada = ticket.estado === 'rechazado'
+  const columnaActual: ColumnaId | null = ticket.estado === 'rechazado' ? null : estaSinAsignar(ticket) ? 'tareas' : ticket.estado
+  // Solo desde el tablero (onMover) y mientras no esté cerrada.
+  const puedeRechazar = puedeEditarTiempos && !!onMover && !rechazada && ticket.estado !== 'finalizado'
 
   const tiempoPropuesto = combinarTiempo(tiempoPropuestoHoras, tiempoPropuestoMinutos)
   const tiempoEjecutado = combinarTiempo(tiempoEjecutadoHoras, tiempoEjecutadoMinutos)
@@ -524,6 +530,17 @@ export function TicketDetalleModal({
                 <RespuestaFinalizacion ticket={ticket} onRespondido={onGuardado} />
               )}
 
+              {rechazando && puedeRechazar && (
+                <RechazarSolicitud ticket={ticket} onRechazado={onGuardado} onCancelar={() => setRechazando(false)} />
+              )}
+
+              {rechazada && ticket.motivo_rechazo && (
+                <section className="detalle__seccion">
+                  <h3 className="detalle__seccion-titulo">Motivo del rechazo</h3>
+                  <p className="detalle__motivo-rechazo">{ticket.motivo_rechazo}</p>
+                </section>
+              )}
+
               {faltan.length > 0 && (
                 <div className="detalle__alerta" role="status">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -585,7 +602,7 @@ export function TicketDetalleModal({
             <aside className="detalle__lateral" aria-label="Detalles de la tarea">
               <h3 className="detalle__seccion-titulo">Detalles</h3>
               <dl className="propiedades">
-                {puedeEditarTiempos && onMover && (
+                {puedeEditarTiempos && onMover && columnaActual && (
                   <div className="propiedad">
                     <dt><label htmlFor="detalle-estado">Estado</label></dt>
                     <dd>
@@ -603,6 +620,17 @@ export function TicketDetalleModal({
                             <option key={columna} value={columna}>{COLUMNA_LABEL[columna]}</option>
                           ))}
                       </select>
+                      {puedeRechazar && !rechazando && (
+                        <button
+                          type="button"
+                          className="propiedad__enlace propiedad__enlace--peligro"
+                          onClick={() => setRechazando(true)}
+                          disabled={hayCambios}
+                          title={hayCambios ? 'Guarda los cambios antes de rechazar' : 'La solicitud no se va a atender'}
+                        >
+                          Rechazar solicitud
+                        </button>
+                      )}
                     </dd>
                   </div>
                 )}

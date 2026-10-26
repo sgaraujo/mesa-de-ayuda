@@ -162,6 +162,8 @@ export function BoardPage() {
     const limiteFinalizados = Date.now() - DIAS_FINALIZADOS_EN_TABLERO * 24 * 60 * 60 * 1000
 
     return tickets.filter((t) => {
+      // Las rechazadas salen del tablero; quien las pidió las ve en Mis solicitudes.
+      if (t.estado === 'rechazado') return false
       if (!coincideBusqueda(t, busqueda)) return false
 
       if (filtroAgente === 'sin_asignar' && !estaSinAsignar(t)) return false

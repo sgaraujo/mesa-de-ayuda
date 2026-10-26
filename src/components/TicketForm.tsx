@@ -6,6 +6,7 @@ import { useAreas } from '../hooks/useAreas'
 import { useTiposSolicitud } from '../hooks/useTiposSolicitud'
 import { useMiembrosArea } from '../hooks/useMiembrosArea'
 import { SugerenciasTexto } from './SugerenciasTexto'
+import { AsistenteSolicitud } from './AsistenteSolicitud'
 import type { Prioridad } from '../types/database'
 import { notificarAsignacion, notificarNuevaTarea } from '../lib/notificaciones'
 import { extensionDe, pesoLegible } from '../lib/archivos'
@@ -256,6 +257,16 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
         />
       </label>
       <SugerenciasTexto texto={descripcion} onCambiar={setDescripcion} />
+      <AsistenteSolicitud
+        titulo={titulo}
+        descripcion={descripcion}
+        area={todasLasAreas.find((a) => a.id === areaId)?.nombre ?? areaActiva?.nombre}
+        tipo={tipos.find((t) => t.id === tipoId)?.nombre}
+        onUsar={(nuevoTitulo, nuevaDescripcion) => {
+          setTitulo(nuevoTitulo)
+          setDescripcion(nuevaDescripcion)
+        }}
+      />
     </>
   )
 

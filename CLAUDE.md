@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0037_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0038_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -109,6 +109,11 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   aprobar (`null`) hasta que quien la pidió la apruebe o la rechace con
   `responder_finalizacion()`; rechazada vuelve a `pendiente`. La columna la
   controla un trigger: el cliente no la escribe directamente.
+- Estado `rechazado` (migración 0038): el equipo del área rechaza con motivo
+  una tarea no finalizada vía `rechazar_ticket()` (un trigger impide ponerlo
+  a mano). Sale del tablero y queda en `/mis-solicitudes` con
+  `tickets.motivo_rechazo`; avisa por campanita y por correo
+  (`notify-finalizacion`).
 - `fecha_requerida` y `tipo_id`, una vez definidos, solo los cambia quien
   pidió la tarea (trigger `proteger_datos_solicitante`, migración 0036).
 - `ticket_status_history`: auditoría de cada cambio de estado (se inserta a
@@ -188,7 +193,10 @@ para el HTML de los correos). Funciones actuales: `invite-user`,
 `x-sync-key` = secreto `NELYODA_SYNC_KEY`; se despliega con `--no-verify-jwt`),
 `acceso-cedula` (ingreso por cédula; usa además el secreto `NELYODA_IDENTITY_URL`), `revisar-texto` (ortografía y gramática con
 LanguageTool; API pública gratuita salvo que se definan los secretos
-`LANGUAGETOOL_USERNAME`/`LANGUAGETOOL_API_KEY` o `LANGUAGETOOL_URL`). Todas usan el service role key
+`LANGUAGETOOL_USERNAME`/`LANGUAGETOOL_API_KEY` o `LANGUAGETOOL_URL`),
+`asistente-solicitud` ("Mejorar con IA" al crear una solicitud; Gemini con el
+secreto `GEMINI_API_KEY`, la misma llave de Nelyoda, y `GEMINI_MODEL`
+opcional). Todas usan el service role key
 (`SUPABASE_SERVICE_ROLE_KEY`, disponible automáticamente en runtime) para
 saltarse RLS de forma controlada — son el único lugar donde eso es correcto.
 

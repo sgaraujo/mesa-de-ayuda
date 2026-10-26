@@ -20,6 +20,7 @@ const ESTADO_LABEL: Record<string, string> = {
   pendiente: 'Pendiente',
   en_curso: 'En curso',
   finalizado: 'Finalizado',
+  rechazado: 'Rechazado',
 }
 
 const SELECT_NOTIFICACIONES = `
@@ -66,6 +67,8 @@ function Mensaje({ n }: { n: NotificacionConRelaciones }) {
       return <>{actor} aprobó la finalización de {tarea}</>
     case 'rechazo':
       return <>{actor} rechazó la finalización de {tarea}; volvió a <strong>Pendiente</strong></>
+    case 'solicitud_rechazada':
+      return <>{actor} rechazó tu solicitud {tarea}</>
   }
 }
 
@@ -76,6 +79,7 @@ const ICONO_TIPO: Record<Notificacion['tipo'], string> = {
   estado: '✓',
   aprobacion: '👍',
   rechazo: '↩',
+  solicitud_rechazada: '✕',
 }
 
 // Campanita del encabezado con el panel de notificaciones. Al tocar una se

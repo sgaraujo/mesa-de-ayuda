@@ -37,11 +37,15 @@ Deno.serve(async (req) => {
 
     const { data: ticket, error: ticketError } = await supabaseAdmin
       .from('tickets')
-      .select('id, titulo, estado, nota_finalizacion, area_id, solicitante:profiles!tickets_solicitante_id_fkey(id, email, full_name, activo)')
+      .select('id, titulo, estado, nota_finalizacion, motivo_rechazo, area_id, solicitante:profiles!tickets_solicitante_id_fkey(id, email, full_name, activo)')
       .eq('id', ticketId)
       .maybeSingle()
     if (ticketError || !ticket) return json({ ok: false, message: 'Tarea no encontrada' }, 404)
-    if (ticket.estado !== 'finalizado') return json({ ok: false, message: 'La tarea no está finalizada' }, 409)
+    // Avisa tanto la finalización como el rechazo (migración 0038).
+    if (ticket.estado !== 'finalizado' && ticket.estado !== 'rechazado') {
+      return json({ ok: false, message: 'La tarea no está finalizada ni rechazada' }, 409)
+    }
+    const rechazada = ticket.estado === 'rechazado'
 
     // Solo quien gestiona el área del ticket (líder o agente de esa área) o el
     // superadmin puede disparar el aviso.
@@ -67,7 +71,7 @@ Deno.serve(async (req) => {
       .insert({
         ticket_id: ticketId,
         recipient_id: solicitante.id,
-        notification_type: 'finalizado',
+        notification_type: ticket.estado,
       })
 
     // La llave primaria impide repetir el aviso para la misma tarea.
@@ -83,8 +87,19 @@ Deno.serve(async (req) => {
       const siteUrl = Deno.env.get('SITE_URL') ?? ''
       await enviarCorreo(
         solicitante.email,
-        'Tu solicitud fue finalizada',
-        plantillaCorreo({
+        rechazada ? 'Tu solicitud fue rechazada' : 'Tu solicitud fue finalizada',
+        rechazada ? plantillaCorreo({
+          titulo: 'Tu solicitud fue rechazada',
+          etiqueta: 'Solicitud rechazada',
+          preheader: `El equipo no va a atender la solicitud "${ticket.titulo}".`,
+          parrafos: [
+            `Hola <strong>${nombre}</strong>, el equipo rechazó tu solicitud <strong>${escaparHtml(ticket.titulo)}</strong>.`,
+            `Motivo: <em>${escaparHtml(ticket.motivo_rechazo ?? '')}</em>`,
+            'Si crees que es un error o puedes aclarar algo, responde en los comentarios de la solicitud o envía una nueva.',
+          ],
+          botonTexto: 'Ver la solicitud',
+          botonUrl: `${siteUrl}/mis-solicitudes?ticket=${ticketId}`,
+        }) : plantillaCorreo({
           titulo: 'Tu solicitud fue finalizada',
           etiqueta: 'Solicitud finalizada',
           preheader: `La tarea "${ticket.titulo}" fue marcada como finalizada.`,
@@ -103,13 +118,13 @@ Deno.serve(async (req) => {
         .delete()
         .eq('ticket_id', ticketId)
         .eq('recipient_id', solicitante.id)
-        .eq('notification_type', 'finalizado')
+        .eq('notification_type', ticket.estado)
       throw error
     }
 
     return json({ ok: true, enviados: 1 })
   } catch (error) {
-    console.error('Error al notificar finalización:', (error as Error).message)
+    console.error('Error al notificar finalización o rechazo:', (error as Error).message)
     return json({ ok: false, message: 'Error interno' }, 500)
   }
 })

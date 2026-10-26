@@ -3,7 +3,8 @@
 export type Role = 'admin' | 'lider' | 'agente' | 'solicitante'
 // Rol dentro de un área (area_miembros).
 export type RolArea = 'lider' | 'agente'
-export type Estado = 'pendiente' | 'en_curso' | 'finalizado'
+// 'rechazado' (migración 0038): el equipo no la va a atender; sale del tablero.
+export type Estado = 'pendiente' | 'en_curso' | 'finalizado' | 'rechazado'
 export type Prioridad = 'baja' | 'media' | 'alta' | 'urgente'
 
 export interface Area {
@@ -75,6 +76,8 @@ export interface Ticket {
   // reabierta hasta que la vuelvan a finalizar.
   aprobacion: Aprobacion | null
   aprobacion_at: string | null
+  // Solo en tareas rechazadas por el equipo (migración 0038).
+  motivo_rechazo: string | null
 }
 
 export type Aprobacion = 'aprobada' | 'rechazada'
@@ -140,7 +143,8 @@ export interface TicketMencion {
 }
 
 // Centro de notificaciones (migración 0026); las crean triggers.
-export type TipoNotificacion = 'mencion' | 'comentario' | 'asignacion' | 'estado' | 'aprobacion' | 'rechazo'
+export type TipoNotificacion =
+  | 'mencion' | 'comentario' | 'asignacion' | 'estado' | 'aprobacion' | 'rechazo' | 'solicitud_rechazada'
 
 export interface Notificacion {
   id: string
