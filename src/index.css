@@ -1515,26 +1515,20 @@ label {
   vertical-align: 0.05rem;
 }
 
-.stats-seccion {
-  margin-bottom: 1.75rem;
+/* Pestañas de Estadísticas: mismas que el detalle de la tarea (.pestanas). */
+.stats-pestanas {
+  margin-bottom: 1.25rem;
 }
 
-/* Una sección después de los gráficos generales (p. ej. Cumplimiento de tiempos al final). */
-.charts-grid + .stats-seccion {
-  margin-top: 1.75rem;
+.pestana__contador--alerta {
+  border-color: transparent;
+  background: var(--prioridad-urgente);
+  color: white;
 }
 
-.stats-seccion__encabezado {
-  margin-bottom: 0.7rem;
-}
-
-.stats-seccion__encabezado h2 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.stats-seccion__encabezado p {
-  margin: 0.2rem 0 0;
+/* Cómo se calcula lo que muestra la pestaña. */
+.stats-seccion__nota {
+  margin: -0.4rem 0 0.9rem;
   color: var(--text-muted);
   font-size: 0.82rem;
 }

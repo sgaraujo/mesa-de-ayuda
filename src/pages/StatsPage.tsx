@@ -107,6 +107,25 @@ function describirPeriodo(rango: RangoFecha, personalizado: RangoPersonalizado):
   }
 }
 
+type Vista = 'resumen' | 'horas' | 'cumplimiento'
+
+const VISTAS: { valor: Vista; etiqueta: string }[] = [
+  { valor: 'resumen', etiqueta: 'Resumen' },
+  { valor: 'horas', etiqueta: 'Horas' },
+  { valor: 'cumplimiento', etiqueta: 'Cumplimiento' },
+]
+
+const VISTA_KEY = 'estadisticas-vista'
+
+function leerVista(): Vista {
+  try {
+    const guardada = localStorage.getItem(VISTA_KEY)
+    return VISTAS.some((v) => v.valor === guardada) ? (guardada as Vista) : 'resumen'
+  } catch {
+    return 'resumen'
+  }
+}
+
 // Totales de horas en horas (formatearDuracion pasaría a días de 24 h).
 function horasLegibles(horas: number): string {
   return `${(Math.round(horas * 10) / 10).toLocaleString('es-CO')} h`
@@ -153,6 +172,17 @@ export function StatsPage() {
   // Por nombre, como se muestran (incluye "Bandeja general" para las sin asignar).
   const [filtroResponsable, setFiltroResponsable] = useState('')
   const [filtroEmpresa, setFiltroEmpresa] = useState('')
+
+  // Pestaña abierta; se recuerda entre visitas. Los filtros son de todas.
+  const [vista, setVista] = useState<Vista>(leerVista)
+  function cambiarVista(nueva: Vista) {
+    setVista(nueva)
+    try {
+      localStorage.setItem(VISTA_KEY, nueva)
+    } catch {
+      // Sin almacenamiento solo se pierde la preferencia entre visitas.
+    }
+  }
 
   useEffect(() => {
     if (!claveAreas) return
@@ -453,171 +483,199 @@ export function StatsPage() {
         </div>
       </div>
 
-      <div className="stat-tiles">
-        <div className="stat-tile">
-          <p className="stat-tile__label">Total de solicitudes</p>
-          <p className="stat-tile__value">{total}</p>
-        </div>
-        <div className="stat-tile stat-tile--pendiente">
-          <p className="stat-tile__label">Pendientes</p>
-          <p className="stat-tile__value">{pendientes}</p>
-        </div>
-        <div className="stat-tile stat-tile--en_curso">
-          <p className="stat-tile__label">En curso</p>
-          <p className="stat-tile__value">{enCurso}</p>
-        </div>
-        <div className="stat-tile stat-tile--finalizado">
-          <p className="stat-tile__label">Finalizadas</p>
-          <p className="stat-tile__value">{finalizados}</p>
-        </div>
-        <div className="stat-tile stat-tile--rechazado">
-          <p className="stat-tile__label">Rechazadas</p>
-          <p className="stat-tile__value">{rechazados}</p>
-        </div>
-        <div className="stat-tile">
-          <p className="stat-tile__label">Tiempo promedio de resolución</p>
-          <p className="stat-tile__value">
-            {promedioHoras !== null ? formatearDuracion(promedioHoras) : '—'}
-          </p>
-        </div>
-      </div>
-
-      <section className="stats-seccion" aria-labelledby="stats-horas-titulo">
-        <div className="stats-seccion__encabezado">
-          <h2 id="stats-horas-titulo">Horas invertidas</h2>
-          <p>Tiempo ejecutado. En las tareas con subtareas, cada hora cuenta para el responsable de su subtarea.</p>
-        </div>
-        <div className="stat-tiles">
-          <div className="stat-tile">
-            <p className="stat-tile__label">Horas ejecutadas acumuladas</p>
-            <p className="stat-tile__value">{horasLegibles(horasTotales)}</p>
-          </div>
-          <div className="stat-tile">
-            <p className="stat-tile__label">Horas propuestas acumuladas</p>
-            <p className="stat-tile__value">{horasEstimadas > 0 ? horasLegibles(horasEstimadas) : '—'}</p>
-          </div>
-          <div
-            className={`stat-tile${horasEstimadas === 0 ? '' : diferenciaHoras > 0 ? ' stat-tile--rechazado' : ' stat-tile--finalizado'}`}
-            title={desviacion !== null ? `${desviacion > 0 ? '+' : ''}${desviacion} % frente a lo propuesto` : 'Sin horas propuestas'}
+      <div className="pestanas stats-pestanas" role="tablist" aria-label="Vista de estadísticas">
+        {VISTAS.map((v) => (
+          <button
+            key={v.valor}
+            type="button"
+            role="tab"
+            id={`stats-pestana-${v.valor}`}
+            aria-selected={vista === v.valor}
+            aria-controls="stats-panel"
+            className={`pestana${vista === v.valor ? ' pestana--activa' : ''}`}
+            onClick={() => cambiarVista(v.valor)}
           >
-            <p className="stat-tile__label">Diferencia (ejecutado − propuesto)</p>
-            <p className="stat-tile__value">
-              {horasEstimadas > 0 ? `${diferenciaHoras > 0 ? '+' : diferenciaHoras < 0 ? '−' : ''}${horasLegibles(Math.abs(diferenciaHoras))}` : '—'}
-            </p>
-          </div>
-          <div className="stat-tile" title={`${dentroDelEstimado} de ${conAmbosTiempos.length} tareas con ambos tiempos no pasaron lo propuesto`}>
-            <p className="stat-tile__label">Cumplimiento del tiempo estimado</p>
-            <p className="stat-tile__value">{cumplimientoEstimado !== null ? `${cumplimientoEstimado} %` : '—'}</p>
-          </div>
-          <div className="stat-tile" title={`Entre ${ticketsConHoras.length} tareas con horas ejecutadas`}>
-            <p className="stat-tile__label">Promedio por tarea</p>
-            <p className="stat-tile__value">{promedioPorTicket !== null ? horasLegibles(promedioPorTicket) : '—'}</p>
-          </div>
-          <div className="stat-tile" title={`Entre ${colaboradores.length} colaboradores con horas`}>
-            <p className="stat-tile__label">Promedio por colaborador</p>
-            <p className="stat-tile__value">{promedioPorColaborador !== null ? horasLegibles(promedioPorColaborador) : '—'}</p>
-          </div>
-        </div>
-        <div className="charts-grid">
-          <div className="chart-card chart-card--ancho">
-            <h2>Horas ejecutadas vs. propuestas por {agrupacionTendencia === 'mes' ? 'mes' : 'día'}</h2>
-            <LineaTendencia
-              datos={tendenciaHoras}
-              formatearEtiqueta={(periodo) => formatearEtiquetaPeriodo(periodo, agrupacionTendencia)}
-              series={[
-                { clave: 'ejecutadas', nombre: 'Ejecutadas', color: 'var(--series-1)' },
-                { clave: 'propuestas', nombre: 'Propuestas', color: 'var(--text-muted)', punteada: true },
-              ]}
-              unidad="h"
-            />
-          </div>
-          <div className="chart-card">
-            <h2>Ranking de horas por colaborador</h2>
-            <RankingLista datos={horasColaborador} />
-          </div>
-          <div className="chart-card">
-            <h2>Distribución de horas por colaborador</h2>
-            <DonutChart datos={horasColaborador} centroEtiqueta="Horas" />
-          </div>
-          <div className="chart-card">
-            <h2>Tareas con mayor consumo de horas</h2>
-            <RankingLista datos={ticketsMasHoras} />
-          </div>
-          <div className="chart-card">
-            <h2>Subtareas con más horas</h2>
-            <RankingLista datos={subtareasMasHoras} />
-          </div>
-          <div className="chart-card">
-            <h2>Horas por proyecto</h2>
-            <BarraHorizontal datos={horasProyecto} />
-          </div>
-          <div className="chart-card">
-            <h2>Horas por empresa solicitante</h2>
-            <BarraHorizontal datos={horasEmpresa} />
-          </div>
-        </div>
-      </section>
-
-      <div className="charts-grid">
-        <div className="chart-card chart-card--ancho">
-          <h2>Tendencia de solicitudes</h2>
-          <LineaTendencia
-            datos={tendencia}
-            formatearEtiqueta={(periodo) => formatearEtiquetaPeriodo(periodo, agrupacionTendencia)}
-          />
-        </div>
-        <div className="chart-card">
-          <h2>Ranking por proyecto</h2>
-          <RankingLista datos={porProyecto} />
-        </div>
-        <div className="chart-card">
-          <h2>Tickets resueltos por persona</h2>
-          <DonutChart datos={porPersonaResuelto} centroEtiqueta="Resueltos" />
-        </div>
-        <div className="chart-card">
-          <h2>Solicitudes por persona asignada</h2>
-          <BarraHorizontal datos={porAgente} />
-        </div>
-        <div className="chart-card">
-          <h2>Solicitudes por empresa solicitante</h2>
-          <BarraHorizontal datos={porEmpresa} />
-        </div>
+            {v.etiqueta}
+            {v.valor === 'cumplimiento' && vencidas > 0 && (
+              <span className="pestana__contador pestana__contador--alerta" title={`${vencidas} vencidas`}>{vencidas}</span>
+            )}
+          </button>
+        ))}
       </div>
 
-      <section className="stats-seccion" aria-labelledby="stats-sla-titulo">
-        <div className="stats-seccion__encabezado">
-          <h2 id="stats-sla-titulo">Cumplimiento de tiempos</h2>
-          <p>Contra la fecha compromiso o, si no la hay, la fecha que pidió el solicitante.</p>
-        </div>
-        <div className="stat-tiles">
-          <div className="stat-tile stat-tile--semaforo-verde">
-            <p className="stat-tile__label"><span className="semaforo__punto" aria-hidden="true" /> Dentro del tiempo</p>
-            <p className="stat-tile__value">{dentroDelTiempo}</p>
+      <div id="stats-panel" role="tabpanel" aria-labelledby={`stats-pestana-${vista}`}>
+        {vista === 'resumen' && (
+          <>
+          <div className="stat-tiles">
+            <div className="stat-tile">
+              <p className="stat-tile__label">Total de solicitudes</p>
+              <p className="stat-tile__value">{total}</p>
+            </div>
+            <div className="stat-tile stat-tile--pendiente">
+              <p className="stat-tile__label">Pendientes</p>
+              <p className="stat-tile__value">{pendientes}</p>
+            </div>
+            <div className="stat-tile stat-tile--en_curso">
+              <p className="stat-tile__label">En curso</p>
+              <p className="stat-tile__value">{enCurso}</p>
+            </div>
+            <div className="stat-tile stat-tile--finalizado">
+              <p className="stat-tile__label">Finalizadas</p>
+              <p className="stat-tile__value">{finalizados}</p>
+            </div>
+            <div className="stat-tile stat-tile--rechazado">
+              <p className="stat-tile__label">Rechazadas</p>
+              <p className="stat-tile__value">{rechazados}</p>
+            </div>
+            <div className="stat-tile">
+              <p className="stat-tile__label">Tiempo promedio de resolución</p>
+              <p className="stat-tile__value">
+                {promedioHoras !== null ? formatearDuracion(promedioHoras) : '—'}
+              </p>
+            </div>
           </div>
-          <div className="stat-tile stat-tile--semaforo-amarillo">
-            <p className="stat-tile__label"><span className="semaforo__punto" aria-hidden="true" /> Próximas a vencer</p>
-            <p className="stat-tile__value">{porVencer}</p>
+
+          <div className="charts-grid">
+            <div className="chart-card chart-card--ancho">
+              <h2>Tendencia de solicitudes</h2>
+              <LineaTendencia
+                datos={tendencia}
+                formatearEtiqueta={(periodo) => formatearEtiquetaPeriodo(periodo, agrupacionTendencia)}
+              />
+            </div>
+            <div className="chart-card">
+              <h2>Ranking por proyecto</h2>
+              <RankingLista datos={porProyecto} />
+            </div>
+            <div className="chart-card">
+              <h2>Tickets resueltos por persona</h2>
+              <DonutChart datos={porPersonaResuelto} centroEtiqueta="Resueltos" />
+            </div>
+            <div className="chart-card">
+              <h2>Solicitudes por persona asignada</h2>
+              <BarraHorizontal datos={porAgente} />
+            </div>
+            <div className="chart-card">
+              <h2>Solicitudes por empresa solicitante</h2>
+              <BarraHorizontal datos={porEmpresa} />
+            </div>
           </div>
-          <div className="stat-tile stat-tile--semaforo-rojo">
-            <p className="stat-tile__label"><span className="semaforo__punto" aria-hidden="true" /> Vencidas</p>
-            <p className="stat-tile__value">{vencidas}</p>
-          </div>
-          <div className="stat-tile" title={`${cumplimientos.filter(Boolean).length} de ${cumplimientos.length} finalizadas con fecha se terminaron a tiempo`}>
-            <p className="stat-tile__label">Cumplimiento de SLA</p>
-            <p className="stat-tile__value">{porcentajeCumplimiento !== null ? `${porcentajeCumplimiento} %` : '—'}</p>
-          </div>
-          <div className="stat-tile" title="Promedio entre las finalizadas tarde y las abiertas ya vencidas">
-            <p className="stat-tile__label">Retraso promedio</p>
-            <p className="stat-tile__value">{retrasoPromedio !== null ? formatearDuracion(retrasoPromedio) : '—'}</p>
-          </div>
-        </div>
-        <div className="charts-grid">
-          <div className="chart-card">
-            <h2>Proyectos con más vencimientos</h2>
-            <RankingLista datos={vencimientosPorProyecto} />
-          </div>
-        </div>
-      </section>
+          </>
+        )}
+
+        {vista === 'horas' && (
+          <section className="stats-seccion" aria-label="Horas invertidas">
+            <p className="stats-seccion__nota">
+              Tiempo ejecutado y propuesto de las tareas. En las que tienen subtareas, cada hora cuenta para el responsable de su subtarea.
+            </p>
+            <div className="stat-tiles">
+              <div className="stat-tile">
+                <p className="stat-tile__label">Horas ejecutadas acumuladas</p>
+                <p className="stat-tile__value">{horasLegibles(horasTotales)}</p>
+              </div>
+              <div className="stat-tile">
+                <p className="stat-tile__label">Horas propuestas acumuladas</p>
+                <p className="stat-tile__value">{horasEstimadas > 0 ? horasLegibles(horasEstimadas) : '—'}</p>
+              </div>
+              <div
+                className={`stat-tile${horasEstimadas === 0 ? '' : diferenciaHoras > 0 ? ' stat-tile--rechazado' : ' stat-tile--finalizado'}`}
+                title={desviacion !== null ? `${desviacion > 0 ? '+' : ''}${desviacion} % frente a lo propuesto` : 'Sin horas propuestas'}
+              >
+                <p className="stat-tile__label">Diferencia (ejecutado − propuesto)</p>
+                <p className="stat-tile__value">
+                  {horasEstimadas > 0 ? `${diferenciaHoras > 0 ? '+' : diferenciaHoras < 0 ? '−' : ''}${horasLegibles(Math.abs(diferenciaHoras))}` : '—'}
+                </p>
+              </div>
+              <div className="stat-tile" title={`${dentroDelEstimado} de ${conAmbosTiempos.length} tareas con ambos tiempos no pasaron lo propuesto`}>
+                <p className="stat-tile__label">Cumplimiento del tiempo estimado</p>
+                <p className="stat-tile__value">{cumplimientoEstimado !== null ? `${cumplimientoEstimado} %` : '—'}</p>
+              </div>
+              <div className="stat-tile" title={`Entre ${ticketsConHoras.length} tareas con horas ejecutadas`}>
+                <p className="stat-tile__label">Promedio por tarea</p>
+                <p className="stat-tile__value">{promedioPorTicket !== null ? horasLegibles(promedioPorTicket) : '—'}</p>
+              </div>
+              <div className="stat-tile" title={`Entre ${colaboradores.length} colaboradores con horas`}>
+                <p className="stat-tile__label">Promedio por colaborador</p>
+                <p className="stat-tile__value">{promedioPorColaborador !== null ? horasLegibles(promedioPorColaborador) : '—'}</p>
+              </div>
+            </div>
+            <div className="charts-grid">
+              <div className="chart-card chart-card--ancho">
+                <h2>Horas ejecutadas vs. propuestas por {agrupacionTendencia === 'mes' ? 'mes' : 'día'}</h2>
+                <LineaTendencia
+                  datos={tendenciaHoras}
+                  formatearEtiqueta={(periodo) => formatearEtiquetaPeriodo(periodo, agrupacionTendencia)}
+                  series={[
+                    { clave: 'ejecutadas', nombre: 'Ejecutadas', color: 'var(--series-1)' },
+                    { clave: 'propuestas', nombre: 'Propuestas', color: 'var(--text-muted)', punteada: true },
+                  ]}
+                  unidad="h"
+                />
+              </div>
+              <div className="chart-card">
+                <h2>Ranking de horas por colaborador</h2>
+                <RankingLista datos={horasColaborador} />
+              </div>
+              <div className="chart-card">
+                <h2>Distribución de horas por colaborador</h2>
+                <DonutChart datos={horasColaborador} centroEtiqueta="Horas" />
+              </div>
+              <div className="chart-card">
+                <h2>Tareas con mayor consumo de horas</h2>
+                <RankingLista datos={ticketsMasHoras} />
+              </div>
+              <div className="chart-card">
+                <h2>Subtareas con más horas</h2>
+                <RankingLista datos={subtareasMasHoras} />
+              </div>
+              <div className="chart-card">
+                <h2>Horas por proyecto</h2>
+                <BarraHorizontal datos={horasProyecto} />
+              </div>
+              <div className="chart-card">
+                <h2>Horas por empresa solicitante</h2>
+                <BarraHorizontal datos={horasEmpresa} />
+              </div>
+            </div>
+          </section>
+        )}
+
+        {vista === 'cumplimiento' && (
+          <section className="stats-seccion" aria-label="Cumplimiento de tiempos">
+            <p className="stats-seccion__nota">
+              Se mide contra la fecha compromiso o, si no la hay, contra la fecha que pidió el solicitante.
+            </p>
+            <div className="stat-tiles">
+              <div className="stat-tile stat-tile--semaforo-verde">
+                <p className="stat-tile__label"><span className="semaforo__punto" aria-hidden="true" /> Dentro del tiempo</p>
+                <p className="stat-tile__value">{dentroDelTiempo}</p>
+              </div>
+              <div className="stat-tile stat-tile--semaforo-amarillo">
+                <p className="stat-tile__label"><span className="semaforo__punto" aria-hidden="true" /> Próximas a vencer</p>
+                <p className="stat-tile__value">{porVencer}</p>
+              </div>
+              <div className="stat-tile stat-tile--semaforo-rojo">
+                <p className="stat-tile__label"><span className="semaforo__punto" aria-hidden="true" /> Vencidas</p>
+                <p className="stat-tile__value">{vencidas}</p>
+              </div>
+              <div className="stat-tile" title={`${cumplimientos.filter(Boolean).length} de ${cumplimientos.length} finalizadas con fecha se terminaron a tiempo`}>
+                <p className="stat-tile__label">Cumplimiento de SLA</p>
+                <p className="stat-tile__value">{porcentajeCumplimiento !== null ? `${porcentajeCumplimiento} %` : '—'}</p>
+              </div>
+              <div className="stat-tile" title="Promedio entre las finalizadas tarde y las abiertas ya vencidas">
+                <p className="stat-tile__label">Retraso promedio</p>
+                <p className="stat-tile__value">{retrasoPromedio !== null ? formatearDuracion(retrasoPromedio) : '—'}</p>
+              </div>
+            </div>
+            <div className="charts-grid">
+              <div className="chart-card">
+                <h2>Proyectos con más vencimientos</h2>
+                <RankingLista datos={vencimientosPorProyecto} />
+              </div>
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   )
 }
