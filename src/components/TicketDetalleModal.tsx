@@ -24,6 +24,7 @@ import { HistorialCambios } from './HistorialCambios'
 import { RespuestaFinalizacion } from './RespuestaFinalizacion'
 import { RechazarSolicitud } from './RechazarSolicitud'
 import { Avatar } from './Avatar'
+import { SemaforoVencimiento } from './SemaforoVencimiento'
 import type { ColumnaId } from './KanbanColumn'
 import type { Prioridad, RelacionLaboralNelyoda, TicketConRelaciones } from '../types/database'
 
@@ -109,6 +110,8 @@ export function TicketDetalleModal({
   const [prioridad, setPrioridad] = useState<Prioridad>(ticket.prioridad)
   const fechaRequeridaInicial = aInputFecha(ticket.fecha_requerida)
   const [fechaRequerida, setFechaRequerida] = useState(fechaRequeridaInicial)
+  const fechaCompromisoInicial = aInputFecha(ticket.fecha_compromiso)
+  const [fechaCompromiso, setFechaCompromiso] = useState(fechaCompromisoInicial)
   const [proyectoId, setProyectoId] = useState(ticket.proyecto_id ?? '')
   const [tipoId, setTipoId] = useState(ticket.tipo_id ?? '')
   const [nuevoProyecto, setNuevoProyecto] = useState('')
@@ -182,6 +185,11 @@ export function TicketDetalleModal({
       setError('El título y la descripción no pueden quedar vacíos.')
       return
     }
+    // Lo valida también la base (migración 0041); aquí se avisa antes.
+    if (fechaCompromiso !== fechaCompromisoInicial && fechaCompromiso && new Date(fechaCompromiso).getTime() <= Date.now()) {
+      setError('La fecha compromiso debe ser posterior a este momento.')
+      return
+    }
     setGuardando(true)
 
     let proyectoIdFinal = proyectoId || null
@@ -213,6 +221,9 @@ export function TicketDetalleModal({
         fecha_requerida: fechaRequerida === fechaRequeridaInicial
           ? ticket.fecha_requerida
           : fechaRequerida ? new Date(fechaRequerida).toISOString() : null,
+        fecha_compromiso: fechaCompromiso === fechaCompromisoInicial
+          ? ticket.fecha_compromiso
+          : fechaCompromiso ? new Date(fechaCompromiso).toISOString() : null,
         proyecto_id: proyectoIdFinal,
         tipo_id: tipoId || null,
         es_grupal: esGrupal,
@@ -408,6 +419,7 @@ export function TicketDetalleModal({
     || descripcion !== ticket.descripcion
     || prioridad !== ticket.prioridad
     || fechaRequerida !== fechaRequeridaInicial
+    || fechaCompromiso !== fechaCompromisoInicial
     || proyectoId !== (ticket.proyecto_id ?? '')
     || tipoId !== (ticket.tipo_id ?? '')
     || nuevoProyecto.trim() !== ''
@@ -497,6 +509,7 @@ export function TicketDetalleModal({
                   <span className="badge badge--aprobada">Aprobada</span>
                 )}
                 {fueRechazada(ticket) && <span className="badge badge--rechazada">Rechazada por el solicitante</span>}
+                <SemaforoVencimiento ticket={ticket} />
               </div>
 
               {puedeEditarTiempos ? (
@@ -682,6 +695,27 @@ export function TicketDetalleModal({
                       <input id="detalle-fecha" type="datetime-local" value={fechaRequerida} onChange={(e) => setFechaRequerida(e.target.value)} />
                     ) : (
                       formatearFecha(ticket.fecha_requerida)
+                    )}
+                  </dd>
+                </div>
+
+                {/* La define el equipo; el vencimiento se mide contra ella o,
+                    si está vacía, contra "Para cuándo" (migración 0041). */}
+                <div className="propiedad">
+                  <dt><label htmlFor="detalle-compromiso">Compromiso</label></dt>
+                  <dd title="Fecha y hora a la que el equipo se compromete a terminarla">
+                    {puedeEditarTiempos ? (
+                      <input
+                        id="detalle-compromiso"
+                        type="datetime-local"
+                        value={fechaCompromiso}
+                        min={aInputFecha(new Date().toISOString())}
+                        onChange={(e) => setFechaCompromiso(e.target.value)}
+                      />
+                    ) : ticket.fecha_compromiso ? (
+                      formatearFecha(ticket.fecha_compromiso)
+                    ) : (
+                      <span className="propiedad__vacio">Sin definir</span>
                     )}
                   </dd>
                 </div>

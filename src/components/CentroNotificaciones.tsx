@@ -45,8 +45,13 @@ function hace(iso: string): string {
 }
 
 function nombreActor(n: NotificacionConRelaciones): string {
+  if (n.tipo === 'vencimiento') return 'Mesa de Ayuda'
   return n.actor?.full_name?.trim() || n.actor?.email || 'Alguien'
 }
+
+// En estos tipos el detalle es un código (estado, etapa del vencimiento), no
+// un extracto para mostrar.
+const SIN_EXTRACTO = new Set<Notificacion['tipo']>(['estado', 'vencimiento'])
 
 // Texto principal: quién hizo qué y sobre qué tarea.
 function Mensaje({ n }: { n: NotificacionConRelaciones }) {
@@ -69,6 +74,11 @@ function Mensaje({ n }: { n: NotificacionConRelaciones }) {
       return <>{actor} rechazó la finalización de {tarea}; volvió a <strong>Pendiente</strong></>
     case 'solicitud_rechazada':
       return <>{actor} rechazó tu solicitud {tarea}</>
+    // Las crea el cron (migración 0041), sin actor.
+    case 'vencimiento':
+      return n.detalle === 'vencido'
+        ? <>{tarea} <strong>está vencida</strong></>
+        : <>{tarea} vence en menos de <strong>{n.detalle === '4h' ? '4 horas' : '24 horas'}</strong></>
   }
 }
 
@@ -80,6 +90,7 @@ const ICONO_TIPO: Record<Notificacion['tipo'], string> = {
   aprobacion: '👍',
   rechazo: '↩',
   solicitud_rechazada: '✕',
+  vencimiento: '⏰',
 }
 
 // Campanita del encabezado con el panel de notificaciones. Al tocar una se
@@ -252,7 +263,7 @@ export function CentroNotificaciones() {
                     </span>
                     <span className="notificacion__contenido">
                       <span className="notificacion__texto"><Mensaje n={n} /></span>
-                      {n.detalle && n.tipo !== 'estado' && (
+                      {n.detalle && !SIN_EXTRACTO.has(n.tipo) && (
                         <span className="notificacion__extracto">{n.detalle}</span>
                       )}
                       <time className="notificacion__fecha" dateTime={n.created_at}>{hace(n.created_at)}</time>
@@ -273,7 +284,7 @@ export function CentroNotificaciones() {
           <Avatar nombre={nombreActor(aviso)} />
           <span>
             <span className="notificacion__texto"><Mensaje n={aviso} /></span>
-            {aviso.detalle && aviso.tipo !== 'estado' && (
+            {aviso.detalle && !SIN_EXTRACTO.has(aviso.tipo) && (
               <span className="notificacion__extracto">{aviso.detalle}</span>
             )}
           </span>

@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { TicketDetalleModal } from '../components/TicketDetalleModal'
+import { SemaforoVencimiento } from '../components/SemaforoVencimiento'
+import { semaforo } from '../lib/vencimiento'
 import { coincideBusqueda, esperaAprobacion, fueRechazada, nombresAsignados, TICKET_SELECT } from '../lib/ticket'
 import type { Estado, TicketConRelaciones } from '../types/database'
 
@@ -212,6 +214,7 @@ export function MisSolicitudesPage() {
                 <th>Área</th>
                 <th>Estado</th>
                 <th>Atendido por</th>
+                <th>Vencimiento</th>
                 <th>Solicitado</th>
               </tr>
             </thead>
@@ -247,13 +250,16 @@ export function MisSolicitudesPage() {
                       </span>
                     </td>
                     <td className="mis-solicitudes__secundario">{nombresAsignados(t).join(', ') || 'Sin asignar'}</td>
+                    <td className="mis-solicitudes__secundario">
+                      {semaforo(t) ? <SemaforoVencimiento ticket={t} /> : '—'}
+                    </td>
                     <td className="mis-solicitudes__secundario mis-solicitudes__fecha">{formatearFechaCorta(t.created_at)}</td>
                   </tr>
                 )
               })}
               {visibles.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="mis-solicitudes__vacio">
+                  <td colSpan={7} className="mis-solicitudes__vacio">
                     <p>{tickets.length === 0 ? 'Todavía no tienes solicitudes.' : 'Ninguna solicitud coincide con los filtros.'}</p>
                     {tickets.length > 0 && hayFiltros && (
                       <button type="button" className="board-page__limpiar" onClick={limpiarFiltros}>Limpiar filtros</button>

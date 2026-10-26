@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0040_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0041_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -114,6 +114,13 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   a mano). Sale del tablero y queda en `/mis-solicitudes` con
   `tickets.motivo_rechazo`; avisa por campanita y por correo
   (`notify-finalizacion`).
+- Vencimientos (migración 0041): `tickets.fecha_compromiso` la define el
+  equipo; el vencimiento se mide contra ella o, si está vacía, contra
+  `fecha_requerida` (`src/lib/vencimiento.ts`: semáforo verde / amarillo a
+  24 h / rojo). pg_cron llama cada 15 min a la Edge Function
+  `notify-vencimientos`, que ejecuta `revisar_vencimientos()` (alertas de
+  24 h, 4 h y vencida en `alertas_vencimiento`, una vez por fecha objetivo,
+  más la notificación de la campanita) y envía los correos.
 - `fecha_requerida` y `tipo_id`, una vez definidos, solo los cambia quien
   pidió la tarea (trigger `proteger_datos_solicitante`, migración 0036).
 - `ticket_status_history`: auditoría de cada cambio de estado (se inserta a
@@ -198,6 +205,9 @@ para el HTML de los correos). Funciones actuales: `invite-user`,
 `acceso-cedula` (ingreso por cédula; usa además el secreto `NELYODA_IDENTITY_URL`), `revisar-texto` (ortografía y gramática con
 LanguageTool; API pública gratuita salvo que se definan los secretos
 `LANGUAGETOOL_USERNAME`/`LANGUAGETOOL_API_KEY` o `LANGUAGETOOL_URL`),
+`notify-vencimientos` (la llama pg_cron con el header `x-cron-key` =
+secreto `VENCIMIENTOS_CRON_KEY`; se despliega con `--no-verify-jwt`; la URL y
+la llave para el cron van en Vault),
 `asistente-solicitud` ("Mejorar con IA" al crear una solicitud; Gemini con el
 secreto `GEMINI_API_KEY`, la misma llave de Nelyoda, y `GEMINI_MODEL`
 opcional; solo responde a solicitudes de trabajo y limita a 20 usos por

@@ -1495,6 +1495,41 @@ label {
   border-top-color: var(--prioridad-urgente);
 }
 
+/* Semáforo de vencimiento en las tarjetas de cumplimiento. */
+.stat-tile--semaforo-verde {
+  --semaforo-color: var(--estado-finalizado);
+  border-top-color: var(--semaforo-color);
+}
+.stat-tile--semaforo-amarillo {
+  --semaforo-color: var(--estado-pendiente);
+  border-top-color: var(--semaforo-color);
+}
+.stat-tile--semaforo-rojo {
+  --semaforo-color: var(--prioridad-urgente);
+  border-top-color: var(--semaforo-color);
+}
+
+.stat-tile__label .semaforo__punto {
+  display: inline-block;
+  margin-right: 0.2rem;
+  vertical-align: 0.05rem;
+}
+
+.stats-seccion__encabezado {
+  margin-bottom: 0.7rem;
+}
+
+.stats-seccion__encabezado h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.stats-seccion__encabezado p {
+  margin: 0.2rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
 .stat-tile__label {
   font-size: 0.8rem;
   color: var(--text-secondary);
@@ -4700,6 +4735,51 @@ kbd {
 
 .ticket-card__dato-sutil {
   opacity: 0.7;
+}
+
+/* Semáforo de vencimiento (SemaforoVencimiento). */
+.semaforo {
+  --semaforo-color: var(--estado-finalizado);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--semaforo-color) 13%, transparent);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.semaforo strong {
+  color: var(--semaforo-color);
+  font-weight: 700;
+}
+
+.semaforo--amarillo {
+  --semaforo-color: var(--estado-pendiente);
+}
+
+.semaforo--rojo {
+  --semaforo-color: var(--prioridad-urgente);
+}
+
+.semaforo__punto {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--semaforo-color);
+}
+
+.semaforo--compacto {
+  padding: 0.05rem 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.semaforo--rojo.semaforo--compacto {
+  color: var(--prioridad-urgente);
 }
 
 .ticket-card__dato--vencida {

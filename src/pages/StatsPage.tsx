@@ -14,6 +14,7 @@ import {
   type RangoPersonalizado,
 } from '../lib/agregaciones'
 import { nombresAsignados } from '../lib/ticket'
+import { cumplioATiempo, horasDeRetraso, semaforo } from '../lib/vencimiento'
 import { exportarReporteDetalladoExcel, exportarTicketsCSV } from '../lib/exportarCsv'
 import { BarraHorizontal } from '../components/BarraHorizontal'
 import { RankingLista } from '../components/RankingLista'
@@ -30,12 +31,15 @@ const TICKET_SELECT = `
   asignados:ticket_asignados(profile:profiles(id, full_name, email))
 `
 
+function responsablesDe(ticket: TicketConRelaciones): string[] {
+  const nombres = nombresAsignados(ticket)
+  return nombres.length > 0 ? nombres : ['Bandeja general']
+}
+
 function contarPorPersonaAsignada(tickets: TicketConRelaciones[]): ConteoCategoria[] {
   const conteo = new Map<string, number>()
   for (const ticket of tickets) {
-    const nombres = nombresAsignados(ticket)
-    const claves = nombres.length > 0 ? nombres : ['Bandeja general']
-    for (const nombre of claves) {
+    for (const nombre of responsablesDe(ticket)) {
       conteo.set(nombre, (conteo.get(nombre) ?? 0) + 1)
     }
   }
@@ -98,6 +102,9 @@ export function StatsPage() {
   const [filtroEstado, setFiltroEstado] = useState<Estado | ''>('')
   const [filtroRango, setFiltroRango] = useState<RangoFecha>('todo')
   const [rangoPersonalizado, setRangoPersonalizado] = useState<RangoPersonalizado>({ desde: '', hasta: '' })
+  // Por nombre, como se muestran (incluye "Bandeja general" para las sin asignar).
+  const [filtroResponsable, setFiltroResponsable] = useState('')
+  const [filtroEmpresa, setFiltroEmpresa] = useState('')
 
   useEffect(() => {
     if (!areaId) return
@@ -115,9 +122,20 @@ export function StatsPage() {
     return tickets.filter(
       (t) =>
         (!filtroProyecto || t.proyecto_id === filtroProyecto) &&
+        (!filtroResponsable || responsablesDe(t).includes(filtroResponsable)) &&
+        (!filtroEmpresa || t.empresa_solicitante === filtroEmpresa) &&
         dentroDeRango(t.created_at, filtroRango, rangoPersonalizado),
     )
-  }, [tickets, filtroProyecto, filtroRango, rangoPersonalizado])
+  }, [tickets, filtroProyecto, filtroResponsable, filtroEmpresa, filtroRango, rangoPersonalizado])
+
+  const opcionesResponsable = useMemo(
+    () => [...new Set(tickets.flatMap(responsablesDe))].sort((a, b) => a.localeCompare(b, 'es')),
+    [tickets],
+  )
+  const opcionesEmpresa = useMemo(
+    () => [...new Set(tickets.map((t) => t.empresa_solicitante).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')),
+    [tickets],
+  )
 
   const ticketsFiltrados = useMemo(() => {
     return ticketsBase.filter((t) => !filtroEstado || t.estado === filtroEstado)
@@ -149,7 +167,25 @@ export function StatsPage() {
   const agrupacionTendencia = agrupacionPara(filtroRango, rangoPersonalizado)
   const tendencia = serieTemporal(ticketsBase, agrupacionTendencia, filtroRango, rangoPersonalizado)
 
+  // Cumplimiento de tiempos (migración 0041): semáforo de las abiertas,
+  // cumplimiento de las finalizadas y retraso de las que se pasaron.
+  const ahora = Date.now()
+  const semaforos = ticketsFiltrados.map((t) => semaforo(t, ahora))
+  const dentroDelTiempo = semaforos.filter((s) => s === 'verde').length
+  const porVencer = semaforos.filter((s) => s === 'amarillo').length
+  const vencidas = semaforos.filter((s) => s === 'rojo').length
+  const cumplimientos = ticketsFiltrados.map(cumplioATiempo).filter((c): c is boolean => c !== null)
+  const porcentajeCumplimiento = cumplimientos.length > 0
+    ? Math.round((cumplimientos.filter(Boolean).length / cumplimientos.length) * 100)
+    : null
+  const retrasadas = ticketsFiltrados.filter((t) => horasDeRetraso(t, ahora) !== null)
+  const retrasoPromedio = retrasadas.length > 0
+    ? retrasadas.reduce((acc, t) => acc + horasDeRetraso(t, ahora)!, 0) / retrasadas.length
+    : null
+  const vencimientosPorProyecto = contarPor(retrasadas, (t) => t.proyecto?.nombre ?? null)
+
   const hayFiltros = filtroProyecto !== '' || filtroEstado !== '' || filtroRango !== 'todo'
+    || filtroResponsable !== '' || filtroEmpresa !== ''
 
   return (
     <div className="stats-page">
@@ -230,6 +266,18 @@ export function StatsPage() {
             <option value="finalizado">Finalizado</option>
             <option value="rechazado">Rechazado</option>
           </select>
+          <select value={filtroResponsable} onChange={(e) => setFiltroResponsable(e.target.value)} aria-label="Filtrar por responsable">
+            <option value="">Todos los responsables</option>
+            {opcionesResponsable.map((nombre) => (
+              <option key={nombre} value={nombre}>{nombre}</option>
+            ))}
+          </select>
+          <select value={filtroEmpresa} onChange={(e) => setFiltroEmpresa(e.target.value)} aria-label="Filtrar por empresa">
+            <option value="">Todas las empresas</option>
+            {opcionesEmpresa.map((empresa) => (
+              <option key={empresa} value={empresa}>{empresa}</option>
+            ))}
+          </select>
           {hayFiltros && (
             <button
               type="button"
@@ -237,6 +285,8 @@ export function StatsPage() {
               onClick={() => {
                 setFiltroProyecto('')
                 setFiltroEstado('')
+                setFiltroResponsable('')
+                setFiltroEmpresa('')
                 setFiltroRango('todo')
                 setRangoPersonalizado({ desde: '', hasta: '' })
               }}
@@ -276,7 +326,40 @@ export function StatsPage() {
         </div>
       </div>
 
+      <section className="stats-seccion" aria-labelledby="stats-sla-titulo">
+        <div className="stats-seccion__encabezado">
+          <h2 id="stats-sla-titulo">Cumplimiento de tiempos</h2>
+          <p>Contra la fecha compromiso o, si no la hay, la fecha que pidió el solicitante.</p>
+        </div>
+        <div className="stat-tiles">
+          <div className="stat-tile stat-tile--semaforo-verde">
+            <p className="stat-tile__label"><span className="semaforo__punto" aria-hidden="true" /> Dentro del tiempo</p>
+            <p className="stat-tile__value">{dentroDelTiempo}</p>
+          </div>
+          <div className="stat-tile stat-tile--semaforo-amarillo">
+            <p className="stat-tile__label"><span className="semaforo__punto" aria-hidden="true" /> Próximas a vencer</p>
+            <p className="stat-tile__value">{porVencer}</p>
+          </div>
+          <div className="stat-tile stat-tile--semaforo-rojo">
+            <p className="stat-tile__label"><span className="semaforo__punto" aria-hidden="true" /> Vencidas</p>
+            <p className="stat-tile__value">{vencidas}</p>
+          </div>
+          <div className="stat-tile" title={`${cumplimientos.filter(Boolean).length} de ${cumplimientos.length} finalizadas con fecha se terminaron a tiempo`}>
+            <p className="stat-tile__label">Cumplimiento de SLA</p>
+            <p className="stat-tile__value">{porcentajeCumplimiento !== null ? `${porcentajeCumplimiento} %` : '—'}</p>
+          </div>
+          <div className="stat-tile" title="Promedio entre las finalizadas tarde y las abiertas ya vencidas">
+            <p className="stat-tile__label">Retraso promedio</p>
+            <p className="stat-tile__value">{retrasoPromedio !== null ? formatearDuracion(retrasoPromedio) : '—'}</p>
+          </div>
+        </div>
+      </section>
+
       <div className="charts-grid">
+        <div className="chart-card">
+          <h2>Proyectos con más vencimientos</h2>
+          <RankingLista datos={vencimientosPorProyecto} />
+        </div>
         <div className="chart-card chart-card--ancho">
           <h2>Tendencia de solicitudes</h2>
           <LineaTendencia

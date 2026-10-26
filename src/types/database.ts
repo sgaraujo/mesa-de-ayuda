@@ -63,6 +63,9 @@ export interface Ticket {
   updated_at: string
   finalizado_at: string | null
   fecha_requerida: string | null
+  // Fecha y hora a la que se compromete el equipo (migración 0041). El
+  // vencimiento se mide contra ella o, si no hay, contra fecha_requerida.
+  fecha_compromiso: string | null
   tiempo_propuesto_horas: number | null
   tiempo_ejecutado_horas: number | null
   archivo_url: string | null
@@ -144,7 +147,7 @@ export interface TicketMencion {
 
 // Centro de notificaciones (migración 0026); las crean triggers.
 export type TipoNotificacion =
-  | 'mencion' | 'comentario' | 'asignacion' | 'estado' | 'aprobacion' | 'rechazo' | 'solicitud_rechazada'
+  | 'mencion' | 'comentario' | 'asignacion' | 'estado' | 'aprobacion' | 'rechazo' | 'solicitud_rechazada' | 'vencimiento'
 
 export interface Notificacion {
   id: string

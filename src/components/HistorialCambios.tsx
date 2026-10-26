@@ -12,6 +12,7 @@ const NOMBRE_CAMPO: Record<string, string> = {
   prioridad: 'la prioridad',
   estado: 'el estado',
   fecha_requerida: 'la fecha requerida',
+  fecha_compromiso: 'la fecha compromiso',
   asignado_a: 'la persona asignada',
   es_grupal: 'el tipo de tarea',
   area: 'el área',
@@ -49,6 +50,7 @@ function formatearValor(campo: string, valor: string | null): string {
     case 'estado':
       return ETIQUETAS[valor] ?? valor
     case 'fecha_requerida':
+    case 'fecha_compromiso':
       return formatearFecha(valor)
     case 'es_grupal':
       return valor === 'true' ? 'En grupo' : 'Individual'

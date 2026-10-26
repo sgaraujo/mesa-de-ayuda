@@ -1,6 +1,8 @@
 import { useDraggable } from '@dnd-kit/core'
 import { clasificacionFaltante, esperaAprobacion, fueRechazada, nombresAsignados } from '../lib/ticket'
+import { cumplioATiempo, semaforo } from '../lib/vencimiento'
 import { Avatar } from './Avatar'
+import { SemaforoVencimiento } from './SemaforoVencimiento'
 import type { TicketConRelaciones } from '../types/database'
 
 const PRIORIDAD_LABEL: Record<string, string> = {
@@ -63,7 +65,8 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true, mostrarArea
   const finalizada = ticket.estado === 'finalizado'
   const porAprobar = esperaAprobacion(ticket)
   const rechazada = fueRechazada(ticket)
-  const vencida = !finalizada && ticket.fecha_requerida !== null && new Date(ticket.fecha_requerida).getTime() < Date.now()
+  const conSemaforo = semaforo(ticket) !== null
+  const finalizadaTarde = cumplioATiempo(ticket) === false
 
   const clases = [
     'ticket-card',
@@ -124,18 +127,15 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true, mostrarArea
       <div className="ticket-card__footer">
         <div className="ticket-card__meta">
           {finalizada && ticket.finalizado_at ? (
-            <span className="ticket-card__dato ticket-card__dato--ok" title={`Finalizada: ${formatearFechaHora(ticket.finalizado_at)}`}>
+            <span
+              className={`ticket-card__dato ${finalizadaTarde ? 'ticket-card__dato--vencida' : 'ticket-card__dato--ok'}`}
+              title={`Finalizada${finalizadaTarde ? ' fuera de tiempo' : ''}: ${formatearFechaHora(ticket.finalizado_at)}`}
+            >
               <Icono d={ICONO_CHECK} />
               {formatearDia(ticket.finalizado_at)}
             </span>
-          ) : ticket.fecha_requerida ? (
-            <span
-              className={`ticket-card__dato${vencida ? ' ticket-card__dato--vencida' : ''}`}
-              title={`${vencida ? 'Vencida' : 'Para'}: ${formatearFechaHora(ticket.fecha_requerida)}`}
-            >
-              <Icono d={ICONO_CALENDARIO} />
-              {formatearDia(ticket.fecha_requerida)}
-            </span>
+          ) : conSemaforo ? (
+            <SemaforoVencimiento ticket={ticket} compacto />
           ) : (
             <span className="ticket-card__dato" title={`Solicitada: ${formatearFechaHora(ticket.created_at)}`}>
               <Icono d={ICONO_CALENDARIO} />
