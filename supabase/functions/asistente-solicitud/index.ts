@@ -6,7 +6,8 @@ import { corsHeaders } from '../_shared/graph.ts'
 // claro, una descripción ordenada y las preguntas que el equipo haría si falta
 // información. No guarda nada: la persona decide si usa la propuesta.
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
-const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash'
+// Mismo modelo por defecto que Nelyoda (su parámetro GEMINI_MODEL).
+const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-3.5-flash'
 const TEXTO_MAX_CARACTERES = 5000
 
 const supabaseAdmin = createClient(
