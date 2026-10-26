@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs'
 import type { TicketConRelaciones } from '../types/database'
 import { estaSinAsignar, nombresAsignados } from './ticket'
+import { cumplioATiempo, fechaObjetivo, horasDeRetraso, semaforo, type Semaforo } from './vencimiento'
 
 const ESTADO_LABEL: Record<string, string> = {
   pendiente: 'Pendiente',
@@ -28,6 +29,30 @@ function escaparCsv(valor: string): string {
 function formatearFecha(iso: string | null): string {
   if (!iso) return ''
   return new Date(iso).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+// Columnas de vencimiento (migración 0041). Van al final de cada reporte para
+// no mover las que ya existen (el Excel tiene un formato fijo).
+const ENCABEZADOS_VENCIMIENTO = ['Fecha objetivo', 'Origen de la fecha', 'Semáforo', 'Cumplimiento', 'Horas de retraso']
+
+const SEMAFORO_LABEL: Record<Semaforo, string> = {
+  verde: 'Dentro del tiempo',
+  amarillo: 'Próxima a vencer',
+  rojo: 'Vencida',
+}
+
+function columnasVencimiento(t: TicketConRelaciones, ahora: number): unknown[] {
+  const objetivo = fechaObjetivo(t)
+  const color = semaforo(t, ahora)
+  const cumplio = cumplioATiempo(t)
+  const retraso = horasDeRetraso(t, ahora)
+  return [
+    formatearFecha(objetivo),
+    !objetivo ? '' : t.fecha_compromiso ? 'Compromiso del equipo' : 'Pedida por el solicitante',
+    color ? SEMAFORO_LABEL[color] : '',
+    cumplio === null ? '' : cumplio ? 'A tiempo' : 'Fuera de tiempo',
+    retraso !== null ? retraso.toFixed(1) : '',
+  ]
 }
 
 function construirCsv(encabezados: string[], filas: unknown[][]): string {
@@ -80,8 +105,10 @@ export function exportarTicketsCSV(tickets: TicketConRelaciones[]) {
     'Finalizado',
     'Fecha de finalización',
     'Nota de finalización',
+    ...ENCABEZADOS_VENCIMIENTO,
   ]
 
+  const ahora = Date.now()
   const filas = tickets.map((t) => [
     t.numero,
     t.titulo,
@@ -91,6 +118,7 @@ export function exportarTicketsCSV(tickets: TicketConRelaciones[]) {
     t.estado === 'finalizado' ? 'Sí' : 'No',
     formatearFecha(t.finalizado_at),
     t.nota_finalizacion ?? '',
+    ...columnasVencimiento(t, ahora),
   ])
 
   descargarCsv(`tickets_${new Date().toISOString().slice(0, 10)}.csv`, construirCsv(encabezados, filas))
@@ -156,8 +184,10 @@ export async function exportarReporteDetalladoExcel(tickets: TicketConRelaciones
     'Semana',
     'Rango semana',
     'Fecha Y hora de actualizacion',
+    ...ENCABEZADOS_VENCIMIENTO,
   ]
 
+  const ahora = Date.now()
   const filas = tickets.map((t) => {
     const creado = new Date(t.created_at)
     return [
@@ -186,6 +216,7 @@ export async function exportarReporteDetalladoExcel(tickets: TicketConRelaciones
       numeroSemanaISO(creado),
       rangoSemana(creado),
       formatearFecha(t.updated_at),
+      ...columnasVencimiento(t, ahora),
     ]
   })
 

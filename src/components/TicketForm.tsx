@@ -32,6 +32,12 @@ function hoyLocal(): string {
   return new Date(hoy.getTime() - hoy.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
 }
 
+// "AAAA-MM-DDTHH:mm" en hora local, para el min de <input type="datetime-local">.
+function ahoraLocal(): string {
+  const ahora = new Date()
+  return new Date(ahora.getTime() - ahora.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+}
+
 // La fecha elegida cuenta hasta el final de ese día (hora local): la tarea
 // solo aparece vencida cuando el día ya pasó.
 function fechaRequeridaIso(fecha: string): string | null {
@@ -83,6 +89,9 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   const [prioridad, setPrioridad] = useState<Prioridad>('media')
   // "AAAA-MM-DD" del <input type="date">; vacío = sin fecha.
   const [fechaRequerida, setFechaRequerida] = useState('')
+  // "AAAA-MM-DDTHH:mm" del <input type="datetime-local">; solo la pone el
+  // equipo del área desde el tablero (migración 0041).
+  const [fechaCompromiso, setFechaCompromiso] = useState('')
   const [archivos, setArchivos] = useState<File[]>([])
   const [arrastrandoArchivo, setArrastrandoArchivo] = useState(false)
   const [enviando, setEnviando] = useState(false)
@@ -91,8 +100,10 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   const archivoInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    onDirtyChange?.(titulo.trim() !== '' || descripcion.trim() !== '' || archivos.length > 0 || fechaRequerida !== '')
-  }, [titulo, descripcion, archivos, fechaRequerida, onDirtyChange])
+    onDirtyChange?.(
+      titulo.trim() !== '' || descripcion.trim() !== '' || archivos.length > 0 || fechaRequerida !== '' || fechaCompromiso !== '',
+    )
+  }, [titulo, descripcion, archivos, fechaRequerida, fechaCompromiso, onDirtyChange])
 
   // Agrega los válidos a la lista; los que no sirven se explican en el error.
   function agregarArchivos(lista: FileList | null) {
@@ -142,9 +153,15 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
       setError('Elige el tipo de solicitud.')
       return
     }
+    const puedeAutoasignarse = rolEnDestino === 'agente' || rolEnDestino === 'lider'
+    const compromisoFinal = puedeAutoasignarse && fechaCompromiso ? new Date(fechaCompromiso) : null
+    // Lo valida también la base (migración 0041); aquí se avisa antes.
+    if (compromisoFinal && compromisoFinal.getTime() <= Date.now()) {
+      setError('La fecha compromiso debe ser posterior a este momento.')
+      return
+    }
     setError(null)
     setEnviando(true)
-    const puedeAutoasignarse = rolEnDestino === 'agente' || rolEnDestino === 'lider'
 
     const asignadoFinal = puedeAutoasignarse ? asignadoA || null : null
     const { data: ticketCreado, error } = await supabase
@@ -159,6 +176,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
         asignado_a: asignadoFinal,
         prioridad,
         fecha_requerida: fechaRequeridaIso(fechaRequerida),
+        fecha_compromiso: compromisoFinal?.toISOString() ?? null,
         estado: 'pendiente',
       })
       .select('id')
@@ -197,6 +215,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
     setDescripcion('')
     setPrioridad('media')
     setFechaRequerida('')
+    setFechaCompromiso('')
     setAsignadoA(asignadoAPorDefecto)
     setArchivos([])
     // Si los archivos fallaron, el formulario no se cierra solo: así se lee el aviso.
@@ -392,6 +411,17 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
               </label>
             )}
             {campoFecha}
+            {(rolEnDestino === 'agente' || rolEnDestino === 'lider') && (
+              <label title="Fecha y hora a la que el equipo se compromete a terminarla. Si queda vacía, el vencimiento se mide contra “Para cuándo”.">
+                <span>Fecha compromiso <small className="ticket-form__opcional">Opcional</small></span>
+                <input
+                  type="datetime-local"
+                  value={fechaCompromiso}
+                  min={ahoraLocal()}
+                  onChange={(e) => setFechaCompromiso(e.target.value)}
+                />
+              </label>
+            )}
           </div>
 
           {campoAdjunto}
