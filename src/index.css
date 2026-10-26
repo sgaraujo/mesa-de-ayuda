@@ -2661,8 +2661,172 @@ label {
   color: var(--prioridad-urgente);
 }
 
-.mis-solicitudes__aprobacion {
-  margin-left: 0.35rem;
+/* Mis solicitudes: pestañas de estado, filtros y tabla en un solo panel. */
+.mis-solicitudes__encabezado {
+  margin-bottom: 0;
+}
+
+.mis-solicitudes__panel {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.mis-solicitudes__pestanas {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 0.75rem;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.mis-solicitudes__pestanas button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.85rem 0.7rem 0.75rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.mis-solicitudes__pestanas button:hover:not(:disabled) {
+  filter: none;
+  color: var(--text-primary);
+}
+
+.mis-solicitudes__pestanas button[aria-pressed='true'] {
+  border-bottom-color: var(--brand);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.mis-solicitudes__conteo {
+  min-width: 1.4rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-page) 60%, var(--gridline));
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.mis-solicitudes__pestanas button[aria-pressed='true'] .mis-solicitudes__conteo {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+
+.mis-solicitudes__pestana--alerta .mis-solicitudes__conteo,
+.mis-solicitudes__pestanas button[aria-pressed='true'].mis-solicitudes__pestana--alerta .mis-solicitudes__conteo {
+  background: color-mix(in srgb, var(--prioridad-media) 28%, transparent);
+  color: var(--text-primary);
+}
+
+.mis-solicitudes__filtros {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.mis-solicitudes__filtros .board-page__buscador {
+  max-width: none;
+}
+
+/* La tabla ya va dentro del panel: sin borde ni sombra propios. */
+.mis-solicitudes__tabla {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.mis-solicitudes td {
+  vertical-align: top;
+}
+
+.mis-solicitudes__solicitud {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 260px;
+  max-width: 520px;
+}
+
+.mis-solicitudes__titulo {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mis-solicitudes__etiquetas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.mis-solicitudes__etiquetas .badge--mencion {
+  margin-left: 0;
+}
+
+.mis-solicitudes__rechazaste {
+  background: color-mix(in srgb, var(--prioridad-urgente) 12%, transparent);
+  color: var(--prioridad-urgente);
+}
+
+.mis-solicitudes__detalle,
+.mis-solicitudes__secundario {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.mis-solicitudes__motivo {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  padding-left: 0.6rem;
+  border-left: 2px solid color-mix(in srgb, var(--prioridad-urgente) 45%, transparent);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.mis-solicitudes__estados {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.mis-solicitudes__fecha {
+  white-space: nowrap;
+}
+
+.mis-solicitudes__vacio {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.mis-solicitudes__vacio p {
+  margin: 0 0 0.5rem;
+}
+
+.mis-solicitudes__vacio .board-page__limpiar {
+  height: 2rem;
+}
+
+@media (max-width: 720px) {
+  .mis-solicitudes__filtros {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 .mis-solicitudes__aviso {
@@ -2671,7 +2835,7 @@ label {
   align-items: center;
   justify-content: space-between;
   gap: 0.6rem 1rem;
-  margin: 0 0 1rem;
+  margin: 0;
   padding: 0.75rem 1rem;
   border: 1px solid color-mix(in srgb, var(--prioridad-media) 45%, transparent);
   border-radius: 10px;

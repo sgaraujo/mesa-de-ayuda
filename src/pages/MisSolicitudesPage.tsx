@@ -17,12 +17,22 @@ function formatearFechaCorta(iso: string): string {
   return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-// Todo lo que la persona pidió, a cualquier área, más las tareas donde la
-// mencionaron (@) en un comentario. Quien no es miembro de un área no ve ese
-// tablero, así que sigue esas tareas desde aquí; RLS solo le devuelve sus
-// propios tickets (solicitante_id) y aquellos en que fue mencionada.
-type Relacion = '' | 'pedidas' | 'mencionado'
+// Todo lo que la persona pidió, a cualquier área, las tareas donde la
+// mencionaron (@) en un comentario y las solicitudes de otros que ella
+// rechazó. El tablero oculta las rechazadas, así que quien rechaza las sigue
+// desde aquí. RLS solo devuelve los tickets que la persona puede ver.
+type Relacion = '' | 'pedidas' | 'mencionado' | 'rechazadas'
 type FiltroEstado = Estado | '' | 'por_aprobar'
+
+const PESTANAS_ESTADO: { valor: FiltroEstado; label: string }[] = [
+  { valor: '', label: 'Todas' },
+  { valor: 'por_aprobar', label: 'Por aprobar' },
+  { valor: 'pendiente', label: 'Pendientes' },
+  { valor: 'en_curso', label: 'En curso' },
+  { valor: 'finalizado', label: 'Finalizadas' },
+  { valor: 'rechazado', label: 'Rechazadas' },
+]
+
 export function MisSolicitudesPage() {
   const { profile } = useAuth()
   const profileId = profile?.id
@@ -32,25 +42,37 @@ export function MisSolicitudesPage() {
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('')
   const [filtroRelacion, setFiltroRelacion] = useState<Relacion>('')
   const [idsMencionado, setIdsMencionado] = useState<Set<string>>(new Set())
+  const [idsRechazadasPorMi, setIdsRechazadasPorMi] = useState<Set<string>>(new Set())
   const [ticketSeleccionado, setTicketSeleccionado] = useState<TicketConRelaciones | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const ticketEnlace = searchParams.get('ticket')
 
   const cargar = useCallback(async () => {
     if (!profileId) return
-    const { data: menciones } = await supabase
-      .from('ticket_menciones')
-      .select('ticket_id')
-      .eq('profile_id', profileId)
+    const [{ data: menciones }, { data: rechazos }] = await Promise.all([
+      supabase.from('ticket_menciones').select('ticket_id').eq('profile_id', profileId),
+      supabase.from('ticket_status_history').select('ticket_id').eq('changed_by', profileId).eq('estado', 'rechazado'),
+    ])
     const mencionado = new Set((menciones ?? []).map((m) => m.ticket_id as string))
+    const rechazadas = new Set((rechazos ?? []).map((r) => r.ticket_id as string))
+    const otros = [...new Set([...mencionado, ...rechazadas])]
 
     let consulta = supabase.from('tickets').select(TICKET_SELECT)
-    consulta = mencionado.size > 0
-      ? consulta.or(`solicitante_id.eq.${profileId},id.in.(${[...mencionado].join(',')})`)
+    consulta = otros.length > 0
+      ? consulta.or(`solicitante_id.eq.${profileId},id.in.(${otros.join(',')})`)
       : consulta.eq('solicitante_id', profileId)
     const { data } = await consulta.order('created_at', { ascending: false })
+    const cargados = (data as unknown as TicketConRelaciones[]) ?? []
+
+    // Una rechazada que alguien reabrió vuelve al tablero: deja de contar
+    // como "rechazada por mí".
+    const sigueRechazada = new Set(cargados.filter((t) => t.estado === 'rechazado').map((t) => t.id))
+    const rechazadasVigentes = new Set([...rechazadas].filter((id) => sigueRechazada.has(id)))
+
     setIdsMencionado(mencionado)
-    setTickets((data as unknown as TicketConRelaciones[]) ?? [])
+    setIdsRechazadasPorMi(rechazadasVigentes)
+    setTickets(cargados.filter((t) =>
+      t.solicitante_id === profileId || mencionado.has(t.id) || rechazadasVigentes.has(t.id)))
     setLoading(false)
   }, [profileId])
 
@@ -81,51 +103,53 @@ export function MisSolicitudesPage() {
     }
   }, [profileId, cargar])
 
-  const visibles = useMemo(
-    () => tickets.filter((t) => {
-      if (filtroEstado === 'por_aprobar') {
-        if (!(esperaAprobacion(t) && t.solicitante_id === profileId)) return false
-      } else if (filtroEstado && t.estado !== filtroEstado) return false
-      if (filtroRelacion === 'pedidas' && t.solicitante_id !== profileId) return false
-      if (filtroRelacion === 'mencionado' && !idsMencionado.has(t.id)) return false
-      return coincideBusqueda(t, busqueda)
-    }),
-    [tickets, filtroEstado, filtroRelacion, idsMencionado, profileId, busqueda],
+  const esPorAprobar = useCallback(
+    (t: TicketConRelaciones) => esperaAprobacion(t) && t.solicitante_id === profileId,
+    [profileId],
   )
 
-  const porAprobar = tickets.filter((t) => esperaAprobacion(t) && t.solicitante_id === profileId).length
+  // Relación y búsqueda primero; los conteos de las pestañas de estado salen
+  // de aquí para que cuadren con lo que se ve.
+  const segunRelacion = useMemo(
+    () => tickets.filter((t) => {
+      if (filtroRelacion === 'pedidas' && t.solicitante_id !== profileId) return false
+      if (filtroRelacion === 'mencionado' && !idsMencionado.has(t.id)) return false
+      if (filtroRelacion === 'rechazadas' && !idsRechazadasPorMi.has(t.id)) return false
+      return coincideBusqueda(t, busqueda)
+    }),
+    [tickets, filtroRelacion, idsMencionado, idsRechazadasPorMi, profileId, busqueda],
+  )
+
+  const cumpleEstado = useCallback(
+    (t: TicketConRelaciones, estado: FiltroEstado) => {
+      if (estado === 'por_aprobar') return esPorAprobar(t)
+      return !estado || t.estado === estado
+    },
+    [esPorAprobar],
+  )
+
+  const visibles = useMemo(
+    () => segunRelacion.filter((t) => cumpleEstado(t, filtroEstado)),
+    [segunRelacion, filtroEstado, cumpleEstado],
+  )
+
+  const porAprobar = tickets.filter(esPorAprobar).length
+  const hayFiltros = !!busqueda.trim() || !!filtroEstado || !!filtroRelacion
+
+  function limpiarFiltros() {
+    setBusqueda('')
+    setFiltroEstado('')
+    setFiltroRelacion('')
+  }
 
   if (loading) return <div className="pantalla-carga">Cargando solicitudes...</div>
 
   return (
     <div className="admin-page">
-      <div className="board-page__toolbar">
+      <div className="board-page__toolbar mis-solicitudes__encabezado">
         <div>
           <h1>Mis solicitudes</h1>
-          <p className="board-page__subtitulo">Todo lo que has pedido, a cualquier área, y las tareas donde te mencionaron.</p>
-        </div>
-        <div className="board-page__filtros">
-          <input
-            type="search"
-            className="board-page__buscador"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por #, título, área…"
-            aria-label="Buscar solicitudes"
-          />
-          <select value={filtroRelacion} onChange={(e) => setFiltroRelacion(e.target.value as Relacion)} aria-label="Filtrar por relación">
-            <option value="">Pedidas y menciones</option>
-            <option value="pedidas">Pedidas por mí</option>
-            <option value="mencionado">Me mencionaron</option>
-          </select>
-          <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value as FiltroEstado)} aria-label="Filtrar por estado">
-            <option value="">Todos los estados</option>
-            <option value="por_aprobar">Por aprobar</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="en_curso">En curso</option>
-            <option value="finalizado">Finalizado</option>
-            <option value="rechazado">Rechazada</option>
-          </select>
+          <p className="board-page__subtitulo">Lo que has pedido a cualquier área, las tareas donde te mencionaron y las solicitudes que rechazaste.</p>
         </div>
       </div>
 
@@ -140,51 +164,106 @@ export function MisSolicitudesPage() {
         </div>
       )}
 
-      <div className="admin-table-scroll">
-        <table className="admin-table mis-solicitudes">
-          <thead>
-            <tr>
-              <th>N.º</th>
-              <th>Título</th>
-              <th>Área</th>
-              <th>Estado</th>
-              <th>Atendido por</th>
-              <th>Solicitado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibles.map((t) => (
-              <tr key={t.id} onClick={() => setTicketSeleccionado(t)} className="mis-solicitudes__fila">
-                <td className="ticket-numero">#{t.numero}</td>
-                <td>
-                  {t.titulo}
-                  {idsMencionado.has(t.id) && <span className="badge badge--mencion">@ Mencionado</span>}
-                </td>
-                <td>{t.area?.nombre ?? '—'}</td>
-                <td>
-                  <span className={`badge badge--estado-${t.estado}`}>{ESTADO_LABEL[t.estado]}</span>
-                  {esperaAprobacion(t) && t.solicitante_id === profileId && (
-                    <span className="badge badge--por-aprobar mis-solicitudes__aprobacion">Por aprobar</span>
-                  )}
-                  {fueRechazada(t) && <span className="badge badge--rechazada mis-solicitudes__aprobacion">Rechazada</span>}
-                </td>
-                <td>
-                  <span className="admin-table__texto-sutil">{nombresAsignados(t).join(', ') || 'Sin asignar'}</span>
-                </td>
-                <td>
-                  <span className="admin-table__texto-sutil">{formatearFechaCorta(t.created_at)}</span>
-                </td>
-              </tr>
-            ))}
-            {visibles.length === 0 && (
+      <div className="mis-solicitudes__panel">
+        <div className="mis-solicitudes__pestanas" role="group" aria-label="Filtrar por estado">
+          {PESTANAS_ESTADO.map(({ valor, label }) => {
+            const cantidad = segunRelacion.filter((t) => cumpleEstado(t, valor)).length
+            return (
+              <button
+                key={valor || 'todas'}
+                type="button"
+                aria-pressed={filtroEstado === valor}
+                onClick={() => setFiltroEstado(valor)}
+                className={valor === 'por_aprobar' && cantidad > 0 ? 'mis-solicitudes__pestana--alerta' : undefined}
+              >
+                {label}
+                <span className="mis-solicitudes__conteo">{cantidad}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="board-page__filtros mis-solicitudes__filtros">
+          <input
+            type="search"
+            className="board-page__buscador"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar por #, título, área…"
+            aria-label="Buscar solicitudes"
+          />
+          <select value={filtroRelacion} onChange={(e) => setFiltroRelacion(e.target.value as Relacion)} aria-label="Filtrar por relación">
+            <option value="">Todas mis relaciones</option>
+            <option value="pedidas">Pedidas por mí</option>
+            <option value="mencionado">Me mencionaron</option>
+            <option value="rechazadas">Rechazadas por mí</option>
+          </select>
+          {hayFiltros && (
+            <button type="button" className="board-page__limpiar" onClick={limpiarFiltros}>Limpiar filtros</button>
+          )}
+        </div>
+
+        <div className="admin-table-scroll mis-solicitudes__tabla">
+          <table className="admin-table mis-solicitudes">
+            <thead>
               <tr>
-                <td colSpan={6} className="admin-table__texto-sutil">
-                  {tickets.length === 0 ? 'Todavía no has enviado solicitudes.' : 'Ninguna solicitud coincide con la búsqueda.'}
-                </td>
+                <th>N.º</th>
+                <th>Solicitud</th>
+                <th>Área</th>
+                <th>Estado</th>
+                <th>Atendido por</th>
+                <th>Solicitado</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {visibles.map((t) => {
+                const pedidaPorOtro = t.solicitante_id !== profileId
+                return (
+                  <tr key={t.id} onClick={() => setTicketSeleccionado(t)} className="mis-solicitudes__fila">
+                    <td className="ticket-numero">#{t.numero}</td>
+                    <td>
+                      <div className="mis-solicitudes__solicitud">
+                        <span className="mis-solicitudes__titulo">{t.titulo}</span>
+                        <span className="mis-solicitudes__etiquetas">
+                          {idsMencionado.has(t.id) && <span className="badge--mencion">@ Mencionado</span>}
+                          {idsRechazadasPorMi.has(t.id) && <span className="badge--mencion mis-solicitudes__rechazaste">La rechazaste</span>}
+                          {pedidaPorOtro && t.solicitante && (
+                            <span className="mis-solicitudes__detalle">Pedida por {t.solicitante.full_name ?? t.solicitante.email}</span>
+                          )}
+                        </span>
+                        {t.estado === 'rechazado' && t.motivo_rechazo && (
+                          <span className="mis-solicitudes__motivo" title={t.motivo_rechazo}>Motivo: {t.motivo_rechazo}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td>{t.area?.nombre ?? '—'}</td>
+                    <td>
+                      <span className="mis-solicitudes__estados">
+                        <span className={`badge badge--estado-${t.estado}`}>{ESTADO_LABEL[t.estado]}</span>
+                        {esPorAprobar(t) && <span className="badge badge--por-aprobar">Por aprobar</span>}
+                        {fueRechazada(t) && (
+                          <span className="badge badge--rechazada" title="Quien la pidió rechazó la finalización; mira el motivo en los comentarios">Devuelta</span>
+                        )}
+                      </span>
+                    </td>
+                    <td className="mis-solicitudes__secundario">{nombresAsignados(t).join(', ') || 'Sin asignar'}</td>
+                    <td className="mis-solicitudes__secundario mis-solicitudes__fecha">{formatearFechaCorta(t.created_at)}</td>
+                  </tr>
+                )
+              })}
+              {visibles.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="mis-solicitudes__vacio">
+                    <p>{tickets.length === 0 ? 'Todavía no tienes solicitudes.' : 'Ninguna solicitud coincide con los filtros.'}</p>
+                    {tickets.length > 0 && hayFiltros && (
+                      <button type="button" className="board-page__limpiar" onClick={limpiarFiltros}>Limpiar filtros</button>
+                    )}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {ticketSeleccionado && (
