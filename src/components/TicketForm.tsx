@@ -96,11 +96,14 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
 
   // Agrega los válidos a la lista; los que no sirven se explican en el error.
   function agregarArchivos(lista: FileList | null) {
+    // Se copian antes de vaciar el input: su FileList queda vacía al limpiarlo.
+    // Se limpia para poder volver a elegir el mismo archivo después de quitarlo.
+    const elegidos = lista ? Array.from(lista) : []
     if (archivoInputRef.current) archivoInputRef.current.value = ''
-    if (!lista || lista.length === 0) return
+    if (elegidos.length === 0) return
     const problemas: string[] = []
     const nuevos: File[] = []
-    for (const file of Array.from(lista)) {
+    for (const file of elegidos) {
       if (!EXTENSIONES_PERMITIDAS.includes(extensionDe(file.name))) {
         problemas.push(`"${file.name}" no es un formato permitido.`)
       } else if (file.size === 0) {
