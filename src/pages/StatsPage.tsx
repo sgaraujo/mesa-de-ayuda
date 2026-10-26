@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useArea } from '../context/AreaContext'
-import { useProyectos } from '../hooks/useProyectos'
 import {
   claveFecha,
   contarPor,
@@ -128,9 +127,24 @@ function agrupacionPara(rango: RangoFecha, personalizado: RangoPersonalizado): A
 export function StatsPage() {
   const [tickets, setTickets] = useState<TicketConRelaciones[]>([])
   const [loading, setLoading] = useState(true)
-  const { areaActiva } = useArea()
-  const areaId = areaActiva?.id
-  const { proyectos } = useProyectos(areaId)
+  const { areaActiva, areas } = useArea()
+
+  // Área: la activa, otra que la persona lidere o todas las que lidera. Solo
+  // las que lidera (el superadmin, todas): en un área donde es agente RLS
+  // solo le devuelve lo suyo y las cifras saldrían incompletas.
+  const [filtroArea, setFiltroArea] = useState('')
+  const opcionesArea = useMemo(() => {
+    const lideradas = areas.filter((a) => a.rol === 'lider')
+    return areaActiva && !lideradas.some((a) => a.id === areaActiva.id) ? [areaActiva, ...lideradas] : lideradas
+  }, [areas, areaActiva])
+  const idsAreas = filtroArea === 'todas'
+    ? opcionesArea.map((a) => a.id)
+    : [filtroArea || areaActiva?.id].filter((id): id is string => !!id)
+  // Texto estable para las dependencias de los efectos (el arreglo cambia en cada render).
+  const claveAreas = idsAreas.join(',')
+  const nombreAreas = filtroArea === 'todas'
+    ? 'Todas mis áreas'
+    : opcionesArea.find((a) => a.id === idsAreas[0])?.nombre ?? areaActiva?.nombre ?? ''
 
   const [filtroProyecto, setFiltroProyecto] = useState('')
   const [filtroEstado, setFiltroEstado] = useState<Estado | ''>('')
@@ -141,31 +155,51 @@ export function StatsPage() {
   const [filtroEmpresa, setFiltroEmpresa] = useState('')
 
   useEffect(() => {
-    if (!areaId) return
+    if (!claveAreas) return
+    let vigente = true
+    setLoading(true)
     supabase
       .from('tickets')
       .select(TICKET_SELECT)
-      .eq('area_id', areaId)
+      .in('area_id', claveAreas.split(','))
       .then(({ data }) => {
+        if (!vigente) return
         setTickets((data as unknown as TicketConRelaciones[]) ?? [])
         setLoading(false)
       })
-  }, [areaId])
+    return () => {
+      vigente = false
+    }
+  }, [claveAreas])
+
+  // Los proyectos salen de las tareas cargadas: así sirve para varias áreas.
+  const proyectos = useMemo(() => {
+    const porId = new Map<string, string>()
+    for (const t of tickets) if (t.proyecto) porId.set(t.proyecto.id, t.proyecto.nombre)
+    return [...porId.entries()]
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+  }, [tickets])
 
   // Aparte de los tickets: si falla (p. ej. sin la migración 0042), las
   // estadísticas siguen y las horas salen solo de los tickets.
   const [subtareas, setSubtareas] = useState<SubtareaHoras[]>([])
   useEffect(() => {
-    if (!areaId) return
+    if (!claveAreas) return
+    let vigente = true
     void supabase
       .from('ticket_subtareas')
       .select('ticket_id, titulo, tiempo_ejecutado_horas, responsable:profiles!ticket_subtareas_responsable_id_fkey(full_name, email), ticket:tickets!inner(area_id)')
-      .eq('ticket.area_id', areaId)
+      .in('ticket.area_id', claveAreas.split(','))
       .then(({ data, error }) => {
+        if (!vigente) return
         if (error) console.error('No se pudieron cargar las subtareas:', error.message)
         setSubtareas((data as unknown as SubtareaHoras[] | null) ?? [])
       })
-  }, [areaId])
+    return () => {
+      vigente = false
+    }
+  }, [claveAreas])
 
   const subtareasPorTicket = useMemo(() => {
     const mapa = new Map<string, SubtareaHoras[]>()
@@ -249,25 +283,55 @@ export function StatsPage() {
   // de sus subtareas, así que los totales salen de los tickets.
   const horasTotales = ticketsFiltrados.reduce((acc, t) => acc + (t.tiempo_ejecutado_horas ?? 0), 0)
   const horasEstimadas = ticketsFiltrados.reduce((acc, t) => acc + (t.tiempo_propuesto_horas ?? 0), 0)
-  const desviacion = horasEstimadas > 0 ? Math.round(((horasTotales - horasEstimadas) / horasEstimadas) * 100) : null
+  // Positiva: se ejecutó más de lo propuesto.
+  const diferenciaHoras = horasTotales - horasEstimadas
+  const desviacion = horasEstimadas > 0 ? Math.round((diferenciaHoras / horasEstimadas) * 100) : null
+  // Cumplimiento del estimado: de las tareas con ambos tiempos, cuántas no
+  // pasaron lo propuesto.
+  const conAmbosTiempos = ticketsFiltrados.filter((t) => (t.tiempo_propuesto_horas ?? 0) > 0 && t.tiempo_ejecutado_horas != null)
+  const dentroDelEstimado = conAmbosTiempos.filter((t) => t.tiempo_ejecutado_horas! <= t.tiempo_propuesto_horas!).length
+  const cumplimientoEstimado = conAmbosTiempos.length > 0 ? Math.round((dentroDelEstimado / conAmbosTiempos.length) * 100) : null
+  const ticketsConHoras = ticketsFiltrados.filter((t) => (t.tiempo_ejecutado_horas ?? 0) > 0)
+  const promedioPorTicket = ticketsConHoras.length > 0 ? horasTotales / ticketsConHoras.length : null
   const horasColaborador = horasPorPersona(ticketsFiltrados, subtareasPorTicket)
+  // Sin "Bandeja general" ni "Sin responsable": no son personas.
+  const colaboradores = horasColaborador.filter((d) => d.nombre !== 'Bandeja general' && d.nombre !== 'Sin responsable')
+  const promedioPorColaborador = colaboradores.length > 0
+    ? colaboradores.reduce((acc, d) => acc + d.total, 0) / colaboradores.length
+    : null
   const horasProyecto = sumarPor(ticketsFiltrados, (t) => t.proyecto?.nombre ?? null, (t) => t.tiempo_ejecutado_horas)
+  const horasEmpresa = sumarPor(ticketsFiltrados, (t) => t.empresa_solicitante || null, (t) => t.tiempo_ejecutado_horas)
   const ticketsMasHoras = sumarPor(ticketsFiltrados, (t) => `#${t.numero} ${t.titulo}`, (t) => t.tiempo_ejecutado_horas, 10)
   const subtareasFiltradas = ticketsFiltrados.flatMap((t) => (subtareasPorTicket.get(t.id) ?? []).map((s) => ({ ...s, numero: t.numero })))
   const subtareasMasHoras = sumarPor(subtareasFiltradas, (s) => `${s.titulo} (#${s.numero})`, (s) => s.tiempo_ejecutado_horas, 10)
-  const horasPeriodo = sumarPor(ticketsFiltrados, (t) => claveFecha(new Date(t.created_at), agrupacionTendencia), (t) => t.tiempo_ejecutado_horas)
-    .sort((a, b) => a.nombre.localeCompare(b.nombre))
-    .map((d) => ({ ...d, nombre: formatearEtiquetaPeriodo(d.nombre, agrupacionTendencia) }))
+
+  // Ejecutadas y propuestas por periodo (fecha de creación de la tarea).
+  const porPeriodo = new Map<string, { ejecutadas: number; propuestas: number }>()
+  for (const t of ticketsFiltrados) {
+    if (t.tiempo_ejecutado_horas == null && t.tiempo_propuesto_horas == null) continue
+    const clave = claveFecha(new Date(t.created_at), agrupacionTendencia)
+    const punto = porPeriodo.get(clave) ?? { ejecutadas: 0, propuestas: 0 }
+    punto.ejecutadas += t.tiempo_ejecutado_horas ?? 0
+    punto.propuestas += t.tiempo_propuesto_horas ?? 0
+    porPeriodo.set(clave, punto)
+  }
+  const tendenciaHoras = [...porPeriodo.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([periodo, valores]) => ({
+      periodo,
+      ejecutadas: Math.round(valores.ejecutadas * 10) / 10,
+      propuestas: Math.round(valores.propuestas * 10) / 10,
+    }))
 
   const hayFiltros = filtroProyecto !== '' || filtroEstado !== '' || filtroRango !== 'todo'
-    || filtroResponsable !== '' || filtroEmpresa !== ''
+    || filtroResponsable !== '' || filtroEmpresa !== '' || filtroArea !== ''
 
   return (
     <div className="stats-page">
       <div className="board-page__toolbar">
         <div className="board-page__encabezado">
           <p className="board-page__eyebrow">Estadísticas</p>
-          <h1>{areaActiva?.nombre ?? ''}</h1>
+          <h1>{nombreAreas}</h1>
           <p className="board-page__subtitulo">
             {total} {total === 1 ? 'solicitud creada' : 'solicitudes creadas'} en {describirPeriodo(filtroRango, rangoPersonalizado)}
           </p>
@@ -326,6 +390,22 @@ export function StatsPage() {
           )}
         </div>
         <div className="stats-filtros__grupo stats-filtros__grupo--derecha">
+          {opcionesArea.length > 1 && (
+            <select
+              value={filtroArea || areaActiva?.id || ''}
+              onChange={(e) => {
+                setFiltroArea(e.target.value === areaActiva?.id ? '' : e.target.value)
+                // Los proyectos son de cada área.
+                setFiltroProyecto('')
+              }}
+              aria-label="Filtrar por área"
+            >
+              {opcionesArea.map((area) => (
+                <option key={area.id} value={area.id}>{area.nombre}</option>
+              ))}
+              <option value="todas">Todas mis áreas</option>
+            </select>
+          )}
           <select value={filtroProyecto} onChange={(e) => setFiltroProyecto(e.target.value)} aria-label="Filtrar por proyecto">
             <option value="">Todos los proyectos</option>
             {proyectos.map((proyecto) => (
@@ -358,6 +438,7 @@ export function StatsPage() {
               type="button"
               className="board-page__limpiar"
               onClick={() => {
+                setFiltroArea('')
                 setFiltroProyecto('')
                 setFiltroEstado('')
                 setFiltroResponsable('')
@@ -437,26 +518,48 @@ export function StatsPage() {
         </div>
         <div className="stat-tiles">
           <div className="stat-tile">
-            <p className="stat-tile__label">Horas ejecutadas</p>
+            <p className="stat-tile__label">Horas ejecutadas acumuladas</p>
             <p className="stat-tile__value">{horasLegibles(horasTotales)}</p>
           </div>
           <div className="stat-tile">
-            <p className="stat-tile__label">Horas estimadas</p>
+            <p className="stat-tile__label">Horas propuestas acumuladas</p>
             <p className="stat-tile__value">{horasEstimadas > 0 ? horasLegibles(horasEstimadas) : '—'}</p>
           </div>
           <div
-            className={`stat-tile${desviacion !== null && desviacion > 0 ? ' stat-tile--rechazado' : ''}`}
-            title="Ejecutado frente a estimado, en las tareas filtradas"
+            className={`stat-tile${horasEstimadas === 0 ? '' : diferenciaHoras > 0 ? ' stat-tile--rechazado' : ' stat-tile--finalizado'}`}
+            title={desviacion !== null ? `${desviacion > 0 ? '+' : ''}${desviacion} % frente a lo propuesto` : 'Sin horas propuestas'}
           >
-            <p className="stat-tile__label">Ejecutado vs. estimado</p>
-            <p className="stat-tile__value">{desviacion !== null ? `${desviacion > 0 ? '+' : ''}${desviacion} %` : '—'}</p>
+            <p className="stat-tile__label">Diferencia (ejecutado − propuesto)</p>
+            <p className="stat-tile__value">
+              {horasEstimadas > 0 ? `${diferenciaHoras > 0 ? '+' : diferenciaHoras < 0 ? '−' : ''}${horasLegibles(Math.abs(diferenciaHoras))}` : '—'}
+            </p>
           </div>
-          <div className="stat-tile">
-            <p className="stat-tile__label">Colaboradores con horas</p>
-            <p className="stat-tile__value">{horasColaborador.filter((d) => d.nombre !== 'Bandeja general' && d.nombre !== 'Sin responsable').length}</p>
+          <div className="stat-tile" title={`${dentroDelEstimado} de ${conAmbosTiempos.length} tareas con ambos tiempos no pasaron lo propuesto`}>
+            <p className="stat-tile__label">Cumplimiento del tiempo estimado</p>
+            <p className="stat-tile__value">{cumplimientoEstimado !== null ? `${cumplimientoEstimado} %` : '—'}</p>
+          </div>
+          <div className="stat-tile" title={`Entre ${ticketsConHoras.length} tareas con horas ejecutadas`}>
+            <p className="stat-tile__label">Promedio por tarea</p>
+            <p className="stat-tile__value">{promedioPorTicket !== null ? horasLegibles(promedioPorTicket) : '—'}</p>
+          </div>
+          <div className="stat-tile" title={`Entre ${colaboradores.length} colaboradores con horas`}>
+            <p className="stat-tile__label">Promedio por colaborador</p>
+            <p className="stat-tile__value">{promedioPorColaborador !== null ? horasLegibles(promedioPorColaborador) : '—'}</p>
           </div>
         </div>
         <div className="charts-grid">
+          <div className="chart-card chart-card--ancho">
+            <h2>Horas ejecutadas vs. propuestas por {agrupacionTendencia === 'mes' ? 'mes' : 'día'}</h2>
+            <LineaTendencia
+              datos={tendenciaHoras}
+              formatearEtiqueta={(periodo) => formatearEtiquetaPeriodo(periodo, agrupacionTendencia)}
+              series={[
+                { clave: 'ejecutadas', nombre: 'Ejecutadas', color: 'var(--series-1)' },
+                { clave: 'propuestas', nombre: 'Propuestas', color: 'var(--text-muted)', punteada: true },
+              ]}
+              unidad="h"
+            />
+          </div>
           <div className="chart-card">
             <h2>Ranking de horas por colaborador</h2>
             <RankingLista datos={horasColaborador} />
@@ -478,8 +581,8 @@ export function StatsPage() {
             <BarraHorizontal datos={horasProyecto} />
           </div>
           <div className="chart-card">
-            <h2>Horas por {agrupacionTendencia === 'mes' ? 'mes' : 'día'}</h2>
-            <BarraHorizontal datos={horasPeriodo} />
+            <h2>Horas por empresa solicitante</h2>
+            <BarraHorizontal datos={horasEmpresa} />
           </div>
         </div>
       </section>
