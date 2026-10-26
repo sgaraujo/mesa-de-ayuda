@@ -1383,23 +1383,59 @@ label {
   scrollbar-width: none;
 }
 
+/* Dos grupos: periodo (y fechas) a la izquierda; proyecto, estado y limpiar
+   a la derecha. En pantallas angostas el segundo baja a otra línea. */
+.stats-filtros {
+  justify-content: space-between;
+  row-gap: 0.55rem;
+}
+
+.stats-filtros__grupo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.stats-filtros__grupo--derecha {
+  margin-left: auto;
+}
+
+.stats-filtros select {
+  width: auto;
+  max-width: 13rem;
+  box-sizing: border-box;
+}
+
 .stats-filtros__rango {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
 }
 
+/* Etiqueta al lado del campo (el estilo global de label la pone encima). */
 .stats-filtros__rango label {
-  display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 0.4rem;
-  color: var(--text-secondary);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
 .stats-filtros__rango input {
+  box-sizing: border-box;
+  height: 2.25rem;
   padding: 0 0.6rem;
-  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.board-page__acciones > .boton-secundario {
+  height: 2.25rem;
+  padding: 0 0.85rem;
+  font-size: 0.85rem;
 }
 
 .stat-tiles {

@@ -177,70 +177,74 @@ export function StatsPage() {
         </div>
       </div>
 
-      <div className="board-page__filtros board-page__filtros--barra">
-        <div className="segmentado stats-periodo" role="group" aria-label="Periodo">
-          {RANGOS.map((rango) => (
-            <button
-              key={rango.valor}
-              type="button"
-              aria-pressed={filtroRango === rango.valor}
-              onClick={() => setFiltroRango(rango.valor)}
-            >
-              {rango.etiqueta}
-            </button>
-          ))}
-        </div>
-        {filtroRango === 'personalizado' && (
-          <div className="stats-filtros__rango" role="group" aria-label="Rango de fechas">
-            <label>
-              Desde
-              <input
-                type="date"
-                value={rangoPersonalizado.desde}
-                max={rangoPersonalizado.hasta || undefined}
-                onChange={(e) => setRangoPersonalizado((r) => ({ ...r, desde: e.target.value }))}
-              />
-            </label>
-            <label>
-              Hasta
-              <input
-                type="date"
-                value={rangoPersonalizado.hasta}
-                min={rangoPersonalizado.desde || undefined}
-                onChange={(e) => setRangoPersonalizado((r) => ({ ...r, hasta: e.target.value }))}
-              />
-            </label>
+      <div className="board-page__filtros board-page__filtros--barra stats-filtros">
+        <div className="stats-filtros__grupo">
+          <div className="segmentado stats-periodo" role="group" aria-label="Periodo">
+            {RANGOS.map((rango) => (
+              <button
+                key={rango.valor}
+                type="button"
+                aria-pressed={filtroRango === rango.valor}
+                onClick={() => setFiltroRango(rango.valor)}
+              >
+                {rango.etiqueta}
+              </button>
+            ))}
           </div>
-        )}
-        <select value={filtroProyecto} onChange={(e) => setFiltroProyecto(e.target.value)} aria-label="Filtrar por proyecto">
-          <option value="">Todos los proyectos</option>
-          {proyectos.map((proyecto) => (
-            <option key={proyecto.id} value={proyecto.id}>
-              {proyecto.nombre}
-            </option>
-          ))}
-        </select>
-        <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value as Estado | '')} aria-label="Filtrar por estado">
-          <option value="">Todos los estados</option>
-          <option value="pendiente">Pendiente</option>
-          <option value="en_curso">En curso</option>
-          <option value="finalizado">Finalizado</option>
-          <option value="rechazado">Rechazado</option>
-        </select>
-        {hayFiltros && (
-          <button
-            type="button"
-            className="board-page__limpiar"
-            onClick={() => {
-              setFiltroProyecto('')
-              setFiltroEstado('')
-              setFiltroRango('todo')
-              setRangoPersonalizado({ desde: '', hasta: '' })
-            }}
-          >
-            Limpiar filtros
-          </button>
-        )}
+          {filtroRango === 'personalizado' && (
+            <div className="stats-filtros__rango" role="group" aria-label="Rango de fechas">
+              <label>
+                Desde
+                <input
+                  type="date"
+                  value={rangoPersonalizado.desde}
+                  max={rangoPersonalizado.hasta || undefined}
+                  onChange={(e) => setRangoPersonalizado((r) => ({ ...r, desde: e.target.value }))}
+                />
+              </label>
+              <label>
+                Hasta
+                <input
+                  type="date"
+                  value={rangoPersonalizado.hasta}
+                  min={rangoPersonalizado.desde || undefined}
+                  onChange={(e) => setRangoPersonalizado((r) => ({ ...r, hasta: e.target.value }))}
+                />
+              </label>
+            </div>
+          )}
+        </div>
+        <div className="stats-filtros__grupo stats-filtros__grupo--derecha">
+          <select value={filtroProyecto} onChange={(e) => setFiltroProyecto(e.target.value)} aria-label="Filtrar por proyecto">
+            <option value="">Todos los proyectos</option>
+            {proyectos.map((proyecto) => (
+              <option key={proyecto.id} value={proyecto.id}>
+                {proyecto.nombre}
+              </option>
+            ))}
+          </select>
+          <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value as Estado | '')} aria-label="Filtrar por estado">
+            <option value="">Todos los estados</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="en_curso">En curso</option>
+            <option value="finalizado">Finalizado</option>
+            <option value="rechazado">Rechazado</option>
+          </select>
+          {hayFiltros && (
+            <button
+              type="button"
+              className="board-page__limpiar"
+              onClick={() => {
+                setFiltroProyecto('')
+                setFiltroEstado('')
+                setFiltroRango('todo')
+                setRangoPersonalizado({ desde: '', hasta: '' })
+              }}
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="stat-tiles">
