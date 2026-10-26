@@ -68,6 +68,8 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true, mostrarArea
   const rechazada = fueRechazada(ticket)
   const conSemaforo = semaforo(ticket) !== null
   const finalizadaTarde = cumplioATiempo(ticket) === false
+  // La original que se repite cada mes, o una copia generada (migración 0044).
+  const recurrente = !!ticket.recurrencia_activa || !!ticket.recurrencia_origen
 
   const clases = [
     'ticket-card',
@@ -95,8 +97,18 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true, mostrarArea
       <h3 className="ticket-card__titulo">{ticket.titulo}</h3>
       {ticket.descripcion && <p className="ticket-card__descripcion">{ticket.descripcion}</p>}
 
-      {(ticket.proyecto || ticket.es_grupal || (mostrarArea && ticket.area) || porAprobar || rechazada) && (
+      {(ticket.proyecto || ticket.es_grupal || (mostrarArea && ticket.area) || porAprobar || rechazada || recurrente) && (
         <div className="ticket-card__etiquetas">
+          {ticket.recurrencia_activa && (
+            <span className="ticket-card__etiqueta ticket-card__etiqueta--recurrente" title={`Se repite cada mes, el día ${ticket.recurrencia_dia}`}>
+              ↻ Mensual
+            </span>
+          )}
+          {ticket.recurrencia_origen && (
+            <span className="ticket-card__etiqueta ticket-card__etiqueta--recurrente" title="Generada automáticamente por una tarea que se repite cada mes">
+              ↻ Automática
+            </span>
+          )}
           {porAprobar && (
             <span className="ticket-card__etiqueta ticket-card__etiqueta--por-aprobar" title="Esperando que quien la pidió apruebe la finalización">
               Por aprobar

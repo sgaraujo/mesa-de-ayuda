@@ -3440,6 +3440,26 @@ span.subtarea__responsable {
   font-size: 0.82rem;
 }
 
+/* Repetición mensual en el panel lateral del detalle (migración 0044). */
+.propiedades.recurrencia {
+  margin-top: 0.6rem;
+}
+
+.recurrencia__nota {
+  margin: 0.5rem 0 1.25rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.recurrencia__nota strong {
+  color: var(--text-primary);
+}
+
+.ticket-card__etiqueta--recurrente {
+  background: color-mix(in srgb, var(--estado-en-curso) 12%, transparent);
+  color: var(--estado-en-curso);
+}
+
 .detalle__nota-tiempo {
   margin: -0.3rem 0 0.5rem;
   color: var(--text-muted);

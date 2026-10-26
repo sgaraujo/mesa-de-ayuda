@@ -73,6 +73,15 @@ export interface Ticket {
   // migración aplicada no vienen.
   subtareas_total?: number
   subtareas_finalizadas?: number
+  // Repetición mensual (migración 0044). En la original: si se repite, qué
+  // día y con cuántos días de plazo; recurrencia_proxima la calcula la base.
+  // En cada copia generada: recurrencia_origen = la original. Opcionales:
+  // sin la migración aplicada no vienen.
+  recurrencia_activa?: boolean
+  recurrencia_dia?: number | null
+  recurrencia_plazo_dias?: number | null
+  recurrencia_proxima?: string | null
+  recurrencia_origen?: string | null
   archivo_url: string | null
   nota_finalizacion: string | null
   // Tarea de la que se duplicó esta (migración 0028).

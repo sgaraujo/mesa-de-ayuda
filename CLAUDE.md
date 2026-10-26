@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0043_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0044_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -126,6 +126,13 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   notificación `subtarea` al ser asignado, y cada cambio de una subtarea
   queda en `ticket_cambios` con `campo = 'subtarea'` y la frase en
   `valor_nuevo`.
+- Repetición mensual (migración 0044): en la tarea original,
+  `recurrencia_activa` + `recurrencia_dia` (1-28) + `recurrencia_plazo_dias`
+  opcional; un trigger calcula `recurrencia_proxima`. pg_cron ejecuta a diario
+  (6:05 a. m. Colombia) `generar_tickets_recurrentes()`, que crea la copia
+  (título con el mes, mismos responsables y subtareas, fecha compromiso según
+  el plazo) con `recurrencia_origen` = la original. Una copia no puede
+  repetirse.
 - Vencimientos (migración 0041): `tickets.fecha_compromiso` la define el
   equipo; el vencimiento se mide contra ella o, si está vacía, contra
   `fecha_requerida` (`src/lib/vencimiento.ts`: semáforo verde / amarillo a
