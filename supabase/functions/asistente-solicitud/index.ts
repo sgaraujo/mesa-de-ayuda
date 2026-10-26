@@ -99,8 +99,17 @@ Deno.serve(async (req) => {
     )
     if (respuesta.status === 429) return json({ ok: false, message: 'El asistente está ocupado, intenta en un momento' }, 429)
     if (!respuesta.ok) {
-      console.error('Gemini respondió', respuesta.status, await respuesta.text())
-      return json({ ok: false, message: 'El asistente no respondió' }, 502)
+      const cuerpo = await respuesta.text()
+      console.error('Gemini respondió', respuesta.status, cuerpo)
+      // El motivo se muestra (app interna): sin él no hay forma de saber si es
+      // la llave, la API sin habilitar o el modelo.
+      let motivo = cuerpo.slice(0, 300)
+      try {
+        motivo = JSON.parse(cuerpo)?.error?.message ?? motivo
+      } catch {
+        // Sin cuerpo JSON: queda el texto tal cual.
+      }
+      return json({ ok: false, message: `El asistente no respondió (Gemini ${respuesta.status}: ${motivo})` }, 502)
     }
 
     const datos = await respuesta.json()
