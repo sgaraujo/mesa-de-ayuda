@@ -241,7 +241,8 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
 
   const campoFecha = (
     <label>
-      <span>Para cuándo la necesitas <small className="ticket-form__opcional">Opcional</small></span>
+      {/* En el modal del tablero va en una fila de tres campos: texto corto. */}
+      <span>{elegirArea ? 'Para cuándo la necesitas' : 'Para cuándo'} <small className="ticket-form__opcional">Opcional</small></span>
       <input
         type="date"
         value={fechaRequerida}
@@ -413,7 +414,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
             {campoFecha}
             {(rolEnDestino === 'agente' || rolEnDestino === 'lider') && (
               <label title="Fecha y hora a la que el equipo se compromete a terminarla. Si queda vacía, el vencimiento se mide contra “Para cuándo”.">
-                <span>Fecha compromiso <small className="ticket-form__opcional">Opcional</small></span>
+                <span>Compromiso <small className="ticket-form__opcional">Opcional</small></span>
                 <input
                   type="datetime-local"
                   value={fechaCompromiso}

@@ -4574,6 +4574,28 @@ kbd {
   resize: vertical;
 }
 
+/* Asignar a / Para cuándo / Compromiso: dos por fila (el campo de fecha y
+   hora no cabe completo en un tercio del modal), etiquetas en una línea y
+   campos alineados abajo aunque alguna etiqueta sea más larga. */
+.nueva-tarea__cuerpo .ticket-form__row {
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  align-items: end;
+}
+
+.nueva-tarea__cuerpo .ticket-form__row label > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nueva-tarea__cuerpo .ticket-form__row input,
+.nueva-tarea__cuerpo .ticket-form__row select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 2.6rem;
+}
+
 .nueva-tarea__campo {
   display: flex;
   flex-direction: column;
