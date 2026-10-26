@@ -14,11 +14,12 @@ const MS_CLIENT_SECRET = Deno.env.get('MS_CLIENT_SECRET')!
 const MS_TENANT_ID = Deno.env.get('MS_TENANT_ID')!
 const MS_AUTHORITY = Deno.env.get('MS_AUTHORITY') ?? `https://login.microsoftonline.com/${MS_TENANT_ID}`
 const MS_SCOPES = Deno.env.get('MS_SCOPES') ?? 'https://graph.microsoft.com/.default'
-const MS_GRAPH_URL = Deno.env.get('MS_GRAPH_URL') ?? 'https://graph.microsoft.com/v1.0'
+export const MS_GRAPH_URL = Deno.env.get('MS_GRAPH_URL') ?? 'https://graph.microsoft.com/v1.0'
 // Buzón desde el que se envían los correos (necesita permiso Mail.Send de aplicación en Graph)
 const MS_SENDER_UPN = Deno.env.get('MS_SENDER_UPN')!
 
-async function obtenerTokenGraph(): Promise<string> {
+// También lo usa sincronizar-teams para leer calendarios (Calendars.Read).
+export async function obtenerTokenGraph(): Promise<string> {
   const resp = await fetch(`${MS_AUTHORITY}/oauth2/v2.0/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

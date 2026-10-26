@@ -3455,6 +3455,21 @@ span.subtarea__responsable {
   color: var(--text-primary);
 }
 
+/* Tareas importadas de una reunión de Teams (migración 0045). */
+.ticket-card__etiqueta--teams {
+  background: color-mix(in srgb, #5b5fc7 14%, transparent);
+  color: #5b5fc7;
+}
+
+.detalle__reunion {
+  margin: 0 0 1.25rem;
+  width: fit-content;
+  height: 2.25rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .ticket-card__etiqueta--recurrente {
   background: color-mix(in srgb, var(--estado-en-curso) 12%, transparent);
   color: var(--estado-en-curso);

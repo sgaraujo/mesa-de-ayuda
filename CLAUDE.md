@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0044_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0045_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -126,6 +126,15 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   notificación `subtarea` al ser asignado, y cada cambio de una subtarea
   queda en `ticket_cambios` con `campo = 'subtarea'` y la frase en
   `valor_nuevo`.
+- Reuniones de Teams (migración 0045): la Edge Function `sincronizar-teams`
+  (pg_cron cada 15 min, header `x-cron-key` = secreto `TEAMS_CRON_KEY`,
+  `--no-verify-jwt`, URL y llave en Vault) lee con Graph (`Calendars.Read`
+  de aplicación) los calendarios de líderes y agentes y, por cada reunión de
+  Teams que organizan (no privadas), llama a `registrar_reunion_teams()`: una
+  tarea en el proyecto "Reuniones" del área, Pendiente → Finalizada y
+  aprobada al terminar (duración = tiempo ejecutado) → Rechazada si se
+  cancela. `reuniones_teams` evita duplicados; `tickets.reunion_url` es el
+  enlace para unirse.
 - Repetición mensual (migración 0044): en la tarea original,
   `recurrencia_activa` + `recurrencia_dia` (1-28) + `recurrencia_plazo_dias`
   opcional; un trigger calcula `recurrencia_proxima`. pg_cron ejecuta a diario
@@ -224,6 +233,7 @@ para el HTML de los correos). Funciones actuales: `invite-user`,
 `acceso-cedula` (ingreso por cédula; usa además el secreto `NELYODA_IDENTITY_URL`), `revisar-texto` (ortografía y gramática con
 LanguageTool; API pública gratuita salvo que se definan los secretos
 `LANGUAGETOOL_USERNAME`/`LANGUAGETOOL_API_KEY` o `LANGUAGETOOL_URL`),
+`sincronizar-teams` (reuniones de Teams como tareas; ver migración 0045),
 `notify-vencimientos` (la llama pg_cron con el header `x-cron-key` =
 secreto `VENCIMIENTOS_CRON_KEY`; se despliega con `--no-verify-jwt`; la URL y
 la llave para el cron van en Vault),

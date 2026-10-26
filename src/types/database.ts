@@ -82,6 +82,9 @@ export interface Ticket {
   recurrencia_plazo_dias?: number | null
   recurrencia_proxima?: string | null
   recurrencia_origen?: string | null
+  // Enlace para unirse, en las tareas importadas de una reunión de Teams
+  // (migración 0045).
+  reunion_url?: string | null
   archivo_url: string | null
   nota_finalizacion: string | null
   // Tarea de la que se duplicó esta (migración 0028).

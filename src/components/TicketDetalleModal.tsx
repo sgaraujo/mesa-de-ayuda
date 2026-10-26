@@ -603,6 +603,16 @@ export function TicketDetalleModal({
                 </span>
               </p>
 
+              {/* Importada de una reunión de Teams (migración 0045). */}
+              {ticket.reunion_url && (
+                <a href={ticket.reunion_url} target="_blank" rel="noreferrer" className="boton-secundario detalle__reunion">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M15 10l5-3v10l-5-3M4 7h11v10H4z" />
+                  </svg>
+                  {ticket.estado === 'finalizado' ? 'Abrir la reunión en Teams' : 'Unirse a la reunión en Teams'}
+                </a>
+              )}
+
               {esperaAprobacion(ticket) && profile?.id === ticket.solicitante_id && (
                 <RespuestaFinalizacion ticket={ticket} onRespondido={onGuardado} />
               )}
