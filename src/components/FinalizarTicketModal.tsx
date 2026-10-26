@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { separarTiempo, combinarTiempo } from '../lib/tiempo'
+import { separarTiempo, combinarTiempo, formatearTiempo } from '../lib/tiempo'
 import { SugerenciasTexto } from './SugerenciasTexto'
 import { CampoMenciones } from './CampoMenciones'
 import { mencionadosEnTexto, nombreDe } from '../lib/menciones'
@@ -8,6 +8,9 @@ import type { UsuarioActivo } from '../hooks/useUsuariosActivos'
 interface FinalizarTicketModalProps {
   tituloTicket: string
   tiempoEjecutadoHoras: number | null
+  // Con subtareas el tiempo es su suma (migración 0042): no se pide.
+  subtareasTotal?: number
+  subtareasFinalizadas?: number
   guardando: boolean
   error: string | null
   // mencionados: personas etiquetadas con @ que siguen escritas en la nota.
@@ -18,6 +21,8 @@ interface FinalizarTicketModalProps {
 export function FinalizarTicketModal({
   tituloTicket,
   tiempoEjecutadoHoras,
+  subtareasTotal = 0,
+  subtareasFinalizadas = 0,
   guardando,
   error,
   onConfirmar,
@@ -29,9 +34,13 @@ export function FinalizarTicketModal({
   const [horas, setHoras] = useState(horasIniciales)
   const [minutos, setMinutos] = useState(minutosIniciales)
 
+  const conSubtareas = subtareasTotal > 0
+  const subtareasAbiertas = subtareasTotal - subtareasFinalizadas
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    onConfirmar(nota.trim(), combinarTiempo(horas, minutos), mencionadosEnTexto(nota, mencionados))
+    const tiempo = conSubtareas ? tiempoEjecutadoHoras : combinarTiempo(horas, minutos)
+    onConfirmar(nota.trim(), tiempo, mencionadosEnTexto(nota, mencionados))
   }
 
   return (
@@ -48,6 +57,20 @@ export function FinalizarTicketModal({
           solicitante avisándole.
         </p>
         <form onSubmit={handleSubmit} className="ticket-form">
+          {conSubtareas ? (
+            <div className="finalizar__subtareas">
+              <p>
+                <strong>Tiempo ejecutado: {formatearTiempo(tiempoEjecutadoHoras ?? 0)}</strong>
+                <span> · suma de las {subtareasTotal} subtareas</span>
+              </p>
+              {subtareasAbiertas > 0 && (
+                <p className="finalizar__subtareas-aviso" role="status">
+                  {subtareasAbiertas === 1 ? 'Queda 1 subtarea sin finalizar.' : `Quedan ${subtareasAbiertas} subtareas sin finalizar.`}
+                  {' '}Puedes finalizar la tarea igual; su tiempo no se suma hasta que lo registren.
+                </p>
+              )}
+            </div>
+          ) : (
           <fieldset>
             <legend>Tiempo ejecutado</legend>
             <input
@@ -70,6 +93,7 @@ export function FinalizarTicketModal({
               aria-label="Minutos ejecutados"
             />
           </fieldset>
+          )}
           <label htmlFor="nota-finalizacion">
             Nota para el solicitante <small>Opcional · usa @ para etiquetar a alguien</small>
           </label>

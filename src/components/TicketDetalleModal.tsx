@@ -25,6 +25,7 @@ import { RespuestaFinalizacion } from './RespuestaFinalizacion'
 import { RechazarSolicitud } from './RechazarSolicitud'
 import { Avatar } from './Avatar'
 import { SemaforoVencimiento } from './SemaforoVencimiento'
+import { SubtareasTicket } from './SubtareasTicket'
 import type { ColumnaId } from './KanbanColumn'
 import type { Prioridad, RelacionLaboralNelyoda, TicketConRelaciones } from '../types/database'
 
@@ -228,8 +229,11 @@ export function TicketDetalleModal({
         tipo_id: tipoId || null,
         es_grupal: esGrupal,
         asignado_a: esGrupal ? null : ticket.asignado_a,
-        tiempo_propuesto_horas: combinarTiempo(tiempoPropuestoHoras, tiempoPropuestoMinutos),
-        tiempo_ejecutado_horas: combinarTiempo(tiempoEjecutadoHoras, tiempoEjecutadoMinutos),
+        // Con subtareas los tiempos los calcula la base (0042); no se envían.
+        ...(conSubtareas ? {} : {
+          tiempo_propuesto_horas: combinarTiempo(tiempoPropuestoHoras, tiempoPropuestoMinutos),
+          tiempo_ejecutado_horas: combinarTiempo(tiempoEjecutadoHoras, tiempoEjecutadoMinutos),
+        }),
       })
       .eq('id', ticket.id)
       .select()
@@ -409,8 +413,10 @@ export function TicketDetalleModal({
   // Solo desde el tablero (onMover) y mientras no esté cerrada.
   const puedeRechazar = puedeEditarTiempos && !!onMover && !rechazada && ticket.estado !== 'finalizado'
 
-  const tiempoPropuesto = combinarTiempo(tiempoPropuestoHoras, tiempoPropuestoMinutos)
-  const tiempoEjecutado = combinarTiempo(tiempoEjecutadoHoras, tiempoEjecutadoMinutos)
+  // Con subtareas los tiempos son su suma (migración 0042): no se editan aquí.
+  const conSubtareas = (ticket.subtareas_total ?? 0) > 0
+  const tiempoPropuesto = conSubtareas ? ticket.tiempo_propuesto_horas : combinarTiempo(tiempoPropuestoHoras, tiempoPropuestoMinutos)
+  const tiempoEjecutado = conSubtareas ? ticket.tiempo_ejecutado_horas : combinarTiempo(tiempoEjecutadoHoras, tiempoEjecutadoMinutos)
   const avance = tiempoPropuesto && tiempoEjecutado != null ? tiempoEjecutado / tiempoPropuesto : null
 
   const miembrosIniciales = ticket.asignados.map((a) => a.profile.id)
@@ -426,10 +432,12 @@ export function TicketDetalleModal({
     || esGrupal !== ticket.es_grupal
     || miembros.length !== miembrosIniciales.length
     || miembros.some((id) => !miembrosIniciales.includes(id))
-    || tiempoPropuestoHoras !== propuestoInicialHoras
-    || tiempoPropuestoMinutos !== propuestoInicialMinutos
-    || tiempoEjecutadoHoras !== ejecutadoInicialHoras
-    || tiempoEjecutadoMinutos !== ejecutadoInicialMinutos
+    || (!conSubtareas && (
+      tiempoPropuestoHoras !== propuestoInicialHoras
+      || tiempoPropuestoMinutos !== propuestoInicialMinutos
+      || tiempoEjecutadoHoras !== ejecutadoInicialHoras
+      || tiempoEjecutadoMinutos !== ejecutadoInicialMinutos
+    ))
   )
 
   return (
@@ -804,11 +812,12 @@ export function TicketDetalleModal({
               </dl>
 
               <h3 className="detalle__seccion-titulo">Tiempo</h3>
+              {conSubtareas && <p className="detalle__nota-tiempo">Suma de las subtareas</p>}
               <dl className="propiedades">
                 <div className="propiedad">
                   <dt>Propuesto</dt>
                   <dd>
-                    {puedeEditarTiempos ? (
+                    {puedeEditarTiempos && !conSubtareas ? (
                       <span className="tiempo-input">
                         <input type="number" min="0" step="1" value={tiempoPropuestoHoras} onChange={(e) => setTiempoPropuestoHoras(e.target.value)} placeholder="0" aria-label="Horas propuestas" />
                         <span>h</span>
@@ -823,7 +832,7 @@ export function TicketDetalleModal({
                 <div className="propiedad">
                   <dt>Ejecutado</dt>
                   <dd>
-                    {puedeEditarTiempos ? (
+                    {puedeEditarTiempos && !conSubtareas ? (
                       <span className={`tiempo-input${faltan.includes('tiempo ejecutado') ? ' propiedad__control--falta' : ''}`}>
                         <input type="number" min="0" step="1" value={tiempoEjecutadoHoras} onChange={(e) => setTiempoEjecutadoHoras(e.target.value)} placeholder="0" aria-label="Horas ejecutadas" />
                         <span>h</span>
@@ -881,6 +890,18 @@ export function TicketDetalleModal({
               )}
             </aside>
           </form>
+
+          {/* Fuera del formulario del detalle: tiene su propio formulario y
+              cada cambio se guarda al instante (no espera "Guardar cambios"). */}
+          <div className="detalle__subtareas">
+            <SubtareasTicket
+              ticketId={ticket.id}
+              areaId={ticket.area_id}
+              puedeGestionar={puedeEditarTiempos && ticket.estado !== 'rechazado'}
+              // Refresca la tarjeta (tiempos y avance) igual que un comentario nuevo.
+              onCambio={onComentado}
+            />
+          </div>
 
           <section className="detalle__actividad" aria-label="Actividad">
             <div className="pestanas" role="tablist">

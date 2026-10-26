@@ -14,6 +14,28 @@ export function contarPor<T>(items: T[], obtenerClave: (item: T) => string | nul
     .sort((a, b) => b.total - a.total)
 }
 
+// Como contarPor, pero suma un valor (p. ej. horas) en vez de contar. Las
+// categorías en 0 no aparecen; los totales quedan con un decimal.
+export function sumarPor<T>(
+  items: T[],
+  obtenerClave: (item: T) => string | null,
+  obtenerValor: (item: T) => number | null,
+  limite?: number,
+): ConteoCategoria[] {
+  const suma = new Map<string, number>()
+  for (const item of items) {
+    const valor = obtenerValor(item)
+    if (!valor) continue
+    const clave = obtenerClave(item) ?? 'Sin definir'
+    suma.set(clave, (suma.get(clave) ?? 0) + valor)
+  }
+  return Array.from(suma.entries())
+    .map(([nombre, total]) => ({ nombre, total: Math.round(total * 10) / 10 }))
+    .filter((d) => d.total > 0)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, limite)
+}
+
 export function formatearDuracion(horas: number): string {
   if (horas < 1) return `${Math.round(horas * 60)} min`
   if (horas < 24) return `${horas.toFixed(1)} h`
@@ -55,7 +77,7 @@ export interface PuntoSerieTemporal {
   resueltos: number
 }
 
-function claveFecha(fecha: Date, agrupacion: Agrupacion): string {
+export function claveFecha(fecha: Date, agrupacion: Agrupacion): string {
   if (agrupacion === 'dia') return fecha.toISOString().slice(0, 10)
   return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`
 }

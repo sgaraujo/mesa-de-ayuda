@@ -41,6 +41,7 @@ const ICONO_CALENDARIO = 'M8 3v3M16 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1
 const ICONO_RELOJ = 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z'
 const ICONO_COMENTARIO = 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z'
 const ICONO_CHECK = 'M20 6 9 17l-5-5'
+const ICONO_SUBTAREAS = 'M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2'
 
 interface TicketCardProps {
   ticket: TicketConRelaciones
@@ -150,6 +151,15 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true, mostrarArea
               <Icono d={ICONO_RELOJ} />
               {ticket.tiempo_ejecutado_horas != null ? formatearTiempo(ticket.tiempo_ejecutado_horas) : '—'}
               {ticket.tiempo_propuesto_horas != null && <span className="ticket-card__dato-sutil">/{formatearTiempo(ticket.tiempo_propuesto_horas)}</span>}
+            </span>
+          )}
+          {(ticket.subtareas_total ?? 0) > 0 && (
+            <span
+              className={`ticket-card__dato${ticket.subtareas_finalizadas === ticket.subtareas_total ? ' ticket-card__dato--ok' : ''}`}
+              title={`${ticket.subtareas_finalizadas} de ${ticket.subtareas_total} subtareas finalizadas`}
+            >
+              <Icono d={ICONO_SUBTAREAS} />
+              {ticket.subtareas_finalizadas}/{ticket.subtareas_total}
             </span>
           )}
           {totalComentarios > 0 && (

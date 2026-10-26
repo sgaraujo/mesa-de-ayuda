@@ -1515,6 +1515,10 @@ label {
   vertical-align: 0.05rem;
 }
 
+.stats-seccion {
+  margin-bottom: 1.75rem;
+}
+
 .stats-seccion__encabezado {
   margin-bottom: 0.7rem;
 }
@@ -3197,8 +3201,9 @@ label {
   grid-template-columns: minmax(0, 1fr) 320px;
   grid-template-areas:
     'principal lateral'
+    'subtareas lateral'
     'actividad lateral';
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   column-gap: 2rem;
   padding: 1.5rem 1.5rem 2rem 2rem;
 }
@@ -3227,6 +3232,238 @@ label {
   grid-area: actividad;
   min-width: 0;
   margin-top: 1.75rem;
+}
+
+/* ---- Subtareas (SubtareasTicket) ---- */
+
+.detalle__subtareas {
+  grid-area: subtareas;
+  min-width: 0;
+}
+
+.detalle__subtareas:empty {
+  display: none;
+}
+
+.subtareas {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.subtareas__encabezado {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.subtareas__encabezado .detalle__seccion-titulo {
+  margin: 0;
+}
+
+.subtareas__tiempos {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.subtareas__avance {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.subtareas__lista {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.subtarea {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr) 11rem auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-1);
+  font-size: 0.85rem;
+}
+
+.subtarea input,
+.subtarea select {
+  box-sizing: border-box;
+  height: 2rem;
+  padding: 0 0.5rem;
+  font-size: 0.84rem;
+}
+
+.subtarea__titulo {
+  min-width: 0;
+}
+
+/* El título editable se ve como texto hasta que se enfoca. */
+input.subtarea__titulo {
+  border-color: transparent;
+  background: transparent;
+}
+
+input.subtarea__titulo:hover,
+input.subtarea__titulo:focus {
+  border-color: var(--border);
+  background: var(--surface-page);
+}
+
+span.subtarea__titulo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtarea--finalizada .subtarea__titulo {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.subtarea__estado {
+  --subtarea-color: var(--estado-pendiente);
+  border-color: color-mix(in srgb, var(--subtarea-color) 45%, var(--border));
+  background: color-mix(in srgb, var(--subtarea-color) 10%, var(--surface-1));
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+span.subtarea__estado {
+  justify-self: start;
+  color: var(--subtarea-color);
+}
+
+.subtarea__estado--en_proceso {
+  --subtarea-color: var(--estado-en-curso);
+}
+
+.subtarea__estado--finalizada {
+  --subtarea-color: var(--estado-finalizado);
+}
+
+span.subtarea__responsable {
+  overflow: hidden;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtarea__horas {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.subtarea__horas input {
+  width: 3.4rem;
+  text-align: right;
+}
+
+.subtarea__horas--excedida,
+.subtarea__horas--excedida input:first-child {
+  color: var(--prioridad-urgente);
+}
+
+.subtarea__eliminar {
+  width: 1.9rem;
+  height: 1.9rem;
+}
+
+.subtareas__personas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.subtareas__persona {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.6rem 0.15rem 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.subtareas__nueva {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 11rem 7rem auto;
+  gap: 0.5rem;
+}
+
+.subtareas__nueva input,
+.subtareas__nueva select,
+.subtareas__nueva button {
+  box-sizing: border-box;
+  height: 2.25rem;
+  padding: 0 0.65rem;
+  font-size: 0.85rem;
+}
+
+.subtareas .auth-error {
+  margin: 0;
+}
+
+.finalizar__subtareas {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+}
+
+.finalizar__subtareas p {
+  margin: 0;
+}
+
+.finalizar__subtareas span {
+  color: var(--text-muted);
+}
+
+.finalizar__subtareas-aviso {
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--prioridad-media) 14%, transparent);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+.detalle__nota-tiempo {
+  margin: -0.3rem 0 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+@media (max-width: 720px) {
+  .subtarea {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .subtarea__estado,
+  .subtarea__responsable {
+    grid-column: 1 / -1;
+  }
+
+  .subtareas__nueva {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .subtareas__nueva input:first-child {
+    grid-column: 1 / -1;
+  }
 }
 
 .detalle__chips {
@@ -4376,6 +4613,7 @@ kbd {
     grid-template-areas:
       'principal'
       'lateral'
+      'subtareas'
       'actividad';
     grid-template-rows: auto;
     padding: 1.1rem 1rem 1.5rem;

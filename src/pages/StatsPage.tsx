@@ -3,11 +3,13 @@ import { supabase } from '../lib/supabase'
 import { useArea } from '../context/AreaContext'
 import { useProyectos } from '../hooks/useProyectos'
 import {
+  claveFecha,
   contarPor,
   dentroDeRango,
   formatearDuracion,
   formatearEtiquetaPeriodo,
   serieTemporal,
+  sumarPor,
   type Agrupacion,
   type ConteoCategoria,
   type RangoFecha,
@@ -20,7 +22,34 @@ import { BarraHorizontal } from '../components/BarraHorizontal'
 import { RankingLista } from '../components/RankingLista'
 import { DonutChart } from '../components/DonutChart'
 import { LineaTendencia } from '../components/LineaTendencia'
-import type { Estado, TicketConRelaciones } from '../types/database'
+import { nombreDe } from '../lib/menciones'
+import type { Estado, Profile, TicketConRelaciones, TicketSubtarea } from '../types/database'
+
+// Lo que hace falta de cada subtarea para las horas (migración 0042).
+type SubtareaHoras = Pick<TicketSubtarea, 'ticket_id' | 'titulo' | 'tiempo_ejecutado_horas'> & {
+  responsable: Pick<Profile, 'full_name' | 'email'> | null
+}
+
+function responsableSubtarea(subtarea: SubtareaHoras): string {
+  return subtarea.responsable ? nombreDe(subtarea.responsable) : 'Sin responsable'
+}
+
+// Horas ejecutadas por persona: las de cada subtarea van a su responsable;
+// las de una tarea sin subtareas, a sus responsables (repartidas por igual
+// si es en grupo).
+function horasPorPersona(tickets: TicketConRelaciones[], subtareasPorTicket: Map<string, SubtareaHoras[]>): ConteoCategoria[] {
+  const filas: { nombre: string; horas: number }[] = []
+  for (const ticket of tickets) {
+    const subtareas = subtareasPorTicket.get(ticket.id) ?? []
+    if (subtareas.length > 0) {
+      for (const s of subtareas) filas.push({ nombre: responsableSubtarea(s), horas: s.tiempo_ejecutado_horas ?? 0 })
+    } else if (ticket.tiempo_ejecutado_horas) {
+      const nombres = responsablesDe(ticket)
+      for (const nombre of nombres) filas.push({ nombre, horas: ticket.tiempo_ejecutado_horas / nombres.length })
+    }
+  }
+  return sumarPor(filas, (f) => f.nombre, (f) => f.horas)
+}
 
 const TICKET_SELECT = `
   *,
@@ -79,6 +108,11 @@ function describirPeriodo(rango: RangoFecha, personalizado: RangoPersonalizado):
   }
 }
 
+// Totales de horas en horas (formatearDuracion pasaría a días de 24 h).
+function horasLegibles(horas: number): string {
+  return `${(Math.round(horas * 10) / 10).toLocaleString('es-CO')} h`
+}
+
 const DIAS_MAXIMOS_POR_DIA = 92
 
 // La tendencia va por día en rangos cortos y por mes en los largos o abiertos,
@@ -118,19 +152,46 @@ export function StatsPage() {
       })
   }, [areaId])
 
+  // Aparte de los tickets: si falla (p. ej. sin la migración 0042), las
+  // estadísticas siguen y las horas salen solo de los tickets.
+  const [subtareas, setSubtareas] = useState<SubtareaHoras[]>([])
+  useEffect(() => {
+    if (!areaId) return
+    void supabase
+      .from('ticket_subtareas')
+      .select('ticket_id, titulo, tiempo_ejecutado_horas, responsable:profiles!ticket_subtareas_responsable_id_fkey(full_name, email), ticket:tickets!inner(area_id)')
+      .eq('ticket.area_id', areaId)
+      .then(({ data, error }) => {
+        if (error) console.error('No se pudieron cargar las subtareas:', error.message)
+        setSubtareas((data as unknown as SubtareaHoras[] | null) ?? [])
+      })
+  }, [areaId])
+
+  const subtareasPorTicket = useMemo(() => {
+    const mapa = new Map<string, SubtareaHoras[]>()
+    for (const s of subtareas) mapa.set(s.ticket_id, [...(mapa.get(s.ticket_id) ?? []), s])
+    return mapa
+  }, [subtareas])
+
+  // Responsables de la tarea más los de sus subtareas.
+  const personasDe = useMemo(() => (t: TicketConRelaciones) => [
+    ...responsablesDe(t),
+    ...(subtareasPorTicket.get(t.id) ?? []).map(responsableSubtarea),
+  ], [subtareasPorTicket])
+
   const ticketsBase = useMemo(() => {
     return tickets.filter(
       (t) =>
         (!filtroProyecto || t.proyecto_id === filtroProyecto) &&
-        (!filtroResponsable || responsablesDe(t).includes(filtroResponsable)) &&
+        (!filtroResponsable || personasDe(t).includes(filtroResponsable)) &&
         (!filtroEmpresa || t.empresa_solicitante === filtroEmpresa) &&
         dentroDeRango(t.created_at, filtroRango, rangoPersonalizado),
     )
-  }, [tickets, filtroProyecto, filtroResponsable, filtroEmpresa, filtroRango, rangoPersonalizado])
+  }, [tickets, personasDe, filtroProyecto, filtroResponsable, filtroEmpresa, filtroRango, rangoPersonalizado])
 
   const opcionesResponsable = useMemo(
-    () => [...new Set(tickets.flatMap(responsablesDe))].sort((a, b) => a.localeCompare(b, 'es')),
-    [tickets],
+    () => [...new Set(tickets.flatMap(personasDe))].sort((a, b) => a.localeCompare(b, 'es')),
+    [tickets, personasDe],
   )
   const opcionesEmpresa = useMemo(
     () => [...new Set(tickets.map((t) => t.empresa_solicitante).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')),
@@ -183,6 +244,20 @@ export function StatsPage() {
     ? retrasadas.reduce((acc, t) => acc + horasDeRetraso(t, ahora)!, 0) / retrasadas.length
     : null
   const vencimientosPorProyecto = contarPor(retrasadas, (t) => t.proyecto?.nombre ?? null)
+
+  // Horas invertidas (migración 0042). El tiempo de cada tarea ya es la suma
+  // de sus subtareas, así que los totales salen de los tickets.
+  const horasTotales = ticketsFiltrados.reduce((acc, t) => acc + (t.tiempo_ejecutado_horas ?? 0), 0)
+  const horasEstimadas = ticketsFiltrados.reduce((acc, t) => acc + (t.tiempo_propuesto_horas ?? 0), 0)
+  const desviacion = horasEstimadas > 0 ? Math.round(((horasTotales - horasEstimadas) / horasEstimadas) * 100) : null
+  const horasColaborador = horasPorPersona(ticketsFiltrados, subtareasPorTicket)
+  const horasProyecto = sumarPor(ticketsFiltrados, (t) => t.proyecto?.nombre ?? null, (t) => t.tiempo_ejecutado_horas)
+  const ticketsMasHoras = sumarPor(ticketsFiltrados, (t) => `#${t.numero} ${t.titulo}`, (t) => t.tiempo_ejecutado_horas, 10)
+  const subtareasFiltradas = ticketsFiltrados.flatMap((t) => (subtareasPorTicket.get(t.id) ?? []).map((s) => ({ ...s, numero: t.numero })))
+  const subtareasMasHoras = sumarPor(subtareasFiltradas, (s) => `${s.titulo} (#${s.numero})`, (s) => s.tiempo_ejecutado_horas, 10)
+  const horasPeriodo = sumarPor(ticketsFiltrados, (t) => claveFecha(new Date(t.created_at), agrupacionTendencia), (t) => t.tiempo_ejecutado_horas)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre))
+    .map((d) => ({ ...d, nombre: formatearEtiquetaPeriodo(d.nombre, agrupacionTendencia) }))
 
   const hayFiltros = filtroProyecto !== '' || filtroEstado !== '' || filtroRango !== 'todo'
     || filtroResponsable !== '' || filtroEmpresa !== ''
@@ -351,6 +426,60 @@ export function StatsPage() {
           <div className="stat-tile" title="Promedio entre las finalizadas tarde y las abiertas ya vencidas">
             <p className="stat-tile__label">Retraso promedio</p>
             <p className="stat-tile__value">{retrasoPromedio !== null ? formatearDuracion(retrasoPromedio) : '—'}</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="stats-seccion" aria-labelledby="stats-horas-titulo">
+        <div className="stats-seccion__encabezado">
+          <h2 id="stats-horas-titulo">Horas invertidas</h2>
+          <p>Tiempo ejecutado. En las tareas con subtareas, cada hora cuenta para el responsable de su subtarea.</p>
+        </div>
+        <div className="stat-tiles">
+          <div className="stat-tile">
+            <p className="stat-tile__label">Horas ejecutadas</p>
+            <p className="stat-tile__value">{horasLegibles(horasTotales)}</p>
+          </div>
+          <div className="stat-tile">
+            <p className="stat-tile__label">Horas estimadas</p>
+            <p className="stat-tile__value">{horasEstimadas > 0 ? horasLegibles(horasEstimadas) : '—'}</p>
+          </div>
+          <div
+            className={`stat-tile${desviacion !== null && desviacion > 0 ? ' stat-tile--rechazado' : ''}`}
+            title="Ejecutado frente a estimado, en las tareas filtradas"
+          >
+            <p className="stat-tile__label">Ejecutado vs. estimado</p>
+            <p className="stat-tile__value">{desviacion !== null ? `${desviacion > 0 ? '+' : ''}${desviacion} %` : '—'}</p>
+          </div>
+          <div className="stat-tile">
+            <p className="stat-tile__label">Colaboradores con horas</p>
+            <p className="stat-tile__value">{horasColaborador.filter((d) => d.nombre !== 'Bandeja general' && d.nombre !== 'Sin responsable').length}</p>
+          </div>
+        </div>
+        <div className="charts-grid">
+          <div className="chart-card">
+            <h2>Ranking de horas por colaborador</h2>
+            <RankingLista datos={horasColaborador} />
+          </div>
+          <div className="chart-card">
+            <h2>Distribución de horas por colaborador</h2>
+            <DonutChart datos={horasColaborador} centroEtiqueta="Horas" />
+          </div>
+          <div className="chart-card">
+            <h2>Tareas con mayor consumo de horas</h2>
+            <RankingLista datos={ticketsMasHoras} />
+          </div>
+          <div className="chart-card">
+            <h2>Subtareas con más horas</h2>
+            <RankingLista datos={subtareasMasHoras} />
+          </div>
+          <div className="chart-card">
+            <h2>Horas por proyecto</h2>
+            <BarraHorizontal datos={horasProyecto} />
+          </div>
+          <div className="chart-card">
+            <h2>Horas por {agrupacionTendencia === 'mes' ? 'mes' : 'día'}</h2>
+            <BarraHorizontal datos={horasPeriodo} />
           </div>
         </div>
       </section>

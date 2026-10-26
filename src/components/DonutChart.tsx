@@ -58,7 +58,8 @@ export function DonutChart({ datos, centroEtiqueta = 'Total' }: DonutChartProps)
           </PieChart>
         </ResponsiveContainer>
         <div className="donut-chart__centro">
-          <span className="donut-chart__total">{total}</span>
+          {/* Con horas (decimales) la suma puede arrastrar errores de redondeo. */}
+          <span className="donut-chart__total">{Math.round(total * 10) / 10}</span>
           <span className="donut-chart__etiqueta">{centroEtiqueta}</span>
         </div>
       </div>

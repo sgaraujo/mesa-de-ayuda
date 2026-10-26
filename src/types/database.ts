@@ -66,8 +66,13 @@ export interface Ticket {
   // Fecha y hora a la que se compromete el equipo (migración 0041). El
   // vencimiento se mide contra ella o, si no hay, contra fecha_requerida.
   fecha_compromiso: string | null
+  // Con subtareas (migración 0042) son la suma de las suyas y no se editan.
   tiempo_propuesto_horas: number | null
   tiempo_ejecutado_horas: number | null
+  // Avance por subtareas, lo mantiene un trigger. Opcionales: sin la
+  // migración aplicada no vienen.
+  subtareas_total?: number
+  subtareas_finalizadas?: number
   archivo_url: string | null
   nota_finalizacion: string | null
   // Tarea de la que se duplicó esta (migración 0028).
@@ -136,6 +141,24 @@ export interface TicketArchivo {
   tamano: number
   tipo: string | null
   created_at: string
+}
+
+// Subtareas de una tarea (migración 0042).
+export type EstadoSubtarea = 'pendiente' | 'en_proceso' | 'finalizada'
+
+export interface TicketSubtarea {
+  id: string
+  ticket_id: string
+  titulo: string
+  responsable_id: string | null
+  estado: EstadoSubtarea
+  tiempo_estimado_horas: number | null
+  tiempo_ejecutado_horas: number | null
+  orden: number
+  finalizada_at: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface TicketMencion {

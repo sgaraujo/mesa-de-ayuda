@@ -64,6 +64,8 @@ export function BoardPage() {
     ticketId: string
     titulo: string
     tiempoEjecutadoHoras: number | null
+    subtareasTotal: number
+    subtareasFinalizadas: number
     cambios: Record<string, unknown>
     estadoAnterior: Estado
   } | null>(null)
@@ -213,6 +215,8 @@ export function BoardPage() {
           ticketId,
           titulo: ticket.titulo,
           tiempoEjecutadoHoras: ticket.tiempo_ejecutado_horas,
+          subtareasTotal: ticket.subtareas_total ?? 0,
+          subtareasFinalizadas: ticket.subtareas_finalizadas ?? 0,
           cambios: { estado: nuevoEstado, finalizado_at: new Date().toISOString() },
           estadoAnterior: ticket.estado,
         })
@@ -263,6 +267,8 @@ export function BoardPage() {
         ticketId,
         titulo: ticket.titulo,
         tiempoEjecutadoHoras: ticket.tiempo_ejecutado_horas,
+        subtareasTotal: ticket.subtareas_total ?? 0,
+        subtareasFinalizadas: ticket.subtareas_finalizadas ?? 0,
         cambios,
         estadoAnterior: ticket.estado,
       })
@@ -498,6 +504,8 @@ export function BoardPage() {
         <FinalizarTicketModal
           tituloTicket={ticketAFinalizar.titulo}
           tiempoEjecutadoHoras={ticketAFinalizar.tiempoEjecutadoHoras}
+          subtareasTotal={ticketAFinalizar.subtareasTotal}
+          subtareasFinalizadas={ticketAFinalizar.subtareasFinalizadas}
           guardando={finalizando}
           error={errorFinalizar}
           onConfirmar={(nota, horas, mencionados) => void confirmarFinalizacion(nota, horas, mencionados)}
