@@ -170,7 +170,7 @@ export interface TicketMencion {
 
 // Centro de notificaciones (migración 0026); las crean triggers.
 export type TipoNotificacion =
-  | 'mencion' | 'comentario' | 'asignacion' | 'estado' | 'aprobacion' | 'rechazo' | 'solicitud_rechazada' | 'vencimiento'
+  | 'mencion' | 'comentario' | 'asignacion' | 'estado' | 'aprobacion' | 'rechazo' | 'solicitud_rechazada' | 'vencimiento' | 'subtarea'
 
 export interface Notificacion {
   id: string

@@ -63,6 +63,8 @@ function formatearValor(campo: string, valor: string | null): string {
 }
 
 function describirCambio(cambio: TicketCambio): string {
+  // Subtareas (migración 0043): la frase ya viene armada desde la base.
+  if (cambio.campo === 'subtarea') return cambio.valor_nuevo ?? 'cambió una subtarea'
   if (cambio.campo === 'miembro') {
     return cambio.valor_nuevo
       ? `agregó a ${cambio.valor_nuevo} al grupo`

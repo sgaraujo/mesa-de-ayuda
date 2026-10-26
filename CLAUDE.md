@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0042_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0043_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -120,7 +120,12 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   (`puedo_gestionar_ticket`). Un trigger guarda en `tickets` la suma de sus
   tiempos (`tiempo_propuesto_horas`/`tiempo_ejecutado_horas`) y el avance
   (`subtareas_total`/`subtareas_finalizadas`); con subtareas, esos tiempos no
-  se escriben a mano (otro trigger ignora el cambio).
+  se escriben a mano (otro trigger ignora el cambio). Desde la 0043 el
+  responsable de una subtarea ve la tarea (`tengo_subtarea()` en
+  `puedo_ver_ticket` y `tickets_select`, como `fui_mencionado()`), recibe una
+  notificación `subtarea` al ser asignado, y cada cambio de una subtarea
+  queda en `ticket_cambios` con `campo = 'subtarea'` y la frase en
+  `valor_nuevo`.
 - Vencimientos (migración 0041): `tickets.fecha_compromiso` la define el
   equipo; el vencimiento se mide contra ella o, si está vacía, contra
   `fecha_requerida` (`src/lib/vencimiento.ts`: semáforo verde / amarillo a

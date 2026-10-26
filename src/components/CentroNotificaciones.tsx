@@ -74,6 +74,9 @@ function Mensaje({ n }: { n: NotificacionConRelaciones }) {
       return <>{actor} rechazó la finalización de {tarea}; volvió a <strong>Pendiente</strong></>
     case 'solicitud_rechazada':
       return <>{actor} rechazó tu solicitud {tarea}</>
+    // El detalle es el título de la subtarea (migración 0043).
+    case 'subtarea':
+      return <>{actor} te asignó una subtarea en {tarea}</>
     // Las crea el cron (migración 0041), sin actor.
     case 'vencimiento':
       return n.detalle === 'vencido'
@@ -91,6 +94,7 @@ const ICONO_TIPO: Record<Notificacion['tipo'], string> = {
   rechazo: '↩',
   solicitud_rechazada: '✕',
   vencimiento: '⏰',
+  subtarea: '☑',
 }
 
 // Campanita del encabezado con el panel de notificaciones. Al tocar una se
