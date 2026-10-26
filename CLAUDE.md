@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0038_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0039_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -196,7 +196,8 @@ LanguageTool; API pública gratuita salvo que se definan los secretos
 `LANGUAGETOOL_USERNAME`/`LANGUAGETOOL_API_KEY` o `LANGUAGETOOL_URL`),
 `asistente-solicitud` ("Mejorar con IA" al crear una solicitud; Gemini con el
 secreto `GEMINI_API_KEY`, la misma llave de Nelyoda, y `GEMINI_MODEL`
-opcional). Todas usan el service role key
+opcional; solo responde a solicitudes de trabajo y limita a 20 usos por
+persona por hora con `usos_asistente`, migración 0039). Todas usan el service role key
 (`SUPABASE_SERVICE_ROLE_KEY`, disponible automáticamente en runtime) para
 saltarse RLS de forma controlada — son el único lugar donde eso es correcto.
 

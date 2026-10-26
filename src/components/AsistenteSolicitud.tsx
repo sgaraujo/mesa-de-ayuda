@@ -25,6 +25,8 @@ export function AsistenteSolicitud({ titulo, descripcion, area, tipo, onUsar }: 
   const [cargando, setCargando] = useState(false)
   const [propuesta, setPropuesta] = useState<Propuesta | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // El asistente solo ayuda con solicitudes de trabajo; para lo demás avisa.
+  const [fueraDeContexto, setFueraDeContexto] = useState(false)
 
   const hayBorrador = (titulo.trim() + descripcion.trim()).length >= MINIMO_CARACTERES
 
@@ -32,6 +34,7 @@ export function AsistenteSolicitud({ titulo, descripcion, area, tipo, onUsar }: 
     setCargando(true)
     setError(null)
     setPropuesta(null)
+    setFueraDeContexto(false)
     const { data, error: errorAsistente } = await supabase.functions.invoke('asistente-solicitud', {
       body: { titulo, descripcion, area, tipo },
     })
@@ -45,6 +48,10 @@ export function AsistenteSolicitud({ titulo, descripcion, area, tipo, onUsar }: 
         // Sin cuerpo JSON: queda el mensaje genérico.
       }
       setError(detalle ?? 'El asistente no está disponible en este momento.')
+      return
+    }
+    if (data.esSolicitud === false) {
+      setFueraDeContexto(true)
       return
     }
     setPropuesta(data as Propuesta)
@@ -70,6 +77,12 @@ export function AsistenteSolicitud({ titulo, descripcion, area, tipo, onUsar }: 
         </div>
       )}
       {error && <p className="auth-error">{error}</p>}
+      {fueraDeContexto && (
+        <p className="asistente__aviso" role="status">
+          Esto no parece una solicitud de trabajo para un área. El asistente solo ayuda a redactar
+          solicitudes: cuenta qué necesitas que haga el equipo y vuelve a intentarlo.
+        </p>
+      )}
 
       {propuesta && (
         <section className="asistente__propuesta" aria-live="polite" aria-label="Propuesta del asistente">

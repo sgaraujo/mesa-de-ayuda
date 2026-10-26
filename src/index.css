@@ -2585,6 +2585,16 @@ label {
   margin: 0;
 }
 
+.asistente__aviso {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--prioridad-media) 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--prioridad-media) 12%, transparent);
+  color: var(--text-primary);
+  font-size: 0.84rem;
+}
+
 .asistente__propuesta {
   display: grid;
   gap: 0.55rem;
