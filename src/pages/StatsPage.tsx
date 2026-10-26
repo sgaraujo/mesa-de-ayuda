@@ -482,35 +482,6 @@ export function StatsPage() {
         </div>
       </div>
 
-      <section className="stats-seccion" aria-labelledby="stats-sla-titulo">
-        <div className="stats-seccion__encabezado">
-          <h2 id="stats-sla-titulo">Cumplimiento de tiempos</h2>
-          <p>Contra la fecha compromiso o, si no la hay, la fecha que pidió el solicitante.</p>
-        </div>
-        <div className="stat-tiles">
-          <div className="stat-tile stat-tile--semaforo-verde">
-            <p className="stat-tile__label"><span className="semaforo__punto" aria-hidden="true" /> Dentro del tiempo</p>
-            <p className="stat-tile__value">{dentroDelTiempo}</p>
-          </div>
-          <div className="stat-tile stat-tile--semaforo-amarillo">
-            <p className="stat-tile__label"><span className="semaforo__punto" aria-hidden="true" /> Próximas a vencer</p>
-            <p className="stat-tile__value">{porVencer}</p>
-          </div>
-          <div className="stat-tile stat-tile--semaforo-rojo">
-            <p className="stat-tile__label"><span className="semaforo__punto" aria-hidden="true" /> Vencidas</p>
-            <p className="stat-tile__value">{vencidas}</p>
-          </div>
-          <div className="stat-tile" title={`${cumplimientos.filter(Boolean).length} de ${cumplimientos.length} finalizadas con fecha se terminaron a tiempo`}>
-            <p className="stat-tile__label">Cumplimiento de SLA</p>
-            <p className="stat-tile__value">{porcentajeCumplimiento !== null ? `${porcentajeCumplimiento} %` : '—'}</p>
-          </div>
-          <div className="stat-tile" title="Promedio entre las finalizadas tarde y las abiertas ya vencidas">
-            <p className="stat-tile__label">Retraso promedio</p>
-            <p className="stat-tile__value">{retrasoPromedio !== null ? formatearDuracion(retrasoPromedio) : '—'}</p>
-          </div>
-        </div>
-      </section>
-
       <section className="stats-seccion" aria-labelledby="stats-horas-titulo">
         <div className="stats-seccion__encabezado">
           <h2 id="stats-horas-titulo">Horas invertidas</h2>
@@ -588,10 +559,6 @@ export function StatsPage() {
       </section>
 
       <div className="charts-grid">
-        <div className="chart-card">
-          <h2>Proyectos con más vencimientos</h2>
-          <RankingLista datos={vencimientosPorProyecto} />
-        </div>
         <div className="chart-card chart-card--ancho">
           <h2>Tendencia de solicitudes</h2>
           <LineaTendencia
@@ -616,6 +583,41 @@ export function StatsPage() {
           <BarraHorizontal datos={porEmpresa} />
         </div>
       </div>
+
+      <section className="stats-seccion" aria-labelledby="stats-sla-titulo">
+        <div className="stats-seccion__encabezado">
+          <h2 id="stats-sla-titulo">Cumplimiento de tiempos</h2>
+          <p>Contra la fecha compromiso o, si no la hay, la fecha que pidió el solicitante.</p>
+        </div>
+        <div className="stat-tiles">
+          <div className="stat-tile stat-tile--semaforo-verde">
+            <p className="stat-tile__label"><span className="semaforo__punto" aria-hidden="true" /> Dentro del tiempo</p>
+            <p className="stat-tile__value">{dentroDelTiempo}</p>
+          </div>
+          <div className="stat-tile stat-tile--semaforo-amarillo">
+            <p className="stat-tile__label"><span className="semaforo__punto" aria-hidden="true" /> Próximas a vencer</p>
+            <p className="stat-tile__value">{porVencer}</p>
+          </div>
+          <div className="stat-tile stat-tile--semaforo-rojo">
+            <p className="stat-tile__label"><span className="semaforo__punto" aria-hidden="true" /> Vencidas</p>
+            <p className="stat-tile__value">{vencidas}</p>
+          </div>
+          <div className="stat-tile" title={`${cumplimientos.filter(Boolean).length} de ${cumplimientos.length} finalizadas con fecha se terminaron a tiempo`}>
+            <p className="stat-tile__label">Cumplimiento de SLA</p>
+            <p className="stat-tile__value">{porcentajeCumplimiento !== null ? `${porcentajeCumplimiento} %` : '—'}</p>
+          </div>
+          <div className="stat-tile" title="Promedio entre las finalizadas tarde y las abiertas ya vencidas">
+            <p className="stat-tile__label">Retraso promedio</p>
+            <p className="stat-tile__value">{retrasoPromedio !== null ? formatearDuracion(retrasoPromedio) : '—'}</p>
+          </div>
+        </div>
+        <div className="charts-grid">
+          <div className="chart-card">
+            <h2>Proyectos con más vencimientos</h2>
+            <RankingLista datos={vencimientosPorProyecto} />
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

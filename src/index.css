@@ -1519,6 +1519,11 @@ label {
   margin-bottom: 1.75rem;
 }
 
+/* Una sección después de los gráficos generales (p. ej. Cumplimiento de tiempos al final). */
+.charts-grid + .stats-seccion {
+  margin-top: 1.75rem;
+}
+
 .stats-seccion__encabezado {
   margin-bottom: 0.7rem;
 }
