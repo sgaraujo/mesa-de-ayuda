@@ -50,6 +50,22 @@ export async function subirArchivoComentario(ticketId: string, archivo: File): P
   return { ruta, nombre: archivo.name, tamano: archivo.size, tipo: archivo.type }
 }
 
+// Adjuntos al crear una solicitud. La misma lista se valida en
+// adjuntar_archivos_solicitud() (migración 0040): si cambia aquí, cambia allá.
+export const ARCHIVO_SOLICITUD_EXTENSIONES = [
+  'png', 'jpg', 'jpeg', 'webp', 'gif',
+  'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'zip',
+]
+export const ARCHIVO_SOLICITUD_MAX_MB = 10
+export const ARCHIVOS_POR_SOLICITUD = 10
+
+export async function subirArchivoSolicitud(ticketId: string, archivo: File): Promise<ArchivoSubido> {
+  const ruta = `solicitudes/${ticketId}/${crypto.randomUUID()}.${extensionDe(archivo.name)}`
+  const { error } = await supabase.storage.from(BUCKET).upload(ruta, archivo, { contentType: archivo.type || undefined })
+  if (error) throw error
+  return { ruta, nombre: archivo.name, tamano: archivo.size, tipo: archivo.type }
+}
+
 export function urlArchivo(ruta: string): string {
   return supabase.storage.from(BUCKET).getPublicUrl(ruta).data.publicUrl
 }

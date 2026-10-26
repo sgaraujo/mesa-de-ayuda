@@ -18,6 +18,7 @@ import {
 import { notificarAsignacion, notificarNuevaTarea } from '../lib/notificaciones'
 import { separarTiempo, combinarTiempo, formatearTiempo } from '../lib/tiempo'
 import { ArchivosTicket } from './ArchivosTicket'
+import { AdjuntosSolicitud } from './AdjuntosSolicitud'
 import { ComentariosTicket } from './ComentariosTicket'
 import { HistorialCambios } from './HistorialCambios'
 import { RespuestaFinalizacion } from './RespuestaFinalizacion'
@@ -572,6 +573,7 @@ export function TicketDetalleModal({
                 )}
               </section>
 
+              {/* Solicitudes de antes de la migración 0040: un solo adjunto en archivo_url. */}
               {ticket.archivo_url && (
                 <section className="detalle__seccion">
                   <h3 className="detalle__seccion-titulo">Archivo adjunto</h3>
@@ -590,6 +592,8 @@ export function TicketDetalleModal({
                   )}
                 </section>
               )}
+
+              <AdjuntosSolicitud ticketId={ticket.id} />
 
               {ticket.estado === 'finalizado' && ticket.nota_finalizacion && (
                 <section className="detalle__seccion">

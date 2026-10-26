@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0039_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0040_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -131,8 +131,12 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   varios; Word, Excel, PDF, JPG, PNG, ZIP). El cliente los sube al bucket
   `ticket-imagenes` bajo `comentarios/<ticket_id>/` y `comentar_ticket()`
   los registra (verifica que existan en storage). Sin policies de escritura.
-  La pestaña "Archivos" del detalle (`ArchivosTicket`) los consolida junto
-  con el adjunto de la creación (`tickets.archivo_url`).
+  Desde la migración 0040 también guarda los archivos de la creación de la
+  solicitud (varios, sin `comentario_id`): el cliente crea la tarea, los sube
+  bajo `solicitudes/<ticket_id>/` y los registra con
+  `adjuntar_archivos_solicitud()`. `tickets.archivo_url` (un solo adjunto)
+  queda solo para las solicitudes anteriores. La pestaña "Archivos" del
+  detalle (`ArchivosTicket`) los consolida todos.
 - `notificaciones` (migración 0026): centro de notificaciones de la app
   (campanita en el Layout, `CentroNotificaciones`). Las crean triggers en
   `tickets`, `ticket_asignados`, `ticket_comentarios` y `ticket_menciones`

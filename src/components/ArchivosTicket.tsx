@@ -95,7 +95,8 @@ export function ArchivosTicket({ ticket }: { ticket: TicketConRelaciones }) {
       fecha: archivo.created_at,
       origen: archivo.comentario
         ? archivo.comentario.texto.trim() ? `Comentario: “${extracto(archivo.comentario.texto)}”` : 'Comentario sin texto'
-        : 'Sin comentario asociado',
+        // Sin comentario = adjunto al crear la solicitud (migración 0040).
+        : 'Creación de la solicitud',
     })),
   ]
 

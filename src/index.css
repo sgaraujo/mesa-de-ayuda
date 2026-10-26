@@ -490,21 +490,48 @@ label {
   object-fit: cover;
 }
 
-.ticket-form__archivo-icono {
+/* Adjuntos de la creación en el detalle de la tarea (AdjuntosSolicitud). */
+.adjuntos-solicitud {
   display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 7px;
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  color: var(--text-secondary);
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.5rem;
 }
 
-.ticket-form__archivo-icono svg {
-  width: 1.4rem;
-  height: 1.4rem;
+/* Lista de archivos elegidos al crear la solicitud. */
+.ticket-form__archivos {
+  display: grid;
+  gap: 0.4rem;
+  max-height: 16rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.ticket-form__archivos .ticket-form__attachment-file {
+  padding: 0.45rem 0.6rem;
+}
+
+.ticket-form__archivos .ticket-form__archivo-preview {
+  width: 40px;
+  height: 40px;
+}
+
+/* Con archivos ya elegidos, la zona para agregar más ocupa menos. */
+.ticket-form__dropzone--compacta {
+  min-height: 0;
+  flex-direction: row;
+  flex-wrap: wrap;
+  padding: 0.7rem 1rem;
+}
+
+.ticket-form__dropzone--compacta .ticket-form__attachment-icon {
+  width: 1.9rem;
+  height: 1.9rem;
+}
+
+.ticket-form__dropzone--compacta > span {
+  flex-basis: 100%;
 }
 
 .ticket-form__attachment-info {
@@ -4178,6 +4205,119 @@ kbd {
 .detalle__estado-guardado {
   font-size: 0.82rem;
   color: var(--text-muted);
+}
+
+/* ---- Modal "Nueva tarea" (mismo armazón que el detalle) ---- */
+
+.modal-panel--nueva-tarea {
+  display: flex;
+  flex-direction: column;
+  max-width: 680px;
+  max-height: min(90vh, 880px);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.nueva-tarea__titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.modal-panel--nueva-tarea .nueva-tarea__titulo h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.nueva-tarea__area {
+  padding: 0.12rem 0.55rem;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.nueva-tarea {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.nueva-tarea__cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+  overflow-y: auto;
+}
+
+.nueva-tarea__cuerpo input,
+.nueva-tarea__cuerpo select,
+.nueva-tarea__cuerpo textarea {
+  font-size: 0.92rem;
+}
+
+.nueva-tarea__cuerpo textarea {
+  resize: vertical;
+}
+
+.nueva-tarea__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* Igual que el texto de los label globales. */
+.nueva-tarea__etiqueta {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.nueva-tarea__prioridad {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nueva-tarea__prioridad button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.nueva-tarea__acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.nueva-tarea__acciones > button {
+  height: 2.25rem;
+  padding: 0 1rem;
+  font-size: 0.86rem;
+}
+
+.detalle__footer .nueva-tarea__estado {
+  margin: 0;
+}
+
+/* Un aviso largo (p. ej. archivos que no se pudieron adjuntar) baja los botones. */
+.modal-panel--nueva-tarea .detalle__footer {
+  flex-wrap: wrap;
+}
+
+.modal-panel--nueva-tarea .detalle__footer .nueva-tarea__acciones {
+  margin-left: auto;
 }
 
 @media (max-width: 820px) {

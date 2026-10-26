@@ -9,13 +9,16 @@ import { SugerenciasTexto } from './SugerenciasTexto'
 import { AsistenteSolicitud } from './AsistenteSolicitud'
 import type { Prioridad } from '../types/database'
 import { notificarAsignacion, notificarNuevaTarea } from '../lib/notificaciones'
-import { extensionDe, pesoLegible } from '../lib/archivos'
-
-const ARCHIVO_MAX_MB = 10
-const EXTENSIONES_PERMITIDAS = [
-  'png', 'jpg', 'jpeg', 'webp', 'gif',
-  'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'zip',
-]
+import {
+  ARCHIVO_SOLICITUD_EXTENSIONES as EXTENSIONES_PERMITIDAS,
+  ARCHIVO_SOLICITUD_MAX_MB as ARCHIVO_MAX_MB,
+  ARCHIVOS_POR_SOLICITUD,
+  esImagen,
+  extensionDe,
+  pesoLegible,
+  subirArchivoSolicitud,
+} from '../lib/archivos'
+import { IconoArchivo } from './ArchivoAdjunto'
 
 const PRIORIDADES: { valor: Prioridad; etiqueta: string; ayuda: string }[] = [
   { valor: 'baja', etiqueta: 'Baja', ayuda: 'Cuando haya tiempo' },
@@ -54,9 +57,11 @@ interface TicketFormProps {
   elegirArea?: boolean
   onCreado?: () => void
   onDirtyChange?: (dirty: boolean) => void
+  // Solo el formulario del tablero: botón Cancelar del pie del modal.
+  onCancelar?: () => void
 }
 
-export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCreado, onDirtyChange }: TicketFormProps) {
+export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCreado, onDirtyChange, onCancelar }: TicketFormProps) {
   const { profile } = useAuth()
   const { areaActiva, areas: misAreas } = useArea()
   const { areas: todasLasAreas, loading: cargandoAreas } = useAreas()
@@ -78,8 +83,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   const [prioridad, setPrioridad] = useState<Prioridad>('media')
   // "AAAA-MM-DD" del <input type="date">; vacío = sin fecha.
   const [fechaRequerida, setFechaRequerida] = useState('')
-  const [archivo, setArchivo] = useState<File | null>(null)
-  const [archivoPreview, setArchivoPreview] = useState<string | null>(null)
+  const [archivos, setArchivos] = useState<File[]>([])
   const [arrastrandoArchivo, setArrastrandoArchivo] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -87,50 +91,45 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   const archivoInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!archivo || !archivo.type.startsWith('image/')) {
-      setArchivoPreview(null)
-      return
-    }
-    const url = URL.createObjectURL(archivo)
-    setArchivoPreview(url)
-    return () => URL.revokeObjectURL(url)
-  }, [archivo])
+    onDirtyChange?.(titulo.trim() !== '' || descripcion.trim() !== '' || archivos.length > 0 || fechaRequerida !== '')
+  }, [titulo, descripcion, archivos, fechaRequerida, onDirtyChange])
 
-  useEffect(() => {
-    onDirtyChange?.(titulo.trim() !== '' || descripcion.trim() !== '' || archivo !== null || fechaRequerida !== '')
-  }, [titulo, descripcion, archivo, fechaRequerida, onDirtyChange])
-
-  function seleccionarArchivo(file: File | null) {
-    if (file && !EXTENSIONES_PERMITIDAS.includes(extensionDe(file.name))) {
-      setError('Formato no permitido. Usa imagen, PDF, Word, Excel, PowerPoint, TXT, CSV o ZIP.')
-      if (archivoInputRef.current) archivoInputRef.current.value = ''
-      setArchivo(null)
-      return
+  // Agrega los válidos a la lista; los que no sirven se explican en el error.
+  function agregarArchivos(lista: FileList | null) {
+    if (archivoInputRef.current) archivoInputRef.current.value = ''
+    if (!lista || lista.length === 0) return
+    const problemas: string[] = []
+    const nuevos: File[] = []
+    for (const file of Array.from(lista)) {
+      if (!EXTENSIONES_PERMITIDAS.includes(extensionDe(file.name))) {
+        problemas.push(`"${file.name}" no es un formato permitido.`)
+      } else if (file.size === 0) {
+        problemas.push(`"${file.name}" está vacío.`)
+      } else if (file.size > ARCHIVO_MAX_MB * 1024 * 1024) {
+        problemas.push(`"${file.name}" pesa más de ${ARCHIVO_MAX_MB} MB.`)
+      } else if (!archivos.some((a) => a.name === file.name && a.size === file.size)) {
+        nuevos.push(file)
+      }
     }
-    if (file && file.size > ARCHIVO_MAX_MB * 1024 * 1024) {
-      setError(`El archivo no puede pesar más de ${ARCHIVO_MAX_MB} MB.`)
-      if (archivoInputRef.current) archivoInputRef.current.value = ''
-      setArchivo(null)
-      return
-    }
-    setError(null)
-    setArchivo(file)
+    const cupo = ARCHIVOS_POR_SOLICITUD - archivos.length
+    if (nuevos.length > cupo) problemas.push(`Puedes adjuntar hasta ${ARCHIVOS_POR_SOLICITUD} archivos.`)
+    setArchivos([...archivos, ...nuevos.slice(0, Math.max(cupo, 0))])
+    setError(problemas.length > 0 ? problemas.join(' ') : null)
   }
 
   function handleArchivoChange(e: ChangeEvent<HTMLInputElement>) {
-    seleccionarArchivo(e.target.files?.[0] ?? null)
+    agregarArchivos(e.target.files)
   }
 
   function handleArchivoDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault()
     setArrastrandoArchivo(false)
-    seleccionarArchivo(e.dataTransfer.files?.[0] ?? null)
+    agregarArchivos(e.dataTransfer.files)
   }
 
-  function quitarArchivo() {
-    setArchivo(null)
+  function quitarArchivo(indice: number) {
+    setArchivos((prev) => prev.filter((_, i) => i !== indice))
     setError(null)
-    if (archivoInputRef.current) archivoInputRef.current.value = ''
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -143,19 +142,6 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
     setError(null)
     setEnviando(true)
     const puedeAutoasignarse = rolEnDestino === 'agente' || rolEnDestino === 'lider'
-
-    let archivoUrl: string | null = null
-    if (archivo) {
-      const ruta = `${crypto.randomUUID()}.${extensionDe(archivo.name)}`
-      const { error: errorSubida } = await supabase.storage.from('ticket-imagenes').upload(ruta, archivo)
-
-      if (errorSubida) {
-        setEnviando(false)
-        setError('No se pudo subir el archivo. Intenta de nuevo.')
-        return
-      }
-      archivoUrl = supabase.storage.from('ticket-imagenes').getPublicUrl(ruta).data.publicUrl
-    }
 
     const asignadoFinal = puedeAutoasignarse ? asignadoA || null : null
     const { data: ticketCreado, error } = await supabase
@@ -171,21 +157,36 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
         prioridad,
         fecha_requerida: fechaRequeridaIso(fechaRequerida),
         estado: 'pendiente',
-        archivo_url: archivoUrl,
       })
       .select('id')
       .single()
 
-    setEnviando(false)
-    if (error) {
+    if (error || !ticketCreado) {
+      setEnviando(false)
       setError('No se pudo crear la solicitud. Intenta de nuevo.')
       return
     }
 
-    if (ticketCreado) {
-      if (asignadoFinal) void notificarAsignacion(ticketCreado.id, [asignadoFinal])
-      else void notificarNuevaTarea(ticketCreado.id)
+    // Los archivos van en la carpeta de la tarea, que ya existe, y se
+    // registran juntos en ticket_archivos (migración 0040).
+    let errorArchivos: string | null = null
+    if (archivos.length > 0) {
+      try {
+        const subidos = await Promise.all(archivos.map((file) => subirArchivoSolicitud(ticketCreado.id, file)))
+        const { error: errorRegistro } = await supabase.rpc('adjuntar_archivos_solicitud', {
+          p_ticket_id: ticketCreado.id,
+          p_archivos: subidos,
+        })
+        if (errorRegistro) throw errorRegistro
+      } catch (errorSubida) {
+        console.error('No se pudieron adjuntar los archivos:', (errorSubida as Error).message)
+        errorArchivos = 'La solicitud se creó, pero no se pudieron adjuntar los archivos. Agrégalos desde un comentario de la solicitud.'
+      }
     }
+    setEnviando(false)
+
+    if (asignadoFinal) void notificarAsignacion(ticketCreado.id, [asignadoFinal])
+    else void notificarNuevaTarea(ticketCreado.id)
 
     setExito(true)
     setTipoId('')
@@ -194,8 +195,12 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
     setPrioridad('media')
     setFechaRequerida('')
     setAsignadoA(asignadoAPorDefecto)
-    setArchivo(null)
-    if (archivoInputRef.current) archivoInputRef.current.value = ''
+    setArchivos([])
+    // Si los archivos fallaron, el formulario no se cierra solo: así se lee el aviso.
+    if (errorArchivos) {
+      setError(errorArchivos)
+      return
+    }
     setTimeout(() => onCreado?.(), 900)
   }
 
@@ -272,21 +277,38 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
 
   const campoAdjunto = (
     <div className="ticket-form__attachment-field">
-      {!elegirArea && <span className="ticket-form__attachment-label">Adjuntar archivo <small>Opcional</small></span>}
+      {!elegirArea && <span className="ticket-form__attachment-label">Adjuntar archivos <small>Opcional</small></span>}
       <input
         ref={archivoInputRef}
         type="file"
+        multiple
         accept={EXTENSIONES_PERMITIDAS.map((ext) => `.${ext}`).join(',')}
         onChange={handleArchivoChange}
         className="ticket-form__file-input"
         tabIndex={-1}
       />
-      {!archivo ? (
+      {archivos.length > 0 && (
+        <ul className="ticket-form__archivos">
+          {archivos.map((file, i) => (
+            <li key={`${file.name}-${file.size}`} className="ticket-form__attachment-file">
+              <VistaPreviaArchivo archivo={file} />
+              <div className="ticket-form__attachment-info">
+                <strong title={file.name}>{file.name}</strong>
+                <span>{pesoLegible(file.size)}</span>
+              </div>
+              <button type="button" className="ticket-form__attachment-remove" onClick={() => quitarArchivo(i)} aria-label={`Quitar ${file.name}`}>
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {archivos.length < ARCHIVOS_POR_SOLICITUD && (
         <div
-          className={`ticket-form__dropzone${arrastrandoArchivo ? ' ticket-form__dropzone--activo' : ''}`}
+          className={`ticket-form__dropzone${arrastrandoArchivo ? ' ticket-form__dropzone--activo' : ''}${archivos.length > 0 ? ' ticket-form__dropzone--compacta' : ''}`}
           role="button"
           tabIndex={0}
-          aria-label="Seleccionar un archivo para adjuntar"
+          aria-label="Seleccionar archivos para adjuntar"
           onClick={() => archivoInputRef.current?.click()}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -310,30 +332,12 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
             </svg>
           </div>
           <div>
-            <p>Arrastra un archivo aquí o</p>
-            <span className="ticket-form__file-button">Seleccionar archivo</span>
+            <p>{archivos.length > 0 ? 'Agrega más archivos aquí o' : 'Arrastra uno o varios archivos aquí o'}</p>
+            <span className="ticket-form__file-button">Seleccionar archivos</span>
           </div>
-          <span>Imagen, PDF, Word, Excel, PowerPoint, TXT, CSV o ZIP · máximo {ARCHIVO_MAX_MB} MB</span>
-        </div>
-      ) : (
-        <div className="ticket-form__attachment-file">
-          {archivoPreview ? (
-            <img src={archivoPreview} alt="Vista previa" className="ticket-form__archivo-preview" />
-          ) : (
-            <div className="ticket-form__archivo-icono" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                <path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
-                <path d="M14 3v5h5" />
-              </svg>
-            </div>
-          )}
-          <div className="ticket-form__attachment-info">
-            <strong title={archivo.name}>{archivo.name}</strong>
-            <span>{pesoLegible(archivo.size)}</span>
-          </div>
-          <button type="button" className="ticket-form__attachment-remove" onClick={quitarArchivo} aria-label={`Quitar ${archivo.name}`}>
-            ×
-          </button>
+          <span>
+            Imagen, PDF, Word, Excel, PowerPoint, TXT, CSV o ZIP · hasta {ARCHIVOS_POR_SOLICITUD} archivos de máximo {ARCHIVO_MAX_MB} MB
+          </span>
         </div>
       )}
     </div>
@@ -342,49 +346,73 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   // Desde el tablero (modal): formulario compacto, fijo en el área activa.
   if (!elegirArea) {
     return (
-      <form onSubmit={handleSubmit} className="ticket-form">
-        {campoTipo}
-        {campoTitulo}
-        {campoDescripcion}
-        <div className="ticket-form__row">
-          <label>
-            Área
-            {/* Fija: para enviarla a otra área está Nueva solicitud. */}
-            <input value={areaActiva?.nombre ?? ''} readOnly disabled title="Para enviar a otra área usa Nueva solicitud" />
-          </label>
-          {rolEnDestino === 'lider' && (
-            <label>
-              Asignar a
-              <select value={asignadoA} onChange={(e) => setAsignadoA(e.target.value)}>
-                <option value="">Sin asignar (bandeja)</option>
-                {equipo.map((miembro) => (
-                  <option key={miembro.id} value={miembro.id}>
-                    {miembro.id === profile?.id ? 'A mí' : miembro.full_name ?? miembro.email}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <label>
-            Prioridad
-            <select value={prioridad} onChange={(e) => setPrioridad(e.target.value as Prioridad)}>
+      // El área es siempre la activa (va en el encabezado del modal); para
+      // enviarla a otra área está Nueva solicitud.
+      <form onSubmit={handleSubmit} className="nueva-tarea">
+        <div className="nueva-tarea__cuerpo">
+          {campoTipo}
+          {campoTitulo}
+          {campoDescripcion}
+
+          <div className="nueva-tarea__campo">
+            <span className="nueva-tarea__etiqueta">Prioridad</span>
+            <div className="segmentado nueva-tarea__prioridad" role="radiogroup" aria-label="Prioridad">
               {PRIORIDADES.map((p) => (
-                <option key={p.valor} value={p.valor}>
+                <button
+                  key={p.valor}
+                  type="button"
+                  role="radio"
+                  aria-checked={prioridad === p.valor}
+                  aria-pressed={prioridad === p.valor}
+                  title={p.ayuda}
+                  onClick={() => setPrioridad(p.valor)}
+                >
+                  <span className={`propiedad__punto propiedad__punto--${p.valor}`} aria-hidden="true" />
                   {p.etiqueta}
-                </option>
+                </button>
               ))}
-            </select>
-          </label>
-          {campoFecha}
+            </div>
+          </div>
+
+          <div className="ticket-form__row">
+            {rolEnDestino === 'lider' && (
+              <label>
+                Asignar a
+                <select value={asignadoA} onChange={(e) => setAsignadoA(e.target.value)}>
+                  <option value="">Sin asignar (bandeja)</option>
+                  {equipo.map((miembro) => (
+                    <option key={miembro.id} value={miembro.id}>
+                      {miembro.id === profile?.id ? 'A mí' : miembro.full_name ?? miembro.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {campoFecha}
+          </div>
+
+          {campoAdjunto}
         </div>
-        {campoAdjunto}
-        {error && <p className="auth-error">{error}</p>}
-        {exito && (
-          <p className="auth-success">Solicitud creada correctamente.</p>
-        )}
-        <button type="submit" disabled={enviando}>
-          {enviando ? 'Enviando...' : 'Crear solicitud'}
-        </button>
+
+        <footer className="detalle__footer">
+          {error ? (
+            <p className="auth-error">{error}</p>
+          ) : exito ? (
+            <p className="auth-success nueva-tarea__estado">Tarea creada correctamente.</p>
+          ) : (
+            <span className="detalle__estado-guardado">Se crea en {areaActiva?.nombre ?? 'el área activa'}</span>
+          )}
+          <div className="nueva-tarea__acciones">
+            {onCancelar && (
+              <button type="button" className="boton-secundario" onClick={onCancelar} disabled={enviando}>
+                Cancelar
+              </button>
+            )}
+            <button type="submit" disabled={enviando || exito}>
+              {enviando ? 'Creando…' : 'Crear tarea'}
+            </button>
+          </div>
+        </footer>
       </form>
     )
   }
@@ -488,7 +516,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
       </section>
 
       <section className="solicitud-paso">
-        <PasoEncabezado numero={4} completo={!!archivo} titulo="Adjunta un archivo" opcional />
+        <PasoEncabezado numero={4} completo={archivos.length > 0} titulo="Adjunta archivos" opcional />
         {campoAdjunto}
       </section>
 
@@ -517,6 +545,21 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
       </div>
     </form>
   )
+}
+
+// Miniatura de una imagen elegida (antes de subirla) o el ícono del tipo.
+function VistaPreviaArchivo({ archivo }: { archivo: File }) {
+  const [url, setUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!esImagen(archivo.name)) return
+    const objeto = URL.createObjectURL(archivo)
+    setUrl(objeto)
+    return () => URL.revokeObjectURL(objeto)
+  }, [archivo])
+
+  if (url) return <img src={url} alt="" className="ticket-form__archivo-preview" />
+  return <IconoArchivo nombre={archivo.name} />
 }
 
 interface PasoEncabezadoProps {
