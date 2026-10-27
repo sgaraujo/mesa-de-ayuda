@@ -40,6 +40,18 @@ const PRIORIDAD_LABEL: Record<string, string> = {
 
 const PREFIJO_COPIA = 'Copy - '
 
+// Los triggers de la base (fechas, datos de quien pidió, repetición) ya
+// explican el motivo en español; se muestra tal cual en vez de un genérico.
+function motivoErrorGuardar(error: { code?: string; message?: string } | null): string {
+  if (!error?.message) return 'No se pudo guardar. Intenta de nuevo.'
+  // Columna que el cliente envía pero la base no tiene: falta una migración.
+  if (error.code === 'PGRST204' || error.code === '42703') {
+    return `No se pudo guardar: a la base le falta una actualización (${error.message}). Avisa al administrador.`
+  }
+  if (error.code === '22023' || error.code === '42501') return error.message
+  return `No se pudo guardar: ${error.message}`
+}
+
 const ESTADO_LABEL: Record<string, string> = {
   pendiente: 'Pendiente',
   en_curso: 'En curso',
@@ -291,7 +303,8 @@ export function TicketDetalleModal({
 
     if (error || !data) {
       setGuardando(false)
-      setError('No se pudo guardar. Intenta de nuevo.')
+      console.error('No se pudo guardar la tarea:', error)
+      setError(motivoErrorGuardar(error))
       return
     }
 
