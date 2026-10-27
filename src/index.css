@@ -196,25 +196,26 @@ label {
   padding: 1.5rem 1.5rem 3rem;
 }
 
-/* Firma del autor: al pie de la app y de las pantallas de acceso. */
+/* Firma del autor: fija abajo a la derecha, visible aunque se haga scroll,
+   en la app y en las pantallas de acceso. No captura clics. */
 .app-firma,
 .auth-page::after {
-  font-size: 0.75rem;
+  position: fixed;
+  right: 0.75rem;
+  bottom: 0.6rem;
+  z-index: 50;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-1) 85%, transparent);
+  backdrop-filter: blur(4px);
   color: var(--text-secondary);
-  text-align: center;
-  opacity: 0.8;
-}
-
-.app-firma {
-  padding: 0.75rem 1rem 1rem;
+  font-size: 0.72rem;
+  pointer-events: none;
 }
 
 .auth-page::after {
   content: 'by Santiago Garcia';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 1rem;
 }
 
 .auth-card {
