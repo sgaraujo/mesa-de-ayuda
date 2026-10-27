@@ -1,5 +1,5 @@
 import { useDraggable } from '@dnd-kit/core'
-import { clasificacionFaltante, esperaAprobacion, fueRechazada, nombresAsignados } from '../lib/ticket'
+import { clasificacionFaltante, describirRecurrencia, esperaAprobacion, fueRechazada, nombresAsignados } from '../lib/ticket'
 import { cumplioATiempo, semaforo } from '../lib/vencimiento'
 import { Avatar } from './Avatar'
 import { SemaforoVencimiento } from './SemaforoVencimiento'
@@ -100,8 +100,8 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true, mostrarArea
       {(ticket.proyecto || ticket.es_grupal || (mostrarArea && ticket.area) || porAprobar || rechazada || origenEspecial) && (
         <div className="ticket-card__etiquetas">
           {ticket.recurrencia_activa && (
-            <span className="ticket-card__etiqueta ticket-card__etiqueta--recurrente" title={`Se repite cada mes, el día ${ticket.recurrencia_dia}`}>
-              ↻ Mensual
+            <span className="ticket-card__etiqueta ticket-card__etiqueta--recurrente" title={`Se repite ${describirRecurrencia(ticket)}`}>
+              ↻ {ticket.recurrencia_frecuencia === 'diaria' ? 'Diaria' : ticket.recurrencia_frecuencia === 'habil' ? 'Lun-Vie' : 'Mensual'}
             </span>
           )}
           {ticket.reunion_url && (
@@ -110,7 +110,7 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true, mostrarArea
             </span>
           )}
           {ticket.recurrencia_origen && (
-            <span className="ticket-card__etiqueta ticket-card__etiqueta--recurrente" title="Generada automáticamente por una tarea que se repite cada mes">
+            <span className="ticket-card__etiqueta ticket-card__etiqueta--recurrente" title="Generada automáticamente por una tarea que se repite">
               ↻ Automática
             </span>
           )}

@@ -66,7 +66,7 @@ function describirCambio(cambio: TicketCambio): string {
   // Subtareas (0043) y repetición mensual (0044): la frase ya viene armada
   // desde la base.
   if (cambio.campo === 'subtarea') return cambio.valor_nuevo ?? 'cambió una subtarea'
-  if (cambio.campo === 'recurrencia') return cambio.valor_nuevo ?? 'cambió la repetición mensual'
+  if (cambio.campo === 'recurrencia') return cambio.valor_nuevo ?? 'cambió la repetición'
   if (cambio.campo === 'miembro') {
     return cambio.valor_nuevo
       ? `agregó a ${cambio.valor_nuevo} al grupo`

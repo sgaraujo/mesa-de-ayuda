@@ -23,6 +23,13 @@ export function nombresAsignados(ticket: TicketConRelaciones): string[] {
   return []
 }
 
+// "cada mes, el día 15" / "todos los días" / "de lunes a viernes" (0044, 0048).
+export function describirRecurrencia(ticket: Pick<TicketConRelaciones, 'recurrencia_frecuencia' | 'recurrencia_dia'>): string {
+  if (ticket.recurrencia_frecuencia === 'diaria') return 'todos los días'
+  if (ticket.recurrencia_frecuencia === 'habil') return 'de lunes a viernes'
+  return `cada mes, el día ${ticket.recurrencia_dia}`
+}
+
 export function estaSinAsignar(ticket: TicketConRelaciones): boolean {
   return !ticket.es_grupal && ticket.asignado_a === null
 }

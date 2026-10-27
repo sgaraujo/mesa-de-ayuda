@@ -6,6 +6,7 @@ export type RolArea = 'lider' | 'agente'
 // 'rechazado' (migración 0038): el equipo no la va a atender; sale del tablero.
 export type Estado = 'pendiente' | 'en_curso' | 'finalizado' | 'rechazado'
 export type Prioridad = 'baja' | 'media' | 'alta' | 'urgente'
+export type FrecuenciaRecurrencia = 'mensual' | 'diaria' | 'habil'
 
 export interface Area {
   id: string
@@ -78,6 +79,9 @@ export interface Ticket {
   // En cada copia generada: recurrencia_origen = la original. Opcionales:
   // sin la migración aplicada no vienen.
   recurrencia_activa?: boolean
+  // Migración 0048: también diaria o en días hábiles (recurrencia_dia solo
+  // aplica a la mensual).
+  recurrencia_frecuencia?: FrecuenciaRecurrencia
   recurrencia_dia?: number | null
   recurrencia_plazo_dias?: number | null
   recurrencia_proxima?: string | null

@@ -390,6 +390,14 @@ label {
   max-width: 260px;
 }
 
+.solicitud-paso__persona {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 1rem;
+  max-width: 380px;
+}
+
 .ticket-form__attachment-field {
   display: flex;
   flex-direction: column;

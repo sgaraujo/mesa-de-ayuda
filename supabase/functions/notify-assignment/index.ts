@@ -77,7 +77,9 @@ Deno.serve(async (req) => {
         return json({ ok: false, message: 'No autorizado' }, 403)
       }
     } else {
-      if (remitente.role !== 'admin' && !idsGestores.includes(remitente.id)) {
+      // Quien pide la tarea también avisa si la dirigió a alguien al crearla
+      // (Nueva solicitud, migración 0047).
+      if (remitente.role !== 'admin' && !idsGestores.includes(remitente.id) && ticket.solicitante_id !== remitente.id) {
         return json({ ok: false, message: 'No autorizado' }, 403)
       }
 

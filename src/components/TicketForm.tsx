@@ -7,7 +7,7 @@ import { useTiposSolicitud } from '../hooks/useTiposSolicitud'
 import { useMiembrosArea } from '../hooks/useMiembrosArea'
 import { SugerenciasTexto } from './SugerenciasTexto'
 import { AsistenteSolicitud } from './AsistenteSolicitud'
-import { SelectorPersona } from './SelectorPersona'
+import { SelectorPersona, type PersonaOpcion } from './SelectorPersona'
 import type { Prioridad } from '../types/database'
 import { notificarAsignacion, notificarNuevaTarea } from '../lib/notificaciones'
 import {
@@ -80,6 +80,31 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   // Solo el formulario del tablero ofrece asignar; el líder elige a quién.
   const { agentes: equipo } = useMiembrosArea(elegirArea ? undefined : areaId)
   const [asignadoA, setAsignadoA] = useState(asignadoAPorDefecto)
+  // Nueva solicitud: quien la envía puede dirigirla (opcional) a una persona
+  // del área destino. No es miembro, así que la lista sale de una RPC
+  // (migración 0047).
+  const [personasDestino, setPersonasDestino] = useState<PersonaOpcion[]>([])
+  useEffect(() => {
+    if (!elegirArea) return
+    setAsignadoA('')
+    setPersonasDestino([])
+    if (!areaDestinoId) return
+    let cancelado = false
+    void supabase.rpc('miembros_area_solicitud', { p_area_id: areaDestinoId }).then(({ data }) => {
+      if (cancelado) return
+      const filas = (data ?? []) as { id: string; full_name: string | null; email: string; rol: string }[]
+      setPersonasDestino(filas.map((f) => ({
+        id: f.id,
+        full_name: f.full_name,
+        email: f.email,
+        area_id: areaDestinoId,
+        detalle: f.rol === 'lider' ? 'Líder' : 'Agente',
+      })))
+    })
+    return () => {
+      cancelado = true
+    }
+  }, [elegirArea, areaDestinoId])
   const { tipos } = useTiposSolicitud(areaId)
   const [tipoId, setTipoId] = useState('')
   // El tipo es del área: si cambia el destino, se vuelve a elegir.
@@ -164,7 +189,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
     setError(null)
     setEnviando(true)
 
-    const asignadoFinal = puedeAutoasignarse ? asignadoA || null : null
+    const asignadoFinal = puedeAutoasignarse || elegirArea ? asignadoA || null : null
     const { data: ticketCreado, error } = await supabase
       .from('tickets')
       .insert({
@@ -455,6 +480,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   // Solicitud a cualquier área: pasos numerados con el destino siempre visible.
   const indiceDestino = todasLasAreas.findIndex((a) => a.id === areaDestinoId)
   const areaDestino = indiceDestino >= 0 ? todasLasAreas[indiceDestino] : null
+  const personaDestino = personasDestino.find((p) => p.id === asignadoA)
   const detalleCompleto = titulo.trim() !== '' && descripcion.trim() !== '' && (tipos.length === 0 || tipoId !== '')
 
   return (
@@ -464,7 +490,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
           numero={1}
           completo={!!areaDestino}
           titulo="¿A qué área se la envías?"
-          ayuda="La solicitud llega sin asignar a la bandeja general de esa área para que su equipo la tome."
+          ayuda="Llega a la bandeja general de esa área para que su equipo la tome, o directo a la persona que elijas."
         />
         {cargandoAreas ? (
           <p className="solicitud-areas__vacio">Cargando áreas…</p>
@@ -501,6 +527,19 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
               )
             })}
           </div>
+        )}
+        {areaDestino && personasDestino.length > 0 && (
+          <label className="solicitud-paso__persona">
+            <span>¿A alguien en particular? <small className="ticket-form__opcional">Opcional</small></span>
+            <SelectorPersona
+              personas={personasDestino}
+              valor={asignadoA}
+              onCambiar={setAsignadoA}
+              opcionesFijas={[{ valor: '', etiqueta: `Cualquiera de ${areaDestino.nombre} (bandeja)` }]}
+              etiquetaPersona={(p) => (p.id === profile?.id ? 'A mí' : p.full_name ?? p.email)}
+              placeholder={`Cualquiera de ${areaDestino.nombre} (bandeja)`}
+            />
+          </label>
         )}
       </section>
 
@@ -568,7 +607,10 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
             </span>
             <span className="solicitud-resumen__texto">
               <small>Se enviará a</small>
-              <strong>{areaDestino.nombre}</strong>
+              <strong>
+                {areaDestino.nombre}
+                {personaDestino && ` · ${personaDestino.full_name ?? personaDestino.email}`}
+              </strong>
             </span>
           </div>
         ) : (

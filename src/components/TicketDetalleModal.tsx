@@ -9,6 +9,7 @@ import { useTiposSolicitud } from '../hooks/useTiposSolicitud'
 import { useMiembrosArea } from '../hooks/useMiembrosArea'
 import {
   clasificacionFaltante,
+  describirRecurrencia,
   esImagenAdjunta,
   esperaAprobacion,
   estaSinAsignar,
@@ -29,7 +30,7 @@ import { SemaforoVencimiento } from './SemaforoVencimiento'
 import { SubtareasTicket } from './SubtareasTicket'
 import { SelectorPersonas } from './SelectorPersona'
 import type { ColumnaId } from './KanbanColumn'
-import type { Prioridad, RelacionLaboralNelyoda, TicketConRelaciones } from '../types/database'
+import type { FrecuenciaRecurrencia, Prioridad, RelacionLaboralNelyoda, TicketConRelaciones } from '../types/database'
 
 const PRIORIDAD_LABEL: Record<string, string> = {
   baja: 'Baja',
@@ -145,7 +146,9 @@ export function TicketDetalleModal({
   const soportaRecurrencia = ticket.recurrencia_activa !== undefined
   const recurrenciaDiaInicial = ticket.recurrencia_dia != null ? String(ticket.recurrencia_dia) : ''
   const recurrenciaPlazoInicial = ticket.recurrencia_plazo_dias != null ? String(ticket.recurrencia_plazo_dias) : ''
+  const recurrenciaFrecuenciaInicial: FrecuenciaRecurrencia = ticket.recurrencia_frecuencia ?? 'mensual'
   const [recurrenciaActiva, setRecurrenciaActiva] = useState(!!ticket.recurrencia_activa)
+  const [recurrenciaFrecuencia, setRecurrenciaFrecuencia] = useState(recurrenciaFrecuenciaInicial)
   const [recurrenciaDia, setRecurrenciaDia] = useState(recurrenciaDiaInicial)
   const [recurrenciaPlazo, setRecurrenciaPlazo] = useState(recurrenciaPlazoInicial)
   // Solo en la original (una copia no se repite) y desde el tablero.
@@ -153,7 +156,11 @@ export function TicketDetalleModal({
     && !ticket.recurrencia_origen && ticket.estado !== 'rechazado'
   const recurrenciaCambio = puedeConfigurarRecurrencia && (
     recurrenciaActiva !== !!ticket.recurrencia_activa
-    || (recurrenciaActiva && (recurrenciaDia !== recurrenciaDiaInicial || recurrenciaPlazo !== recurrenciaPlazoInicial))
+    || (recurrenciaActiva && (
+      recurrenciaFrecuencia !== recurrenciaFrecuenciaInicial
+      || (recurrenciaFrecuencia === 'mensual' && recurrenciaDia !== recurrenciaDiaInicial)
+      || recurrenciaPlazo !== recurrenciaPlazoInicial
+    ))
   )
   const [guardando, setGuardando] = useState(false)
   const [eliminando, setEliminando] = useState(false)
@@ -238,7 +245,7 @@ export function TicketDetalleModal({
     }
     const plazoRecurrencia = recurrenciaPlazo.trim() === '' ? null : Number(recurrenciaPlazo)
     if (recurrenciaCambio && recurrenciaActiva) {
-      if (!recurrenciaDia) {
+      if (recurrenciaFrecuencia === 'mensual' && !recurrenciaDia) {
         setError('Elige el día del mes en que se repite la tarea.')
         return
       }
@@ -293,7 +300,13 @@ export function TicketDetalleModal({
         // Solo si cambió: sin la migración 0044 estas columnas no existen.
         ...(recurrenciaCambio ? {
           recurrencia_activa: recurrenciaActiva,
-          recurrencia_dia: recurrenciaActiva ? Number(recurrenciaDia) : ticket.recurrencia_dia ?? null,
+          // Sin la migración 0048 la columna no existe: solo se envía si no es mensual o ya venía.
+          ...(recurrenciaFrecuencia !== 'mensual' || ticket.recurrencia_frecuencia !== undefined
+            ? { recurrencia_frecuencia: recurrenciaActiva ? recurrenciaFrecuencia : recurrenciaFrecuenciaInicial }
+            : {}),
+          recurrencia_dia: recurrenciaActiva && recurrenciaFrecuencia === 'mensual'
+            ? Number(recurrenciaDia)
+            : ticket.recurrencia_dia ?? null,
           recurrencia_plazo_dias: recurrenciaActiva ? plazoRecurrencia : ticket.recurrencia_plazo_dias ?? null,
         } : {}),
       })
@@ -616,7 +629,7 @@ export function TicketDetalleModal({
                   {ticket.empresa_solicitante && <> · {ticket.empresa_solicitante}</>}
                   {numeroOrigen != null && <> · Duplicada de #{numeroOrigen}</>}
                   {ticket.recurrencia_origen && (
-                    <> · Generada automáticamente{numeroRecurrenciaOrigen != null && <> de #{numeroRecurrenciaOrigen}</>} (repetición mensual)</>
+                    <> · Generada automáticamente{numeroRecurrenciaOrigen != null && <> de #{numeroRecurrenciaOrigen}</>} (repetición)</>
                   )}
                   {relacionSolicitante && (relacionSolicitante.cargo || areaLaboral(relacionSolicitante)) && (
                     <span className="detalle__autor-cargo">
@@ -905,21 +918,37 @@ export function TicketDetalleModal({
                   <label className="interruptor">
                     <input type="checkbox" checked={recurrenciaActiva} onChange={(e) => setRecurrenciaActiva(e.target.checked)} />
                     <span className="interruptor__pista" aria-hidden="true" />
-                    Repetir cada mes
+                    Repetir esta tarea
                   </label>
                   {recurrenciaActiva && (
                     <dl className="propiedades recurrencia">
                       <div className="propiedad">
-                        <dt><label htmlFor="detalle-recurrencia-dia">Día del mes</label></dt>
+                        <dt><label htmlFor="detalle-recurrencia-frecuencia">Frecuencia</label></dt>
                         <dd>
-                          <select id="detalle-recurrencia-dia" value={recurrenciaDia} onChange={(e) => setRecurrenciaDia(e.target.value)}>
-                            <option value="" disabled>Elige</option>
-                            {Array.from({ length: 28 }, (_, i) => String(i + 1)).map((dia) => (
-                              <option key={dia} value={dia}>{dia}</option>
-                            ))}
+                          <select
+                            id="detalle-recurrencia-frecuencia"
+                            value={recurrenciaFrecuencia}
+                            onChange={(e) => setRecurrenciaFrecuencia(e.target.value as FrecuenciaRecurrencia)}
+                          >
+                            <option value="diaria">Todos los días</option>
+                            <option value="habil">Lunes a viernes</option>
+                            <option value="mensual">Cada mes</option>
                           </select>
                         </dd>
                       </div>
+                      {recurrenciaFrecuencia === 'mensual' && (
+                        <div className="propiedad">
+                          <dt><label htmlFor="detalle-recurrencia-dia">Día del mes</label></dt>
+                          <dd>
+                            <select id="detalle-recurrencia-dia" value={recurrenciaDia} onChange={(e) => setRecurrenciaDia(e.target.value)}>
+                              <option value="" disabled>Elige</option>
+                              {Array.from({ length: 28 }, (_, i) => String(i + 1)).map((dia) => (
+                                <option key={dia} value={dia}>{dia}</option>
+                              ))}
+                            </select>
+                          </dd>
+                        </div>
+                      )}
                       <div className="propiedad">
                         <dt><label htmlFor="detalle-recurrencia-plazo">Plazo</label></dt>
                         <dd title="Días que tiene cada copia para terminarse; define su fecha compromiso. Vacío = sin plazo.">
@@ -945,14 +974,14 @@ export function TicketDetalleModal({
                       ? <>Próxima copia: <strong>{formatearFecha(ticket.recurrencia_proxima)}</strong></>
                       : recurrenciaActiva
                         ? 'Guarda los cambios para programar la próxima copia.'
-                        : 'Crea una copia de esta tarea cada mes, con sus responsables y subtareas.'}
+                        : 'Crea una copia de esta tarea (con sus responsables y subtareas) a las 6:00 a. m., cada día o cada mes.'}
                   </p>
                 </>
-              ) : ticket.recurrencia_activa && ticket.recurrencia_dia ? (
+              ) : ticket.recurrencia_activa ? (
                 <>
                   <h3 className="detalle__seccion-titulo">Repetición</h3>
                   <p className="recurrencia__nota">
-                    Se repite cada mes, el día {ticket.recurrencia_dia}
+                    Se repite {describirRecurrencia(ticket)}
                     {ticket.recurrencia_proxima && <> · próxima: {formatearFecha(ticket.recurrencia_proxima)}</>}
                   </p>
                 </>

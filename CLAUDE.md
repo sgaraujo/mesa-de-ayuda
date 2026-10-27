@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0046_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0048_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -82,7 +82,9 @@ admins que existían antes; cada ticket y cada proyecto pertenece siempre a un
 enviarle una solicitud a cualquier área desde `/nueva-solicitud`; llega sin
 asignar a la bandeja de ese tablero y quien la pidió la sigue en
 `/mis-solicitudes` (RLS: `solicitante_id = auth.uid()`), sin ver nada más
-del tablero. En RLS se usa `rol_en_area()`, `es_superadmin()`,
+del tablero. Opcionalmente la dirige a una persona del área (migración 0047:
+la lista sale de `miembros_area_solicitud()` y `tickets_insert` acepta un
+`asignado_a` que sea miembro, vía `es_miembro_de_area()`). En RLS se usa `rol_en_area()`, `es_superadmin()`,
 `puedo_gestionar_area()` y `puedo_gestionar_ticket()` (security definer).
 El primer superadmin se inserta a mano por SQL.
 
@@ -141,7 +143,9 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   (6:05 a. m. Colombia) `generar_tickets_recurrentes()`, que crea la copia
   (título con el mes, mismos responsables y subtareas, fecha compromiso según
   el plazo) con `recurrencia_origen` = la original. Una copia no puede
-  repetirse.
+  repetirse. Desde la 0048, `recurrencia_frecuencia` (`mensual` | `diaria` |
+  `habil` = lunes a viernes, sin festivos); `recurrencia_dia` solo aplica a
+  la mensual y las copias diarias llevan la fecha completa en el título.
 - Vencimientos (migración 0041): `tickets.fecha_compromiso` la define el
   equipo; el vencimiento se mide contra ella o, si está vacía, contra
   `fecha_requerida` (`src/lib/vencimiento.ts`: semáforo verde / amarillo a
