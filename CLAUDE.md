@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0045_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0046_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -176,8 +176,9 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   (campanita en el Layout, `CentroNotificaciones`). Las crean triggers en
   `tickets`, `ticket_asignados`, `ticket_comentarios` y `ticket_menciones`
   (mención, comentario, asignación, cambio de estado), independientes del
-  correo; el cliente solo lee las propias y las marca con
-  `marcar_notificaciones_leidas()`. Publicada en realtime.
+  correo; el cliente solo lee las propias, las marca con
+  `marcar_notificaciones_leidas()` y las borra (una o todas) con
+  `limpiar_notificaciones()` (migración 0046). Publicada en realtime.
 - `allowed_emails`: whitelist de acceso (independiente de `profiles`).
   Su `role`/`area_id` y `area_miembros` se sincronizan en ambos sentidos:
   editar la whitelist crea la membresía (`sincronizar_whitelist_con_perfil`)

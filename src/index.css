@@ -6019,6 +6019,55 @@ kbd {
   font-size: 0.78rem;
 }
 
+.notificaciones__acciones {
+  display: flex;
+  gap: 0.9rem;
+}
+
+.notificaciones__limpiar {
+  color: var(--text-muted);
+}
+
+.notificaciones__lista li {
+  position: relative;
+}
+
+/* Quitar una notificación: aparece al pasar el mouse (siempre en táctil). */
+.notificacion__quitar {
+  position: absolute;
+  right: 0.3rem;
+  bottom: 0.4rem;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.notificaciones__lista li:hover .notificacion__quitar,
+.notificacion__quitar:focus-visible {
+  opacity: 1;
+}
+
+.notificacion__quitar:hover:not(:disabled) {
+  filter: none;
+  background: color-mix(in srgb, var(--prioridad-urgente) 12%, transparent);
+  color: var(--prioridad-urgente);
+}
+
+@media (hover: none) {
+  .notificacion__quitar {
+    opacity: 1;
+  }
+}
+
 .notificaciones__lista {
   flex: 1;
   margin: 0;

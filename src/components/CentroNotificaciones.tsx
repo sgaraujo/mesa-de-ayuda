@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useArea } from '../context/AreaContext'
+import { useConfirmar } from '../context/ConfirmacionContext'
 import { TICKET_SELECT } from '../lib/ticket'
 import { Avatar } from './Avatar'
 import { TicketDetalleModal } from './TicketDetalleModal'
@@ -102,6 +103,7 @@ const ICONO_TIPO: Record<Notificacion['tipo'], string> = {
 export function CentroNotificaciones() {
   const { profile } = useAuth()
   const { areas } = useArea()
+  const confirmar = useConfirmar()
   const profileId = profile?.id
 
   const [notificaciones, setNotificaciones] = useState<NotificacionConRelaciones[]>([])
@@ -190,6 +192,30 @@ export function CentroNotificaciones() {
     await supabase.rpc('marcar_notificaciones_leidas', { p_ids: ids })
   }
 
+  // null = todas. Se quitan de la lista de inmediato; si falla, se recarga.
+  async function limpiar(ids: string[] | null) {
+    const quitar = (n: NotificacionConRelaciones) => ids === null || ids.includes(n.id)
+    const sinLeerQuitadas = notificaciones.filter((n) => quitar(n) && !n.leida_at).length
+    setNotificaciones((prev) => prev.filter((n) => !quitar(n)))
+    setSinLeer((prev) => (ids === null ? 0 : Math.max(0, prev - sinLeerQuitadas)))
+    const { error } = await supabase.rpc('limpiar_notificaciones', { p_ids: ids })
+    if (error) {
+      console.error('No se pudieron limpiar las notificaciones:', error.message)
+      setErrorTicket('No se pudieron limpiar las notificaciones. Intenta de nuevo.')
+      void cargar()
+    }
+  }
+
+  async function limpiarTodas() {
+    setAbierto(false)
+    const confirmado = await confirmar({
+      titulo: '¿Limpiar todas las notificaciones?',
+      descripcion: 'Se borrarán de la campanita, leídas y sin leer. Las tareas no cambian.',
+      textoConfirmar: 'Limpiar',
+    })
+    if (confirmado) void limpiar(null)
+  }
+
   async function abrir(n: NotificacionConRelaciones) {
     setAbierto(false)
     setAviso(null)
@@ -228,11 +254,18 @@ export function CentroNotificaciones() {
         <div className="notificaciones__panel" role="dialog" aria-label="Notificaciones">
           <div className="notificaciones__cabecera">
             <h2>Notificaciones</h2>
-            {sinLeer > 0 && (
-              <button type="button" className="notificaciones__marcar" onClick={() => void marcarLeidas(null)}>
-                Marcar todas como leídas
-              </button>
-            )}
+            <div className="notificaciones__acciones">
+              {sinLeer > 0 && (
+                <button type="button" className="notificaciones__marcar" onClick={() => void marcarLeidas(null)}>
+                  Marcar como leídas
+                </button>
+              )}
+              {notificaciones.length > 0 && (
+                <button type="button" className="notificaciones__marcar notificaciones__limpiar" onClick={() => void limpiarTodas()}>
+                  Limpiar todas
+                </button>
+              )}
+            </div>
           </div>
           <div className="segmentado notificaciones__filtro" role="group" aria-label="Filtrar notificaciones">
             <button type="button" aria-pressed={!soloNoLeidas} onClick={() => setSoloNoLeidas(false)}>
@@ -273,6 +306,15 @@ export function CentroNotificaciones() {
                       <time className="notificacion__fecha" dateTime={n.created_at}>{hace(n.created_at)}</time>
                     </span>
                     {!n.leida_at && <span className="notificacion__punto" aria-label="Sin leer" />}
+                  </button>
+                  <button
+                    type="button"
+                    className="notificacion__quitar"
+                    onClick={() => void limpiar([n.id])}
+                    aria-label="Quitar notificación"
+                    title="Quitar"
+                  >
+                    ×
                   </button>
                 </li>
               ))}
