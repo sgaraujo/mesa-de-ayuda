@@ -22,6 +22,11 @@ import { RankingLista } from '../components/RankingLista'
 import { DonutChart } from '../components/DonutChart'
 import { LineaTendencia } from '../components/LineaTendencia'
 import { nombreDe } from '../lib/menciones'
+import { useUsuariosActivos } from '../hooks/useUsuariosActivos'
+import { SelectorPersona, type PersonaOpcion } from '../components/SelectorPersona'
+
+// Valores del filtro de responsables que no son personas.
+const NO_SON_PERSONAS = new Set(['Bandeja general', 'Sin responsable'])
 import type { Estado, Profile, TicketConRelaciones, TicketSubtarea } from '../types/database'
 
 // Lo que hace falta de cada subtarea para las horas (migración 0042).
@@ -257,6 +262,20 @@ export function StatsPage() {
     () => [...new Set(tickets.flatMap(personasDe))].sort((a, b) => a.localeCompare(b, 'es')),
     [tickets, personasDe],
   )
+
+  const usuarios = useUsuariosActivos()
+  // El filtro trabaja por nombre; el área sale del perfil con ese nombre
+  // para dividir la lista (quien ya no está activo queda en "Sin área").
+  const { personasResponsable, fijasResponsable } = useMemo(() => {
+    const areaPorNombre = new Map(usuarios.map((u) => [nombreDe(u), u.area_id]))
+    const personas: PersonaOpcion[] = []
+    const fijas = [{ valor: '', etiqueta: 'Todos los responsables' }]
+    for (const nombre of opcionesResponsable) {
+      if (NO_SON_PERSONAS.has(nombre)) fijas.push({ valor: nombre, etiqueta: nombre })
+      else personas.push({ id: nombre, full_name: nombre, email: '', area_id: areaPorNombre.get(nombre) ?? null })
+    }
+    return { personasResponsable: personas, fijasResponsable: fijas }
+  }, [opcionesResponsable, usuarios])
   const opcionesEmpresa = useMemo(
     () => [...new Set(tickets.map((t) => t.empresa_solicitante).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')),
     [tickets],
@@ -325,7 +344,7 @@ export function StatsPage() {
   const promedioPorTicket = ticketsConHoras.length > 0 ? horasTotales / ticketsConHoras.length : null
   const horasColaborador = horasPorPersona(ticketsFiltrados, subtareasPorTicket)
   // Sin "Bandeja general" ni "Sin responsable": no son personas.
-  const colaboradores = horasColaborador.filter((d) => d.nombre !== 'Bandeja general' && d.nombre !== 'Sin responsable')
+  const colaboradores = horasColaborador.filter((d) => !NO_SON_PERSONAS.has(d.nombre))
   const promedioPorColaborador = colaboradores.length > 0
     ? colaboradores.reduce((acc, d) => acc + d.total, 0) / colaboradores.length
     : null
@@ -451,12 +470,15 @@ export function StatsPage() {
             <option value="finalizado">Finalizado</option>
             <option value="rechazado">Rechazado</option>
           </select>
-          <select value={filtroResponsable} onChange={(e) => setFiltroResponsable(e.target.value)} aria-label="Filtrar por responsable">
-            <option value="">Todos los responsables</option>
-            {opcionesResponsable.map((nombre) => (
-              <option key={nombre} value={nombre}>{nombre}</option>
-            ))}
-          </select>
+          <SelectorPersona
+            className="stats-page__select-persona"
+            personas={personasResponsable}
+            valor={filtroResponsable}
+            onCambiar={setFiltroResponsable}
+            opcionesFijas={fijasResponsable}
+            placeholder="Todos los responsables"
+            aria-label="Filtrar por responsable"
+          />
           <select value={filtroEmpresa} onChange={(e) => setFiltroEmpresa(e.target.value)} aria-label="Filtrar por empresa">
             <option value="">Todas las empresas</option>
             {opcionesEmpresa.map((empresa) => (

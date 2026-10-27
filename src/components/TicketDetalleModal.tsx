@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useArea } from '../context/AreaContext'
+import { useConfirmar } from '../context/ConfirmacionContext'
 import { useAreas } from '../hooks/useAreas'
 import { useProyectos } from '../hooks/useProyectos'
 import { useTiposSolicitud } from '../hooks/useTiposSolicitud'
@@ -26,6 +27,7 @@ import { RechazarSolicitud } from './RechazarSolicitud'
 import { Avatar } from './Avatar'
 import { SemaforoVencimiento } from './SemaforoVencimiento'
 import { SubtareasTicket } from './SubtareasTicket'
+import { SelectorPersonas } from './SelectorPersona'
 import type { ColumnaId } from './KanbanColumn'
 import type { Prioridad, RelacionLaboralNelyoda, TicketConRelaciones } from '../types/database'
 
@@ -98,6 +100,7 @@ export function TicketDetalleModal({
   onMover,
 }: TicketDetalleModalProps) {
   const { profile } = useAuth()
+  const confirmar = useConfirmar()
   // Superadmin o líder/agente de Desarrollo; las demás áreas solo ven el área.
   const { puedeCambiarArea } = useArea()
   const { areas } = useAreas()
@@ -208,10 +211,6 @@ export function TicketDetalleModal({
   const [error, setError] = useState<string | null>(null)
   const [pestana, setPestana] = useState<'comentarios' | 'archivos' | 'historial'>('comentarios')
   const [rechazando, setRechazando] = useState(false)
-
-  function alternarMiembro(id: string) {
-    setMiembros((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]))
-  }
 
   async function handleGuardar(e: FormEvent) {
     e.preventDefault()
@@ -339,7 +338,11 @@ export function TicketDetalleModal({
   }
 
   async function handleEliminar() {
-    if (!confirm('¿Eliminar esta solicitud de forma permanente? Esta acción no se puede deshacer.')) return
+    if (!(await confirmar({
+      titulo: `¿Eliminar la tarea #${ticket.numero}?`,
+      descripcion: 'Se eliminará de forma permanente. Esta acción no se puede deshacer.',
+      textoConfirmar: 'Eliminar',
+    }))) return
     setError(null)
     setEliminando(true)
 
@@ -362,7 +365,12 @@ export function TicketDetalleModal({
   // duplica.
   async function handleDuplicar() {
     if (!profile) return
-    if (!confirm(`¿Duplicar la tarea #${ticket.numero}? Se creará una tarea nueva en curso con el mismo contenido, sin los comentarios.`)) return
+    if (!(await confirmar({
+      titulo: `¿Duplicar la tarea #${ticket.numero}?`,
+      descripcion: 'Se creará una tarea nueva en curso con el mismo contenido, sin los comentarios.',
+      textoConfirmar: 'Duplicar',
+      tono: 'normal',
+    }))) return
     setError(null)
     setDuplicando(true)
 
@@ -423,11 +431,13 @@ export function TicketDetalleModal({
   async function handleCambiarArea(nuevaAreaId: string) {
     const destino = areas.find((area) => area.id === nuevaAreaId)
     if (!destino || nuevaAreaId === ticket.area_id) return
-    if (!confirm(
-      `¿Enviar la tarea #${ticket.numero} al área ${destino.nombre}?\n\n`
-      + 'Quedará sin asignar en la bandeja de esa área, en Pendiente y sin proyecto. '
-      + 'Se conservan comentarios, archivos e historial.',
-    )) return
+    if (!(await confirmar({
+      titulo: `¿Enviar la tarea #${ticket.numero} al área ${destino.nombre}?`,
+      descripcion: 'Quedará sin asignar en la bandeja de esa área, en Pendiente y sin proyecto. '
+        + 'Se conservan comentarios, archivos e historial.',
+      textoConfirmar: 'Enviar',
+      tono: 'normal',
+    }))) return
     setError(null)
     setCambiandoArea(true)
 
@@ -995,19 +1005,13 @@ export function TicketDetalleModal({
                   </label>
                   {esGrupal && (
                     <div className="modal-miembros__lista">
-                      {agentes.map((agente) => (
-                        <label
-                          key={agente.id}
-                          className={`modal-chip${miembros.includes(agente.id) ? ' modal-chip--activo' : ''}`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={miembros.includes(agente.id)}
-                            onChange={() => alternarMiembro(agente.id)}
-                          />
-                          {agente.full_name ?? agente.email}
-                        </label>
-                      ))}
+                      <SelectorPersonas
+                        personas={agentes}
+                        valores={miembros}
+                        onCambiar={setMiembros}
+                        placeholder="Escribe un nombre para agregar…"
+                        aria-label="Personas del grupo"
+                      />
                     </div>
                   )}
                 </>

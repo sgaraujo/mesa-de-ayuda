@@ -188,11 +188,33 @@ label {
 /* ---- Auth pages ---- */
 
 .auth-page {
+  position: relative;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
+  padding: 1.5rem 1.5rem 3rem;
+}
+
+/* Firma del autor: al pie de la app y de las pantallas de acceso. */
+.app-firma,
+.auth-page::after {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+  opacity: 0.8;
+}
+
+.app-firma {
+  padding: 0.75rem 1rem 1rem;
+}
+
+.auth-page::after {
+  content: 'by Santiago Garcia';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1rem;
 }
 
 .auth-card {
@@ -1003,8 +1025,22 @@ label {
   color: var(--text-secondary);
 }
 
-.confirm-dialog__confirmar {
+.confirm-dialog--peligro .confirm-dialog__confirmar {
   background: var(--prioridad-urgente);
+}
+
+.confirm-dialog--normal .confirm-dialog__icono {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+
+/* Por encima de cualquier modal (el diálogo puede abrirse desde el detalle). */
+.modal-overlay--confirmacion {
+  z-index: 300;
+}
+
+.confirm-dialog p {
+  white-space: pre-line;
 }
 
 .modal-panel h2 {
@@ -3851,6 +3887,9 @@ span.subtarea__responsable {
 }
 
 .detalle__lateral .modal-miembros__lista {
+  display: block;
+  max-height: none;
+  overflow: visible;
   margin-top: 0.7rem;
 }
 
@@ -6182,4 +6221,185 @@ kbd {
   background: var(--brand-soft);
   color: var(--brand-text);
   font-size: 0.8rem;
+}
+
+/* ---- Selector de personas (SelectorPersona) ----
+   Reemplaza los <select> de personas: se escribe para filtrar y la lista se
+   divide por área. La lista va en un portal con posición fija. */
+.selector-persona {
+  position: relative;
+  min-width: 0;
+}
+
+.selector-persona__input {
+  box-sizing: border-box;
+  width: 100%;
+  padding-right: 2rem;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.selector-persona__input:focus {
+  cursor: text;
+}
+
+.selector-persona__flecha {
+  position: absolute;
+  top: 50%;
+  right: 0.6rem;
+  width: 0.95rem;
+  height: 0.95rem;
+  color: var(--text-muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.selector-persona--multiple {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.4rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+  cursor: text;
+}
+
+.selector-persona--multiple:focus-within {
+  border-color: var(--brand);
+}
+
+.selector-persona--multiple .selector-persona__input {
+  flex: 1 1 8rem;
+  width: auto;
+  min-width: 6rem;
+  height: 1.8rem;
+  padding: 0 0.3rem;
+  border: none;
+  background: transparent;
+  font-size: 0.88rem;
+}
+
+.selector-persona__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.25rem 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.selector-persona__chip button {
+  display: grid;
+  place-items: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.selector-persona__chip button:hover {
+  background: color-mix(in srgb, var(--brand) 18%, transparent);
+}
+
+.selector-persona__lista {
+  z-index: 400;
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+  box-shadow: var(--shadow-md);
+}
+
+.selector-persona__grupo {
+  position: sticky;
+  top: -0.3rem;
+  padding: 0.5rem 0.55rem 0.3rem;
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.selector-persona__opcion {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 7px;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.selector-persona__opcion--activa {
+  background: var(--brand-soft);
+}
+
+.selector-persona__opcion--seleccionada .selector-persona__nombre {
+  color: var(--brand-text);
+}
+
+.selector-persona__opcion--fija {
+  color: var(--text-secondary);
+}
+
+.selector-persona__nombre {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selector-persona__detalle {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selector-persona__check {
+  flex: none;
+  width: 0.95rem;
+  height: 0.95rem;
+  color: var(--brand-text);
+}
+
+.selector-persona__vacio {
+  margin: 0;
+  padding: 0.6rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.board-page__select-persona,
+.stats-page__select-persona {
+  flex: 0 1 15rem;
+  width: 15rem;
+}
+
+@media (max-width: 640px) {
+  .board-page__select-persona,
+  .stats-page__select-persona {
+    flex-basis: 100%;
+    width: 100%;
+  }
 }

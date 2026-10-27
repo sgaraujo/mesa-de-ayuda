@@ -10,6 +10,7 @@ import { KanbanColumn, type ColumnaId } from '../components/KanbanColumn'
 import { TicketDetalleModal } from '../components/TicketDetalleModal'
 import { NuevaTareaModal } from '../components/NuevaTareaModal'
 import { FinalizarTicketModal } from '../components/FinalizarTicketModal'
+import { SelectorPersona } from '../components/SelectorPersona'
 import { coincideBusqueda, estaSinAsignar, TICKET_SELECT } from '../lib/ticket'
 import type { Estado, TicketConRelaciones } from '../types/database'
 import type { UsuarioActivo } from '../hooks/useUsuariosActivos'
@@ -22,6 +23,11 @@ const COLUMNAS: { id: ColumnaId; titulo: string }[] = [
 ]
 
 const DIAS_FINALIZADOS_EN_TABLERO = 30
+
+const OPCIONES_FILTRO_PERSONA = [
+  { valor: '', etiqueta: 'Todas las personas' },
+  { valor: 'sin_asignar', etiqueta: 'Sin asignar' },
+]
 
 const BOARD_CHANNEL = 'ticket-board'
 
@@ -53,6 +59,10 @@ export function BoardPage() {
   const [todasLasAreasGuardado, setTodasLasAreasGuardado] = useState(leerVistaTodas)
   const todasLasAreas = esSuperadmin && todasLasAreasGuardado
   const { agentes } = useMiembrosArea(areaId, todasLasAreas)
+  const personasFiltro = useMemo(
+    () => agentes.map((a) => ({ ...a, detalle: todasLasAreas ? undefined : a.rolArea === 'lider' ? 'Líder' : 'Agente' })),
+    [agentes, todasLasAreas],
+  )
   const [tickets, setTickets] = useState<TicketConRelaciones[]>([])
   const [loading, setLoading] = useState(true)
   const [filtroAgente, setFiltroAgente] = useState('')
@@ -411,21 +421,15 @@ export function BoardPage() {
           </div>
         )}
         {esLider && (
-          <select
+          <SelectorPersona
             className="board-page__select-persona"
-            value={filtroAgente}
-            onChange={(e) => setFiltroAgente(e.target.value)}
+            personas={personasFiltro}
+            valor={filtroAgente}
+            onCambiar={setFiltroAgente}
+            opcionesFijas={OPCIONES_FILTRO_PERSONA}
+            placeholder="Todas las personas"
             aria-label="Filtrar por persona"
-          >
-            <option value="">Todas las personas</option>
-            <option value="sin_asignar">Sin asignar</option>
-            {agentes.map((agente) => (
-              <option key={agente.id} value={agente.id}>
-                {agente.full_name ?? agente.email}
-                {!todasLasAreas && ` (${agente.rolArea === 'lider' ? 'Líder' : 'Agente'})`}
-              </option>
-            ))}
-          </select>
+          />
         )}
         {(busqueda || filtroAgente) && (
           <button

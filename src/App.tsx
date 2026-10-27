@@ -2,6 +2,7 @@ import { lazy, Suspense, type ComponentType } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { AreaProvider } from './context/AreaContext'
+import { ConfirmacionProvider } from './context/ConfirmacionContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Layout } from './components/Layout'
 
@@ -47,6 +48,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <AreaProvider>
+        <ConfirmacionProvider>
         <Suspense fallback={<div className="pantalla-carga">Cargando...</div>}>
           <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -81,6 +83,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/nueva-solicitud" replace />} />
           </Routes>
         </Suspense>
+        </ConfirmacionProvider>
         </AreaProvider>
       </AuthProvider>
     </BrowserRouter>

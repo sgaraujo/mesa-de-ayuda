@@ -39,7 +39,7 @@ export function GruposPage() {
 
   const [miembrosPorArea, setMiembrosPorArea] = useState<Map<string, MiembroArea[]>>(new Map())
   const [ticketsPorArea, setTicketsPorArea] = useState<Map<string, TicketResumen[]>>(new Map())
-  const [perfiles, setPerfiles] = useState<Pick<Profile, 'id' | 'full_name' | 'email'>[]>([])
+  const [perfiles, setPerfiles] = useState<Pick<Profile, 'id' | 'full_name' | 'email' | 'area_id'>[]>([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
 
@@ -82,7 +82,7 @@ export function GruposPage() {
         }),
       supabase
         .from('profiles')
-        .select('id, full_name, email')
+        .select('id, full_name, email, area_id')
         .eq('activo', true)
         .order('full_name')
         .then(({ data }) => setPerfiles(data ?? [])),

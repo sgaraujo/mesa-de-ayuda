@@ -80,6 +80,7 @@ export function Layout() {
           <Outlet />
         </Fragment>
       </main>
+      <footer className="app-firma">by Santiago Garcia</footer>
     </div>
   )
 }

@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState, type KeyboardEvent, type TextareaHTMLAttributes } from 'react'
+import { Fragment, useMemo, useRef, useState, type KeyboardEvent, type TextareaHTMLAttributes } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useUsuariosActivos, type UsuarioActivo } from '../hooks/useUsuariosActivos'
 import { normalizar } from '../lib/ticket'
 import { nombreDe } from '../lib/menciones'
 import { Avatar } from './Avatar'
+import { useNombresAreas } from './SelectorPersona'
 
 const MAX_SUGERENCIAS = 6
 
@@ -35,14 +36,20 @@ export function CampoMenciones({
   const [indiceSugerencia, setIndiceSugerencia] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  const nombresAreas = useNombresAreas()
+  const areaDe = (u: (typeof usuarios)[number]) => (u.area_id && nombresAreas.get(u.area_id)) || 'Sin área'
+
+  // Las mejores coincidencias, ordenadas por área para mostrarlas divididas.
   const sugerencias = useMemo(() => {
     if (!consulta) return []
     const termino = normalizar(consulta.termino)
+    const area = (u: (typeof usuarios)[number]) => (u.area_id && nombresAreas.get(u.area_id)) || '￿'
     return usuarios
       .filter((u) => u.id !== profile?.id)
       .filter((u) => normalizar(nombreDe(u)).includes(termino) || u.email.toLowerCase().includes(termino))
       .slice(0, MAX_SUGERENCIAS)
-  }, [consulta, usuarios, profile?.id])
+      .sort((a, b) => area(a).localeCompare(area(b), 'es') || nombreDe(a).localeCompare(nombreDe(b), 'es'))
+  }, [consulta, usuarios, profile?.id, nombresAreas])
 
   function actualizarConsulta(texto: string, cursor: number) {
     // "@" al inicio o después de un espacio, seguido de lo que se va escribiendo.
@@ -112,8 +119,11 @@ export function CampoMenciones({
       {sugerencias.length > 0 && (
         <ul className="comentarios__sugerencias" role="listbox">
           {sugerencias.map((usuario, indice) => (
+            <Fragment key={usuario.id}>
+            {(indice === 0 || areaDe(sugerencias[indice - 1]) !== areaDe(usuario)) && (
+              <li className="selector-persona__grupo" role="presentation">{areaDe(usuario)}</li>
+            )}
             <li
-              key={usuario.id}
               role="option"
               aria-selected={indice === indiceSugerencia}
               className={`comentarios__sugerencia${indice === indiceSugerencia ? ' comentarios__sugerencia--activa' : ''}`}
@@ -127,6 +137,7 @@ export function CampoMenciones({
               <span className="comentarios__sugerencia-nombre">{nombreDe(usuario)}</span>
               <span className="comentarios__sugerencia-correo">{usuario.email}</span>
             </li>
+            </Fragment>
           ))}
         </ul>
       )}

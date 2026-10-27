@@ -7,6 +7,7 @@ import { useTiposSolicitud } from '../hooks/useTiposSolicitud'
 import { useMiembrosArea } from '../hooks/useMiembrosArea'
 import { SugerenciasTexto } from './SugerenciasTexto'
 import { AsistenteSolicitud } from './AsistenteSolicitud'
+import { SelectorPersona } from './SelectorPersona'
 import type { Prioridad } from '../types/database'
 import { notificarAsignacion, notificarNuevaTarea } from '../lib/notificaciones'
 import {
@@ -401,14 +402,14 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
             {rolEnDestino === 'lider' && (
               <label>
                 Asignar a
-                <select value={asignadoA} onChange={(e) => setAsignadoA(e.target.value)}>
-                  <option value="">Sin asignar (bandeja)</option>
-                  {equipo.map((miembro) => (
-                    <option key={miembro.id} value={miembro.id}>
-                      {miembro.id === profile?.id ? 'A mí' : miembro.full_name ?? miembro.email}
-                    </option>
-                  ))}
-                </select>
+                <SelectorPersona
+                  personas={equipo}
+                  valor={asignadoA}
+                  onCambiar={setAsignadoA}
+                  opcionesFijas={[{ valor: '', etiqueta: 'Sin asignar (bandeja)' }]}
+                  etiquetaPersona={(p) => (p.id === profile?.id ? 'A mí' : p.full_name ?? p.email)}
+                  placeholder="Sin asignar (bandeja)"
+                />
               </label>
             )}
             {campoFecha}

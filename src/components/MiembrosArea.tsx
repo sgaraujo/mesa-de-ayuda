@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext'
 import { useArea } from '../context/AreaContext'
 import { Avatar } from './Avatar'
 import { ConfirmDialog } from './ConfirmDialog'
+import { SelectorPersona } from './SelectorPersona'
 import type { MiembroArea } from '../hooks/useMiembrosArea'
 import type { Profile, RolArea } from '../types/database'
 
@@ -29,7 +30,7 @@ interface MiembrosAreaProps {
   areaId: string
   areaNombre: string
   miembros: MiembroArea[]
-  perfiles: Pick<Profile, 'id' | 'full_name' | 'email'>[]
+  perfiles: Pick<Profile, 'id' | 'full_name' | 'email' | 'area_id'>[]
   onCambio: () => Promise<void>
 }
 
@@ -276,16 +277,13 @@ export function MiembrosArea({ areaId, areaNombre, miembros, perfiles, onCambio 
         <form className="miembros-area__alta" onSubmit={agregarMiembro}>
           <label>
             Persona
-            <select value={nuevoPerfilId} onChange={(e) => setNuevoPerfilId(e.target.value)} required autoFocus>
-              <option value="" disabled>
-                Selecciona una persona
-              </option>
-              {candidatos.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.full_name ? `${p.full_name} (${p.email})` : p.email}
-                </option>
-              ))}
-            </select>
+            <SelectorPersona
+              personas={candidatos}
+              valor={nuevoPerfilId}
+              onCambiar={setNuevoPerfilId}
+              placeholder="Escribe el nombre o el correo…"
+              autoFocus
+            />
           </label>
           <label>
             Rol

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useMiembrosArea } from '../hooks/useMiembrosArea'
+import { useConfirmar } from '../context/ConfirmacionContext'
 import { formatearTiempo } from '../lib/tiempo'
 import { nombreDe } from '../lib/menciones'
 import { Avatar } from './Avatar'
+import { SelectorPersona } from './SelectorPersona'
 import type { EstadoSubtarea, Profile, TicketSubtarea } from '../types/database'
 
 type SubtareaConResponsable = TicketSubtarea & {
@@ -15,6 +17,8 @@ const ESTADO_LABEL: Record<EstadoSubtarea, string> = {
   en_proceso: 'En proceso',
   finalizada: 'Finalizada',
 }
+
+const SIN_RESPONSABLE = [{ valor: '', etiqueta: 'Sin responsable' }]
 
 const SELECT_SUBTAREAS = '*, responsable:profiles!ticket_subtareas_responsable_id_fkey(id, full_name, email)'
 
@@ -44,6 +48,7 @@ interface SubtareasTicketProps {
 // de la tarea es la suma de estas (lo calcula la base de datos).
 export function SubtareasTicket({ ticketId, areaId, puedeGestionar, onCambio }: SubtareasTicketProps) {
   const { agentes } = useMiembrosArea(puedeGestionar ? areaId : undefined)
+  const confirmar = useConfirmar()
   const [subtareas, setSubtareas] = useState<SubtareaConResponsable[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -88,7 +93,11 @@ export function SubtareasTicket({ ticketId, areaId, puedeGestionar, onCambio }: 
   }
 
   async function eliminar(subtarea: SubtareaConResponsable) {
-    if (!confirm(`¿Eliminar la subtarea "${subtarea.titulo}"? Su tiempo deja de sumarse a la tarea.`)) return
+    if (!(await confirmar({
+      titulo: '¿Eliminar la subtarea?',
+      descripcion: `"${subtarea.titulo}" se eliminará y su tiempo dejará de sumarse a la tarea.`,
+      textoConfirmar: 'Eliminar',
+    }))) return
     setError(null)
     const { error: errorBorrar } = await supabase.from('ticket_subtareas').delete().eq('id', subtarea.id)
     if (errorBorrar) setError(`No se pudo eliminar: ${errorBorrar.message}`)
@@ -199,21 +208,20 @@ export function SubtareasTicket({ ticketId, areaId, puedeGestionar, onCambio }: 
                           else e.target.value = s.titulo
                         }}
                       />
-                      <select
+                      <SelectorPersona
                         className="subtarea__responsable"
-                        value={s.responsable_id ?? ''}
-                        onChange={(e) => void actualizar(s.id, { responsable_id: e.target.value || null })}
+                        // Alguien que ya salió del área sigue visible en sus subtareas.
+                        personas={s.responsable && !agentes.some((a) => a.id === s.responsable!.id)
+                          ? [s.responsable, ...agentes]
+                          : agentes}
+                        valor={s.responsable_id ?? ''}
+                        onCambiar={(valor) => {
+                          if (valor !== (s.responsable_id ?? '')) void actualizar(s.id, { responsable_id: valor || null })
+                        }}
+                        opcionesFijas={SIN_RESPONSABLE}
+                        placeholder="Sin responsable"
                         aria-label={`Responsable de ${s.titulo}`}
-                      >
-                        <option value="">Sin responsable</option>
-                        {/* Alguien que ya salió del área sigue visible en sus subtareas. */}
-                        {s.responsable && !agentes.some((a) => a.id === s.responsable!.id) && (
-                          <option value={s.responsable.id}>{nombreDe(s.responsable)}</option>
-                        )}
-                        {agentes.map((a) => (
-                          <option key={a.id} value={a.id}>{a.full_name ?? a.email}</option>
-                        ))}
-                      </select>
+                      />
                       <span className={`subtarea__horas${excedida ? ' subtarea__horas--excedida' : ''}`}>
                         <input
                           key={`ejecutado-${s.id}-${s.tiempo_ejecutado_horas}`}
@@ -288,12 +296,14 @@ export function SubtareasTicket({ ticketId, areaId, puedeGestionar, onCambio }: 
             maxLength={200}
             aria-label="Título de la nueva subtarea"
           />
-          <select value={nuevoResponsable} onChange={(e) => setNuevoResponsable(e.target.value)} aria-label="Responsable de la nueva subtarea">
-            <option value="">Sin responsable</option>
-            {agentes.map((a) => (
-              <option key={a.id} value={a.id}>{a.full_name ?? a.email}</option>
-            ))}
-          </select>
+          <SelectorPersona
+            personas={agentes}
+            valor={nuevoResponsable}
+            onCambiar={setNuevoResponsable}
+            opcionesFijas={SIN_RESPONSABLE}
+            placeholder="Responsable"
+            aria-label="Responsable de la nueva subtarea"
+          />
           <input
             className="subtareas__nueva-horas"
             inputMode="decimal"
