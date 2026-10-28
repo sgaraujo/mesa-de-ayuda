@@ -54,6 +54,10 @@ export function BoardPage() {
   const { areaActiva, esSuperadmin } = useArea()
   const areaId = areaActiva?.id
   const esLider = areaActiva?.rol === 'lider'
+  // El agente solo ve en el tablero sus tareas y la bandeja general. Por RLS
+  // también puede leer otras (las que pidió o donde lo mencionaron), pero esas
+  // se siguen en Mis solicitudes.
+  const esAgente = !esSuperadmin && areaActiva?.rol === 'agente'
   // Tablero general: el superadmin puede ver las tareas de todas las áreas
   // juntas en vez de solo las del área activa.
   const [todasLasAreasGuardado, setTodasLasAreasGuardado] = useState(leerVistaTodas)
@@ -64,6 +68,9 @@ export function BoardPage() {
     [agentes, todasLasAreas],
   )
   const [tickets, setTickets] = useState<TicketConRelaciones[]>([])
+  // Tareas de otros donde el agente es responsable de una subtarea: también
+  // son suyas, ahí registra sus horas.
+  const [idsConSubtarea, setIdsConSubtarea] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [filtroAgente, setFiltroAgente] = useState('')
   const [busqueda, setBusqueda] = useState('')
@@ -94,10 +101,16 @@ export function BoardPage() {
     if (mostrarCarga) setLoading(true)
     let consulta = supabase.from('tickets').select(TICKET_SELECT)
     if (!todasLasAreas) consulta = consulta.eq('area_id', areaId!)
-    const { data } = await consulta.order('created_at', { ascending: false })
+    const [{ data }, { data: subtareas }] = await Promise.all([
+      consulta.order('created_at', { ascending: false }),
+      esAgente && profile?.id
+        ? supabase.from('ticket_subtareas').select('ticket_id').eq('responsable_id', profile.id)
+        : Promise.resolve({ data: [] as { ticket_id: string }[] }),
+    ])
+    setIdsConSubtarea(new Set((subtareas ?? []).map((s) => s.ticket_id as string)))
     setTickets((data as unknown as TicketConRelaciones[]) ?? [])
     setLoading(false)
-  }, [areaId, todasLasAreas])
+  }, [areaId, todasLasAreas, esAgente, profile?.id])
 
   const notificarCambio = useCallback(async (ticketId?: string) => {
     await boardChannel.current?.send({
@@ -122,7 +135,20 @@ export function BoardPage() {
       recargaPendiente.current = null
       if (ids.length === 0) return
 
-      const { data } = await supabase.from('tickets').select(TICKET_SELECT).in('id', ids)
+      const [{ data }, { data: subtareas }] = await Promise.all([
+        supabase.from('tickets').select(TICKET_SELECT).in('id', ids),
+        esAgente && profile?.id
+          ? supabase.from('ticket_subtareas').select('ticket_id').in('ticket_id', ids).eq('responsable_id', profile.id)
+          : Promise.resolve({ data: [] as { ticket_id: string }[] }),
+      ])
+      if (esAgente) {
+        const conSubtarea = new Set((subtareas ?? []).map((s) => s.ticket_id as string))
+        setIdsConSubtarea((prev) => {
+          const siguiente = new Set([...prev].filter((id) => !ids.includes(id)))
+          conSubtarea.forEach((id) => siguiente.add(id))
+          return siguiente
+        })
+      }
       // Un ticket que se movió a otra área sale de este tablero aunque la
       // persona todavía pueda verlo por ser miembro de esa otra área.
       const actualizados = new Map(
@@ -141,7 +167,7 @@ export function BoardPage() {
         return [...nuevos, ...siguen]
       })
     }, 400)
-  }, [areaId, todasLasAreas])
+  }, [areaId, todasLasAreas, esAgente, profile?.id])
 
   useEffect(() => {
     void cargarTickets(true)
@@ -178,6 +204,14 @@ export function BoardPage() {
       if (t.estado === 'rechazado') return false
       if (!coincideBusqueda(t, busqueda)) return false
 
+      if (
+        esAgente &&
+        !estaSinAsignar(t) &&
+        t.asignado_a !== profile?.id &&
+        !t.asignados.some((asignado) => asignado.profile.id === profile?.id) &&
+        !idsConSubtarea.has(t.id)
+      ) return false
+
       if (filtroAgente === 'sin_asignar' && !estaSinAsignar(t)) return false
       if (
         filtroAgente &&
@@ -192,7 +226,7 @@ export function BoardPage() {
 
       return vistaHistorial ? esFinalizadoAntiguo : !esFinalizadoAntiguo
     })
-  }, [tickets, busqueda, filtroAgente, vistaHistorial])
+  }, [tickets, busqueda, filtroAgente, vistaHistorial, esAgente, profile?.id, idsConSubtarea])
 
   function ticketsParaColumna(id: ColumnaId) {
     if (vistaHistorial) return id === 'finalizado' ? ticketsFiltrados : []
