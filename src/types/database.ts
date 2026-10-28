@@ -100,6 +100,8 @@ export interface Ticket {
   // reabierta hasta que la vuelvan a finalizar.
   aprobacion: Aprobacion | null
   aprobacion_at: string | null
+  // Aprobada sola tras 2 horas sin respuesta del solicitante (migración 0052).
+  aprobacion_automatica: boolean
   // Solo en tareas rechazadas por el equipo (migración 0038).
   motivo_rechazo: string | null
 }

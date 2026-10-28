@@ -70,7 +70,10 @@ function Mensaje({ n }: { n: NotificacionConRelaciones }) {
         ? <>{actor} finalizó tu solicitud {tarea}</>
         : <>{actor} pasó tu solicitud {tarea} a <strong>{ESTADO_LABEL[n.detalle ?? ''] ?? n.detalle}</strong></>
     case 'aprobacion':
-      return <>{actor} aprobó la finalización de {tarea}</>
+      // Sin actor: la aprobó el cron tras 2 horas sin respuesta (0052).
+      return n.detalle === 'automatica'
+        ? <>{tarea} <strong>se aprobó automáticamente</strong> tras 2 horas sin respuesta</>
+        : <>{actor} aprobó la finalización de {tarea}</>
     case 'rechazo':
       return <>{actor} rechazó la finalización de {tarea}; volvió a <strong>Pendiente</strong></>
     case 'solicitud_rechazada':

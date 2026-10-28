@@ -51,6 +51,15 @@ export function esperaAprobacion(ticket: Pick<TicketConRelaciones, 'estado' | 'a
   return ticket.estado === 'finalizado' && ticket.aprobacion === null
 }
 
+// Si quien la pidió no responde, se aprueba sola 2 horas después de
+// finalizada (migración 0052; el cron corre cada 5 minutos).
+export const HORAS_APROBACION_AUTOMATICA = 2
+
+export function aprobacionAutomaticaAt(ticket: Pick<TicketConRelaciones, 'finalizado_at'>): Date | null {
+  if (!ticket.finalizado_at) return null
+  return new Date(new Date(ticket.finalizado_at).getTime() + HORAS_APROBACION_AUTOMATICA * 60 * 60 * 1000)
+}
+
 // Rechazada por quien la pidió y todavía sin volver a finalizar.
 export function fueRechazada(ticket: Pick<TicketConRelaciones, 'estado' | 'aprobacion'>): boolean {
   return ticket.estado !== 'finalizado' && ticket.aprobacion === 'rechazada'

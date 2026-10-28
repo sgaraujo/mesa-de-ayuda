@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { TICKET_SELECT } from '../lib/ticket'
+import { aprobacionAutomaticaAt, HORAS_APROBACION_AUTOMATICA, TICKET_SELECT } from '../lib/ticket'
 import type { TicketConRelaciones } from '../types/database'
 
 interface RespuestaFinalizacionProps {
@@ -15,6 +15,7 @@ export function RespuestaFinalizacion({ ticket, onRespondido }: RespuestaFinaliz
   const [motivo, setMotivo] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const automaticaAt = aprobacionAutomaticaAt(ticket)
 
   async function responder(aprobar: boolean) {
     if (!aprobar && !motivo.trim()) {
@@ -55,6 +56,13 @@ export function RespuestaFinalizacion({ ticket, onRespondido }: RespuestaFinaliz
         <div>
           <h3 id="aprobacion-titulo">El equipo marcó tu solicitud como finalizada</h3>
           <p>¿Quedó resuelta? Apruébala para cerrarla, o recházala y volverá a Pendiente para que la retomen.</p>
+          <p>
+            Si no respondes, se aprobará automáticamente
+            {automaticaAt
+              ? ` a las ${automaticaAt.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })}`
+              : ` ${HORAS_APROBACION_AUTOMATICA} horas después de finalizada`}
+            .
+          </p>
         </div>
       </div>
 

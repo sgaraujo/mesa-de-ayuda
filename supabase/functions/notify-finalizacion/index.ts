@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
           parrafos: [
             `Hola <strong>${nombre}</strong>, tu solicitud <strong>${escaparHtml(ticket.titulo)}</strong> fue marcada como finalizada.`,
             ...(nota ? [`Nota de quien la finalizó: <em>${escaparHtml(nota)}</em>`] : []),
-            'Revísala y <strong>apruébala</strong> si quedó resuelta, o <strong>recházala</strong> indicando qué falta para que vuelva a Pendiente.',
+            'Revísala y <strong>apruébala</strong> si quedó resuelta, o <strong>recházala</strong> indicando qué falta para que vuelva a Pendiente. Si no respondes en <strong>2 horas</strong>, se aprobará automáticamente.',
           ],
           botonTexto: 'Aprobar o rechazar',
           botonUrl: `${siteUrl}/mis-solicitudes?ticket=${ticketId}`,

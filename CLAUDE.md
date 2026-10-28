@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0051_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0052_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -109,7 +109,10 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   (`es_grupal` + tabla `ticket_asignados`, N agentes por ticket).
 - `tickets.aprobacion` (migración 0032): al finalizarse, la tarea queda por
   aprobar (`null`) hasta que quien la pidió la apruebe o la rechace con
-  `responder_finalizacion()`; rechazada vuelve a `pendiente`. La columna la
+  `responder_finalizacion()`; rechazada vuelve a `pendiente`. Desde la 0052,
+  si no responde en 2 horas, pg_cron (cada 5 min,
+  `aprobar_finalizaciones_vencidas()`) la aprueba sola con
+  `aprobacion_automatica = true`. La columna la
   controla un trigger: el cliente no la escribe directamente.
 - Estado `rechazado` (migración 0038): el equipo del área rechaza con motivo
   una tarea no finalizada vía `rechazar_ticket()` (un trigger impide ponerlo

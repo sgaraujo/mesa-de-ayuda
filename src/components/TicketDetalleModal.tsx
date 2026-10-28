@@ -602,7 +602,12 @@ export function TicketDetalleModal({
                 {ticket.es_grupal && <span className="badge badge--equipo">En grupo</span>}
                 {esperaAprobacion(ticket) && <span className="badge badge--por-aprobar">Por aprobar</span>}
                 {ticket.estado === 'finalizado' && ticket.aprobacion === 'aprobada' && (
-                  <span className="badge badge--aprobada">Aprobada</span>
+                  <span
+                    className="badge badge--aprobada"
+                    title={ticket.aprobacion_automatica ? 'Quien la pidió no respondió en 2 horas' : undefined}
+                  >
+                    {ticket.aprobacion_automatica ? 'Aprobada automáticamente' : 'Aprobada'}
+                  </span>
                 )}
                 {fueRechazada(ticket) && <span className="badge badge--rechazada">Rechazada por el solicitante</span>}
                 <SemaforoVencimiento ticket={ticket} />
