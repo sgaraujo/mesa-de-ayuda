@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useArea } from '../context/AreaContext'
 import { MiembrosArea } from '../components/MiembrosArea'
+import { TiposSolicitudArea } from '../components/TiposSolicitudArea'
 import type { MiembroArea } from '../hooks/useMiembrosArea'
-import type { Profile, Ticket } from '../types/database'
+import type { Profile, Ticket, TipoSolicitud } from '../types/database'
 
 type TicketResumen = Pick<Ticket, 'area_id' | 'estado' | 'asignado_a' | 'es_grupal'>
 
@@ -39,6 +40,7 @@ export function GruposPage() {
 
   const [miembrosPorArea, setMiembrosPorArea] = useState<Map<string, MiembroArea[]>>(new Map())
   const [ticketsPorArea, setTicketsPorArea] = useState<Map<string, TicketResumen[]>>(new Map())
+  const [tiposPorArea, setTiposPorArea] = useState<Map<string, TipoSolicitud[]>>(new Map())
   const [perfiles, setPerfiles] = useState<Pick<Profile, 'id' | 'full_name' | 'email' | 'area_id'>[]>([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
@@ -62,6 +64,22 @@ export function GruposPage() {
     setMiembrosPorArea(porArea)
   }, [idsAreas])
 
+  // Incluye los inactivos: el líder los ve para poder reactivarlos.
+  const cargarTipos = useCallback(async () => {
+    if (idsAreas.length === 0) return
+    const { data } = await supabase
+      .from('tipos_solicitud')
+      .select('*')
+      .in('area_id', idsAreas)
+      .order('orden')
+      .order('nombre')
+    const porArea = new Map<string, TipoSolicitud[]>()
+    for (const tipo of (data ?? []) as TipoSolicitud[]) {
+      porArea.set(tipo.area_id, [...(porArea.get(tipo.area_id) ?? []), tipo])
+    }
+    setTiposPorArea(porArea)
+  }, [idsAreas])
+
   useEffect(() => {
     if (idsAreas.length === 0) {
       setLoading(false)
@@ -69,6 +87,7 @@ export function GruposPage() {
     }
     void Promise.all([
       cargarMiembros(),
+      cargarTipos(),
       supabase
         .from('tickets')
         .select('area_id, estado, asignado_a, es_grupal')
@@ -87,7 +106,7 @@ export function GruposPage() {
         .order('full_name')
         .then(({ data }) => setPerfiles(data ?? [])),
     ]).then(() => setLoading(false))
-  }, [idsAreas, cargarMiembros])
+  }, [idsAreas, cargarMiembros, cargarTipos])
 
   const termino = busqueda.trim().toLowerCase()
   const areasVisibles = areasLider.filter((area) => {
@@ -173,6 +192,12 @@ export function GruposPage() {
                 miembros={miembros}
                 perfiles={perfiles}
                 onCambio={cargarMiembros}
+              />
+
+              <TiposSolicitudArea
+                areaId={area.id}
+                tipos={tiposPorArea.get(area.id) ?? []}
+                onCambio={cargarTipos}
               />
             </section>
           )

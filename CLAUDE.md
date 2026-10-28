@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0050_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0051_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -153,6 +153,11 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   `notify-vencimientos`, que ejecuta `revisar_vencimientos()` (alertas de
   24 h, 4 h y vencida en `alertas_vencimiento`, una vez por fecha objetivo,
   más la notificación de la campanita) y envía los correos.
+- `tipos_solicitud` (migración 0031): catálogo de tipos por área; si el área
+  tiene tipos activos, el formulario exige elegir uno. Desde la 0051 lo
+  administra el líder del área en `/grupos` (`TiposSolicitudArea`;
+  `puedo_editar_tipos_area()`): agrega, renombra, ordena y desactiva; no se
+  borran ni cambian de área.
 - `fecha_requerida` y `tipo_id`, una vez definidos, solo los cambia quien
   pidió la tarea (trigger `proteger_datos_solicitante`, migración 0036).
 - `ticket_status_history`: auditoría de cada cambio de estado (se inserta a
