@@ -64,6 +64,13 @@ export interface Ticket {
   updated_at: string
   finalizado_at: string | null
   fecha_requerida: string | null
+  // Quien pidió la tarea cuando el líder de un área con
+  // registra_solicitante (Gestión IT) la creó por ella (migración 0053):
+  // con cuenta (id), elegida de Nelyoda sin cuenta (nombre y correo) o
+  // escrita a mano (solo nombre). solicitante_id sigue siendo el líder.
+  solicitado_por_id?: string | null
+  solicitado_por_nombre?: string | null
+  solicitado_por_email?: string | null
   // Fecha y hora a la que se compromete el equipo (migración 0041). El
   // vencimiento se mide contra ella o, si no hay, contra fecha_requerida.
   fecha_compromiso: string | null

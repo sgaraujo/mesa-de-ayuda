@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     const { data: ticket, error: ticketError } = await supabaseAdmin
       .from('tickets')
-      .select('id, titulo, estado, nota_finalizacion, motivo_rechazo, area_id, solicitante:profiles!tickets_solicitante_id_fkey(id, email, full_name, activo)')
+      .select('id, titulo, estado, nota_finalizacion, motivo_rechazo, area_id, solicitado_por_nombre, solicitante:profiles!tickets_solicitante_id_fkey(id, email, full_name, activo)')
       .eq('id', ticketId)
       .maybeSingle()
     if (ticketError || !ticket) return json({ ok: false, message: 'Tarea no encontrada' }, 404)
@@ -82,9 +82,35 @@ Deno.serve(async (req) => {
       ? escaparHtml(solicitante.full_name.trim())
       : escaparHtml(solicitante.email)
     const nota = ticket.nota_finalizacion?.trim()
+    // La cerró quien la pidió (p. ej. el líder de Gestión IT con una tarea que
+    // registró por otra persona, migración 0053): el correo es solo la
+    // constancia; ya quedó aprobada y a nadie más se le avisa.
+    const propia = solicitante.id === authData.user.id
+    const pidio = ticket.solicitado_por_nombre ? ` (pedida por ${escaparHtml(ticket.solicitado_por_nombre)})` : ''
 
     try {
       const siteUrl = Deno.env.get('SITE_URL') ?? ''
+      if (propia) {
+        const accion = rechazada ? 'rechazaste' : 'finalizaste'
+        await enviarCorreo(
+          solicitante.email,
+          rechazada ? 'Tarea rechazada' : 'Tarea finalizada',
+          plantillaCorreo({
+            titulo: rechazada ? 'Tarea rechazada' : 'Tarea finalizada',
+            etiqueta: rechazada ? 'Tarea rechazada' : 'Tarea finalizada',
+            preheader: `Constancia: ${accion} la tarea "${ticket.titulo}".`,
+            parrafos: [
+              `Hola <strong>${nombre}</strong>, ${accion} la tarea <strong>${escaparHtml(ticket.titulo)}</strong>${pidio}.`,
+              ...(rechazada
+                ? [`Motivo: <em>${escaparHtml(ticket.motivo_rechazo ?? '')}</em>`]
+                : nota ? [`Nota de finalización: <em>${escaparHtml(nota)}</em>`] : []),
+            ],
+            botonTexto: 'Ver la tarea',
+            botonUrl: `${siteUrl}/mis-solicitudes?ticket=${ticketId}`,
+          }),
+        )
+        return json({ ok: true, enviados: 1 })
+      }
       await enviarCorreo(
         solicitante.email,
         rechazada ? 'Tu solicitud fue rechazada' : 'Tu solicitud fue finalizada',

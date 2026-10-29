@@ -209,7 +209,11 @@ export function TicketDetalleModal({
   // Cargo y área del solicitante según Nelyoda (migración 0034). Aparte por la
   // misma razón: si no hay datos o la consulta falla, solo no se muestran.
   const [relacionSolicitante, setRelacionSolicitante] = useState<RelacionLaboralNelyoda | null>(null)
-  const correoSolicitante = ticket.solicitante?.email
+  // Si el líder la registró por otra persona (migración 0053), los datos son
+  // los de esa persona; escrita a mano no tiene correo y no se buscan.
+  const correoSolicitante = ticket.solicitado_por_nombre
+    ? ticket.solicitado_por_email ?? undefined
+    : ticket.solicitante?.email
 
   useEffect(() => {
     if (!correoSolicitante) return
@@ -486,7 +490,8 @@ export function TicketDetalleModal({
       : { ...ticket, area_id: destino.id, area: { id: destino.id, nombre: destino.nombre } })
   }
 
-  const solicitanteNombre = ticket.solicitante?.full_name ?? ticket.solicitante?.email ?? 'Alguien'
+  const creadorNombre = ticket.solicitante?.full_name ?? ticket.solicitante?.email ?? 'Alguien'
+  const solicitanteNombre = ticket.solicitado_por_nombre ?? creadorNombre
   // La fecha y el tipo que puso quien pidió la tarea solo los cambia esa
   // persona (migración 0036); si los dejó vacíos, el equipo puede definirlos.
   const esSolicitante = profile?.id === ticket.solicitante_id
@@ -631,7 +636,9 @@ export function TicketDetalleModal({
                 <Avatar nombre={solicitanteNombre} tamano="sm" />
                 <span>
                   <strong>{solicitanteNombre}</strong> lo solicitó el {formatearFecha(ticket.created_at)}
-                  {ticket.empresa_solicitante && <> · {ticket.empresa_solicitante}</>}
+                  {ticket.solicitado_por_nombre
+                    ? <> · Registrada por {creadorNombre}</>
+                    : ticket.empresa_solicitante && <> · {ticket.empresa_solicitante}</>}
                   {numeroOrigen != null && <> · Duplicada de #{numeroOrigen}</>}
                   {ticket.recurrencia_origen && (
                     <> · Generada automáticamente{numeroRecurrenciaOrigen != null && <> de #{numeroRecurrenciaOrigen}</>} (repetición)</>

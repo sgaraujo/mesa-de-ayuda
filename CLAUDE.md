@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0052_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0053_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -161,6 +161,18 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   administra el líder del área en `/grupos` (`TiposSolicitudArea`;
   `puedo_editar_tipos_area()`): agrega, renombra, ordena y desactiva; no se
   borran ni cambian de área.
+- Solicitante registrado por el líder (migración 0053): en las áreas con
+  `areas.registra_solicitante` (hoy Gestión IT) el líder o un superadmin, al crear desde
+  "+ Nueva tarea", indica quién se la pidió (`puedo_registrar_solicitante()`).
+  La lista junta los vigentes de `personas_nelyoda` y los perfiles activos
+  (`usePersonasSolicitante`); si no está, se escribe a mano. La tarea sigue a
+  nombre del líder (`solicitante_id`, aprobada al cerrarla él); aparte quedan
+  `solicitado_por_id` (si tiene cuenta), `solicitado_por_nombre` y
+  `solicitado_por_email`, que un trigger solo deja poner al crearla. Es solo
+  registro: a esa persona no se le avisa nada (con cuenta, sí puede ver la
+  tarea en `/mis-solicitudes` vía `puedo_ver_ticket`). Cuando quien pidió la
+  tarea es quien la cierra, `notify-finalizacion` le envía solo una
+  constancia, sin pedir aprobación.
 - `fecha_requerida` y `tipo_id`, una vez definidos, solo los cambia quien
   pidió la tarea (trigger `proteger_datos_solicitante`, migración 0036).
 - `ticket_status_history`: auditoría de cada cambio de estado (se inserta a

@@ -60,9 +60,10 @@ export function MisSolicitudesPage() {
     const otros = [...new Set([...mencionado, ...rechazadas])]
 
     let consulta = supabase.from('tickets').select(TICKET_SELECT)
+    // También las que el líder registró a su nombre (solicitado_por_id, migración 0053).
     consulta = otros.length > 0
-      ? consulta.or(`solicitante_id.eq.${profileId},id.in.(${otros.join(',')})`)
-      : consulta.eq('solicitante_id', profileId)
+      ? consulta.or(`solicitante_id.eq.${profileId},solicitado_por_id.eq.${profileId},id.in.(${otros.join(',')})`)
+      : consulta.or(`solicitante_id.eq.${profileId},solicitado_por_id.eq.${profileId}`)
     const { data } = await consulta.order('created_at', { ascending: false })
     const cargados = (data as unknown as TicketConRelaciones[]) ?? []
 
@@ -74,7 +75,7 @@ export function MisSolicitudesPage() {
     setIdsMencionado(mencionado)
     setIdsRechazadasPorMi(rechazadasVigentes)
     setTickets(cargados.filter((t) =>
-      t.solicitante_id === profileId || mencionado.has(t.id) || rechazadasVigentes.has(t.id)))
+      t.solicitante_id === profileId || t.solicitado_por_id === profileId || mencionado.has(t.id) || rechazadasVigentes.has(t.id)))
     setLoading(false)
   }, [profileId])
 
@@ -114,7 +115,7 @@ export function MisSolicitudesPage() {
   // de aquí para que cuadren con lo que se ve.
   const segunRelacion = useMemo(
     () => tickets.filter((t) => {
-      if (filtroRelacion === 'pedidas' && t.solicitante_id !== profileId) return false
+      if (filtroRelacion === 'pedidas' && t.solicitante_id !== profileId && t.solicitado_por_id !== profileId) return false
       if (filtroRelacion === 'mencionado' && !idsMencionado.has(t.id)) return false
       if (filtroRelacion === 'rechazadas' && !idsRechazadasPorMi.has(t.id)) return false
       return coincideBusqueda(t, busqueda)
@@ -220,7 +221,12 @@ export function MisSolicitudesPage() {
             </thead>
             <tbody>
               {visibles.map((t) => {
-                const pedidaPorOtro = t.solicitante_id !== profileId
+                // Si el líder la registró por otra persona (migración 0053),
+                // esa persona es quien la pidió.
+                const pedidaPor = t.solicitado_por_id === profileId
+                  ? null
+                  : t.solicitado_por_nombre
+                    ?? (t.solicitante_id !== profileId && t.solicitante ? t.solicitante.full_name ?? t.solicitante.email : null)
                 return (
                   <tr key={t.id} onClick={() => setTicketSeleccionado(t)} className="mis-solicitudes__fila">
                     <td className="ticket-numero">#{t.numero}</td>
@@ -230,9 +236,7 @@ export function MisSolicitudesPage() {
                         <span className="mis-solicitudes__etiquetas">
                           {idsMencionado.has(t.id) && <span className="badge--mencion">@ Mencionado</span>}
                           {idsRechazadasPorMi.has(t.id) && <span className="badge--mencion mis-solicitudes__rechazaste">La rechazaste</span>}
-                          {pedidaPorOtro && t.solicitante && (
-                            <span className="mis-solicitudes__detalle">Pedida por {t.solicitante.full_name ?? t.solicitante.email}</span>
-                          )}
+                          {pedidaPor && <span className="mis-solicitudes__detalle">Pedida por {pedidaPor}</span>}
                         </span>
                         {t.estado === 'rechazado' && t.motivo_rechazo && (
                           <span className="mis-solicitudes__motivo" title={t.motivo_rechazo}>Motivo: {t.motivo_rechazo}</span>

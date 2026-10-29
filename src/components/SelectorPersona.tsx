@@ -11,6 +11,8 @@ export interface PersonaOpcion {
   area_id?: string | null
   // Texto corto a la derecha (p. ej. "Líder").
   detalle?: string
+  // Título del grupo en la lista; si falta, se agrupa por área (area_id).
+  grupo?: string
 }
 
 // Opciones que no son personas ("Todas las personas", "Sin asignar"): van
@@ -63,7 +65,7 @@ interface Grupo {
 }
 
 // Filtra por nombre o correo (sin tildes ni mayúsculas) y agrupa por área.
-function useGrupos(personas: PersonaOpcion[], opcionesFijas: OpcionFija[], texto: string, etiquetaPersona?: (p: PersonaOpcion) => string) {
+function useGrupos(personas: PersonaOpcion[], opcionesFijas: OpcionFija[], texto: string, etiquetaPersona?: (p: PersonaOpcion) => string, libre?: OpcionFija | null) {
   const nombresAreas = useNombresAreas()
   return useMemo(() => {
     const termino = normalizar(texto.trim())
@@ -77,7 +79,7 @@ function useGrupos(personas: PersonaOpcion[], opcionesFijas: OpcionFija[], texto
     for (const p of personas) {
       const etiqueta = etiquetaPersona?.(p) ?? nombrePersona(p)
       if (!coincide(etiqueta) && !coincide(nombrePersona(p)) && !coincide(p.email)) continue
-      const area = (p.area_id && nombresAreas.get(p.area_id)) || SIN_AREA
+      const area = p.grupo || (p.area_id && nombresAreas.get(p.area_id)) || SIN_AREA
       const lista = porArea.get(area) ?? []
       lista.push({ tipo: 'persona', valor: p.id, persona: p, etiqueta })
       porArea.set(area, lista)
@@ -91,8 +93,9 @@ function useGrupos(personas: PersonaOpcion[], opcionesFijas: OpcionFija[], texto
       const items = porArea.get(area)!.sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, 'es'))
       grupos.push({ titulo: area, items })
     }
+    if (libre) grupos.push({ titulo: 'No está en la lista', items: [{ tipo: 'fija', ...libre }] })
     return grupos
-  }, [personas, opcionesFijas, texto, etiquetaPersona, nombresAreas])
+  }, [personas, opcionesFijas, texto, etiquetaPersona, nombresAreas, libre])
 }
 
 // Lista desplegable en un portal con posición fija: así no la recortan los
@@ -142,9 +145,11 @@ interface ListaProps {
   estilo: CSSProperties
   onElegir: (item: Item) => void
   onActivar: (indice: number) => void
+  // Nota al pie (p. ej. que hay más personas de las que se muestran).
+  aviso?: string
 }
 
-function Lista({ id, grupos, activo, seleccionados, multiple, estilo, onElegir, onActivar }: ListaProps) {
+function Lista({ id, grupos, activo, seleccionados, multiple, estilo, onElegir, onActivar, aviso }: ListaProps) {
   const listaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -205,6 +210,7 @@ function Lista({ id, grupos, activo, seleccionados, multiple, estilo, onElegir, 
           })}
         </div>
       ))}
+      {aviso && <p className="selector-persona__vacio">{aviso}</p>}
     </div>,
     document.body,
   )
@@ -215,6 +221,27 @@ function useIdLista() {
   const ref = useRef<string | null>(null)
   ref.current ??= `selector-persona-${++contadorIds}`
   return ref.current
+}
+
+// Con listas muy largas (Nelyoda) solo se pintan las primeras personas; las
+// opciones fijas y la de texto libre se conservan siempre.
+function recortar(grupos: Grupo[], max: number | undefined): { grupos: Grupo[]; ocultas: number } {
+  if (!max) return { grupos, ocultas: 0 }
+  let restantes = max
+  let ocultas = 0
+  const resultado = grupos.map((g) => ({
+    ...g,
+    items: g.items.filter((item) => {
+      if (item.tipo !== 'persona') return true
+      if (restantes > 0) {
+        restantes -= 1
+        return true
+      }
+      ocultas += 1
+      return false
+    }),
+  }))
+  return { grupos: resultado.filter((g) => g.items.length > 0), ocultas }
 }
 
 // Navegación con teclado común a las dos variantes.
@@ -265,6 +292,11 @@ interface SelectorPersonaProps {
   autoFocus?: boolean
   disabled?: boolean
   'aria-label'?: string
+  // Si se pasa, al escribir aparece al final la opción de usar el texto tal
+  // cual (para quien no está en la lista).
+  opcionTextoLibre?: (texto: string) => OpcionFija
+  // Cuántas personas pintar como máximo; el resto aparece al filtrar.
+  maxResultados?: number
 }
 
 // Reemplazo de <select> para elegir una persona: se escribe el nombre o el
@@ -281,6 +313,8 @@ export function SelectorPersona({
   autoFocus,
   disabled,
   'aria-label': ariaLabel,
+  opcionTextoLibre,
+  maxResultados,
 }: SelectorPersonaProps) {
   const [abierto, setAbierto] = useState(false)
   const [texto, setTexto] = useState('')
@@ -288,7 +322,13 @@ export function SelectorPersona({
   const inputRef = useRef<HTMLInputElement>(null)
   const idLista = useIdLista()
 
-  const grupos = useGrupos(personas, opcionesFijas, abierto ? texto : '', etiquetaPersona)
+  const textoLibre = abierto ? texto.trim() : ''
+  const libre = useMemo(
+    () => (opcionTextoLibre && textoLibre ? opcionTextoLibre(textoLibre) : null),
+    [opcionTextoLibre, textoLibre],
+  )
+  const todos = useGrupos(personas, opcionesFijas, abierto ? texto : '', etiquetaPersona, libre)
+  const { grupos, ocultas } = useMemo(() => recortar(todos, maxResultados), [todos, maxResultados])
   const items = useMemo(() => grupos.flatMap((g) => g.items), [grupos])
   const estilo = useLista(abierto, inputRef)
 
@@ -354,6 +394,7 @@ export function SelectorPersona({
           estilo={estilo}
           onElegir={elegir}
           onActivar={setActivo}
+          aviso={ocultas > 0 ? `Escribe para buscar entre ${ocultas.toLocaleString('es-CO')} personas más` : undefined}
         />
       )}
     </div>
