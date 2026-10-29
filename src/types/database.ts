@@ -196,12 +196,16 @@ export interface TicketMencion {
 // Centro de notificaciones (migración 0026); las crean triggers.
 export type TipoNotificacion =
   | 'mencion' | 'comentario' | 'asignacion' | 'estado' | 'aprobacion' | 'rechazo' | 'solicitud_rechazada' | 'vencimiento' | 'subtarea'
+  | 'eliminada'
 
 export interface Notificacion {
   id: string
   destinatario_id: string
   tipo: TipoNotificacion
-  ticket_id: string
+  // null en 'eliminada' (migración 0054): la tarea ya no existe y su número
+  // y título quedan en ticket_referencia.
+  ticket_id: string | null
+  ticket_referencia?: string | null
   comentario_id: string | null
   actor_id: string | null
   detalle: string | null

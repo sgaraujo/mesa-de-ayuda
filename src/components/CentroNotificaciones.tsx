@@ -81,6 +81,9 @@ function Mensaje({ n }: { n: NotificacionConRelaciones }) {
     // El detalle es el título de la subtarea (migración 0043).
     case 'subtarea':
       return <>{actor} te asignó una subtarea en {tarea}</>
+    // La tarea ya no existe (migración 0054); el detalle es el motivo.
+    case 'eliminada':
+      return <>{actor} eliminó la tarea <strong>{n.ticket_referencia ?? ''}</strong></>
     // Las crea el cron (migración 0041), sin actor.
     case 'vencimiento':
       return n.detalle === 'vencido'
@@ -99,6 +102,7 @@ const ICONO_TIPO: Record<Notificacion['tipo'], string> = {
   solicitud_rechazada: '✕',
   vencimiento: '⏰',
   subtarea: '☑',
+  eliminada: '🗑',
 }
 
 // Campanita del encabezado con el panel de notificaciones. Al tocar una se
@@ -224,6 +228,8 @@ export function CentroNotificaciones() {
     setAviso(null)
     setErrorTicket(null)
     if (!n.leida_at) void marcarLeidas([n.id])
+    // Tarea eliminada: no hay nada que abrir; el motivo ya se lee en la lista.
+    if (!n.ticket_id) return
 
     const { data } = await supabase.from('tickets').select(TICKET_SELECT).eq('id', n.ticket_id).maybeSingle()
     if (!data) {

@@ -25,6 +25,7 @@ import { ComentariosTicket } from './ComentariosTicket'
 import { HistorialCambios } from './HistorialCambios'
 import { RespuestaFinalizacion } from './RespuestaFinalizacion'
 import { RechazarSolicitud } from './RechazarSolicitud'
+import { EliminarTarea } from './EliminarTarea'
 import { Avatar } from './Avatar'
 import { SemaforoVencimiento } from './SemaforoVencimiento'
 import { SubtareasTicket } from './SubtareasTicket'
@@ -164,6 +165,8 @@ export function TicketDetalleModal({
   )
   const [guardando, setGuardando] = useState(false)
   const [eliminando, setEliminando] = useState(false)
+  // Panel del motivo al eliminar una tarea con otras personas (migración 0054).
+  const [pidiendoMotivoEliminar, setPidiendoMotivoEliminar] = useState(false)
   const [duplicando, setDuplicando] = useState(false)
   const [cambiandoArea, setCambiandoArea] = useState(false)
   // Número de la tarea de la que se duplicó esta. Se consulta aparte y no
@@ -367,7 +370,21 @@ export function TicketDetalleModal({
     })
   }
 
+  // Quien la creó y sus responsables, sin contar a quien elimina: si hay
+  // alguien, eliminar pide motivo y les avisa (eliminar_ticket, migración 0054).
+  const involucradosEliminar = [
+    ...new Map(
+      [ticket.solicitante, ticket.asignado, ...ticket.asignados.map((a) => a.profile)]
+        .filter((p): p is NonNullable<typeof p> => !!p && p.id !== profile?.id)
+        .map((p) => [p.id, p.full_name?.trim() || p.email]),
+    ).values(),
+  ]
+
   async function handleEliminar() {
+    if (involucradosEliminar.length > 0) {
+      setPidiendoMotivoEliminar(true)
+      return
+    }
     if (!(await confirmar({
       titulo: `¿Eliminar la tarea #${ticket.numero}?`,
       descripcion: 'Se eliminará de forma permanente. Esta acción no se puede deshacer.',
@@ -376,11 +393,14 @@ export function TicketDetalleModal({
     setError(null)
     setEliminando(true)
 
-    const { error: errorEliminar } = await supabase.from('tickets').delete().eq('id', ticket.id)
+    const { error: errorEliminar } = await supabase.rpc('eliminar_ticket', { p_ticket_id: ticket.id })
 
     if (errorEliminar) {
       setEliminando(false)
-      setError('No se pudo eliminar. Intenta de nuevo.')
+      // La base encontró a alguien más en la tarea (p. ej. un responsable
+      // agregado desde otra sesión): se pide el motivo.
+      if (errorEliminar.code === '22023') setPidiendoMotivoEliminar(true)
+      else setError('No se pudo eliminar. Intenta de nuevo.')
       return
     }
 
@@ -663,6 +683,15 @@ export function TicketDetalleModal({
 
               {esperaAprobacion(ticket) && profile?.id === ticket.solicitante_id && (
                 <RespuestaFinalizacion ticket={ticket} onRespondido={onGuardado} />
+              )}
+
+              {pidiendoMotivoEliminar && puedeEliminar && (
+                <EliminarTarea
+                  ticket={ticket}
+                  involucrados={involucradosEliminar.length > 0 ? involucradosEliminar : ['Quien la creó o la tiene asignada']}
+                  onEliminado={onEliminado}
+                  onCancelar={() => setPidiendoMotivoEliminar(false)}
+                />
               )}
 
               {rechazando && puedeRechazar && (

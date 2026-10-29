@@ -36,6 +36,16 @@ export async function notificarRechazo(ticketId: string) {
   if (error) console.error('No se pudo enviar la notificación de rechazo:', error.message)
 }
 
+// Correo a quien creó la tarea y a sus responsables cuando el líder la
+// elimina con motivo (migración 0054). La campanita ya la dejó la base.
+export async function notificarEliminacion(eliminadoId: string) {
+  const { error } = await supabase.functions.invoke('notify-eliminacion', {
+    body: { eliminadoId },
+  })
+
+  if (error) console.error('No se pudo enviar el aviso de eliminación:', error.message)
+}
+
 export interface ResultadoMenciones {
   ok: boolean
   enviados: number

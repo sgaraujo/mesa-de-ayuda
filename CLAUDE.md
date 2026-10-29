@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0053_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0054_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -173,6 +173,13 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   tarea en `/mis-solicitudes` vía `puedo_ver_ticket`). Cuando quien pidió la
   tarea es quien la cierra, `notify-finalizacion` le envía solo una
   constancia, sin pedir aprobación.
+- Eliminar tareas (migración 0054): solo el líder del área o el superadmin,
+  y solo con la RPC `eliminar_ticket()` (no hay policy de delete en
+  `tickets`). Si hay otras personas involucradas (quien la creó, `asignado_a`
+  o `ticket_asignados`, sin contar a quien elimina), exige motivo, lo guarda
+  en `tickets_eliminados` y les avisa: notificación `eliminada` (con
+  `ticket_id` null y el número y título en `ticket_referencia`) y correo con
+  la Edge Function `notify-eliminacion`. Sin involucrados se borra sin aviso.
 - `fecha_requerida` y `tipo_id`, una vez definidos, solo los cambia quien
   pidió la tarea (trigger `proteger_datos_solicitante`, migración 0036).
 - `ticket_status_history`: auditoría de cada cambio de estado (se inserta a
@@ -259,6 +266,7 @@ para el HTML de los correos). Funciones actuales: `invite-user`,
 LanguageTool; API pública gratuita salvo que se definan los secretos
 `LANGUAGETOOL_USERNAME`/`LANGUAGETOOL_API_KEY` o `LANGUAGETOOL_URL`),
 `sincronizar-teams` (reuniones de Teams como tareas; ver migración 0045),
+`notify-eliminacion` (aviso al eliminar una tarea con involucrados, migración 0054),
 `notify-vencimientos` (la llama pg_cron con el header `x-cron-key` =
 secreto `VENCIMIENTOS_CRON_KEY`; se despliega con `--no-verify-jwt`; la URL y
 la llave para el cron van en Vault),
