@@ -278,12 +278,14 @@ export function MisSolicitudesPage() {
 
       {ticketSeleccionado && (
         <TicketDetalleModal
+          key={ticketSeleccionado.id}
           ticket={ticketSeleccionado}
           puedeEditarTiempos={false}
           puedeEliminar={false}
           onClose={() => setTicketSeleccionado(null)}
           onGuardado={() => setTicketSeleccionado(null)}
           onEliminado={() => setTicketSeleccionado(null)}
+          onAbrirTicket={setTicketSeleccionado}
         />
       )}
     </div>

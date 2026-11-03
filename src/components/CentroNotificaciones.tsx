@@ -357,12 +357,14 @@ export function CentroNotificaciones() {
 
       {ticketAbierto && createPortal((
         <TicketDetalleModal
+          key={ticketAbierto.id}
           ticket={ticketAbierto}
           puedeEditarTiempos={rolEnArea !== undefined}
           puedeEliminar={rolEnArea === 'lider'}
           onClose={() => setTicketAbierto(null)}
           onGuardado={() => setTicketAbierto(null)}
           onEliminado={() => setTicketAbierto(null)}
+          onAbrirTicket={setTicketAbierto}
         />
       ), document.body)}
     </div>

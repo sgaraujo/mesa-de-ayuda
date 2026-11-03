@@ -525,6 +525,7 @@ export function BoardPage() {
             setTicketSeleccionado(copia)
             void notificarCambio(copia.id)
           }}
+          onAbrirTicket={setTicketSeleccionado}
         />
       )}
 

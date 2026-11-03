@@ -101,6 +101,9 @@ interface TicketDetalleModalProps {
   onDuplicado?: (ticket: TicketConRelaciones) => void
   // Mueve la tarea de columna igual que arrastrarla; sin él, el estado solo se muestra.
   onMover?: (destino: ColumnaId) => void
+  // Abre otra tarea en este mismo modal (p. ej. la original de una copia
+  // repetida, que es donde se cancela la repetición).
+  onAbrirTicket?: (ticket: TicketConRelaciones) => void
 }
 
 export function TicketDetalleModal({
@@ -113,6 +116,7 @@ export function TicketDetalleModal({
   onComentado,
   onDuplicado,
   onMover,
+  onAbrirTicket,
 }: TicketDetalleModalProps) {
   const { profile } = useAuth()
   const confirmar = useConfirmar()
@@ -391,6 +395,23 @@ export function TicketDetalleModal({
         .map((p) => [p.id, p.full_name?.trim() || p.email]),
     ).values(),
   ]
+
+  // De una copia repetida a su original: ahí se configura o se cancela la
+  // repetición (las copias no la tienen).
+  async function abrirOriginal() {
+    if (!ticket.recurrencia_origen || !onAbrirTicket) return
+    if (hayCambios && !(await confirmar({
+      titulo: 'Descartar cambios',
+      descripcion: 'Tienes cambios sin guardar en esta tarea. Si abres la original, se perderán.',
+      textoConfirmar: 'Abrir la original',
+    }))) return
+    const { data } = await supabase.from('tickets').select(TICKET_SELECT).eq('id', ticket.recurrencia_origen).maybeSingle()
+    if (!data) {
+      setError('No se pudo abrir la tarea original: ya no existe o no tienes acceso a ella.')
+      return
+    }
+    onAbrirTicket(data as unknown as TicketConRelaciones)
+  }
 
   async function handleEliminar() {
     if (involucradosEliminar.length > 0) {
@@ -673,7 +694,25 @@ export function TicketDetalleModal({
                     : ticket.empresa_solicitante && <> · {ticket.empresa_solicitante}</>}
                   {numeroOrigen != null && <> · Duplicada de #{numeroOrigen}</>}
                   {ticket.recurrencia_origen && (
-                    <> · Generada automáticamente{numeroRecurrenciaOrigen != null && <> de #{numeroRecurrenciaOrigen}</>} (repetición)</>
+                    <>
+                      {' · Generada automáticamente'}
+                      {numeroRecurrenciaOrigen != null && (
+                        onAbrirTicket ? (
+                          <>
+                            {' de '}
+                            <button
+                              type="button"
+                              className="detalle__enlace-origen"
+                              onClick={() => void abrirOriginal()}
+                              title="Abrir la tarea original: ahí se cambia o se cancela la repetición"
+                            >
+                              #{numeroRecurrenciaOrigen}
+                            </button>
+                          </>
+                        ) : <> de #{numeroRecurrenciaOrigen}</>
+                      )}
+                      {' (repetición)'}
+                    </>
                   )}
                   {relacionSolicitante && (relacionSolicitante.cargo || areaLaboral(relacionSolicitante)) && (
                     <span className="detalle__autor-cargo">

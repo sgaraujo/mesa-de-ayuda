@@ -3632,6 +3632,22 @@ span.subtarea__responsable {
   font-weight: 600;
 }
 
+/* "#120" en una copia repetida: abre la original (donde se cancela la repetición). */
+.detalle__enlace-origen {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.detalle__enlace-origen:hover {
+  filter: brightness(1.15);
+}
+
 /* Cargo y área según Nelyoda, en su propia línea bajo el nombre. */
 .detalle__autor-cargo {
   display: block;
