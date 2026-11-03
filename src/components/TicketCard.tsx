@@ -1,5 +1,5 @@
 import { useDraggable } from '@dnd-kit/core'
-import { clasificacionFaltante, describirRecurrencia, esperaAprobacion, fueRechazada, nombresAsignados } from '../lib/ticket'
+import { clasificacionFaltante, describirRecurrencia, diasSemanaTexto, esperaAprobacion, fueRechazada, nombresAsignados } from '../lib/ticket'
 import { cumplioATiempo, semaforo } from '../lib/vencimiento'
 import { Avatar } from './Avatar'
 import { SemaforoVencimiento } from './SemaforoVencimiento'
@@ -101,7 +101,13 @@ export function TicketCard({ ticket, onClick, puedeArrastrar = true, mostrarArea
         <div className="ticket-card__etiquetas">
           {ticket.recurrencia_activa && (
             <span className="ticket-card__etiqueta ticket-card__etiqueta--recurrente" title={`Se repite ${describirRecurrencia(ticket)}`}>
-              ↻ {ticket.recurrencia_frecuencia === 'diaria' ? 'Diaria' : ticket.recurrencia_frecuencia === 'habil' ? 'Lun-Vie' : 'Mensual'}
+              ↻ {ticket.recurrencia_frecuencia === 'diaria'
+                ? 'Diaria'
+                : ticket.recurrencia_frecuencia === 'habil'
+                  ? 'Lun-Vie'
+                  : ticket.recurrencia_frecuencia === 'semanal'
+                    ? diasSemanaTexto(ticket.recurrencia_dias_semana).replaceAll(', ', '·')
+                    : 'Mensual'}
             </span>
           )}
           {ticket.reunion_url && (

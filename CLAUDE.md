@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0054_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0055_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -149,6 +149,9 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   repetirse. Desde la 0048, `recurrencia_frecuencia` (`mensual` | `diaria` |
   `habil` = lunes a viernes, sin festivos); `recurrencia_dia` solo aplica a
   la mensual y las copias diarias llevan la fecha completa en el título.
+  Desde la 0055 también `semanal`, con los días elegidos en
+  `recurrencia_dias_semana` (1 = lunes … 7 = domingo; uno o varios); la
+  copia lleva en el título el día de la semana y la fecha.
 - Vencimientos (migración 0041): `tickets.fecha_compromiso` la define el
   equipo; el vencimiento se mide contra ella o, si está vacía, contra
   `fecha_requerida` (`src/lib/vencimiento.ts`: semáforo verde / amarillo a

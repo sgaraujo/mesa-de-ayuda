@@ -10,6 +10,7 @@ import { useMiembrosArea } from '../hooks/useMiembrosArea'
 import {
   clasificacionFaltante,
   describirRecurrencia,
+  DIAS_SEMANA,
   esImagenAdjunta,
   esperaAprobacion,
   estaSinAsignar,
@@ -152,6 +153,9 @@ export function TicketDetalleModal({
   const [recurrenciaFrecuencia, setRecurrenciaFrecuencia] = useState(recurrenciaFrecuenciaInicial)
   const [recurrenciaDia, setRecurrenciaDia] = useState(recurrenciaDiaInicial)
   const [recurrenciaPlazo, setRecurrenciaPlazo] = useState(recurrenciaPlazoInicial)
+  // Días de la semana de la frecuencia semanal (migración 0055), 1 = lunes.
+  const recurrenciaDiasInicial = [...(ticket.recurrencia_dias_semana ?? [])].sort((a, b) => a - b)
+  const [recurrenciaDias, setRecurrenciaDias] = useState<number[]>(recurrenciaDiasInicial)
   // Solo en la original (una copia no se repite) y desde el tablero.
   const puedeConfigurarRecurrencia = puedeEditarTiempos && soportaRecurrencia
     && !ticket.recurrencia_origen && ticket.estado !== 'rechazado'
@@ -160,6 +164,7 @@ export function TicketDetalleModal({
     || (recurrenciaActiva && (
       recurrenciaFrecuencia !== recurrenciaFrecuenciaInicial
       || (recurrenciaFrecuencia === 'mensual' && recurrenciaDia !== recurrenciaDiaInicial)
+      || (recurrenciaFrecuencia === 'semanal' && recurrenciaDias.join() !== recurrenciaDiasInicial.join())
       || recurrenciaPlazo !== recurrenciaPlazoInicial
     ))
   )
@@ -256,6 +261,10 @@ export function TicketDetalleModal({
         setError('Elige el día del mes en que se repite la tarea.')
         return
       }
+      if (recurrenciaFrecuencia === 'semanal' && recurrenciaDias.length === 0) {
+        setError('Elige al menos un día de la semana en que se repite la tarea.')
+        return
+      }
       if (plazoRecurrencia !== null && (!Number.isInteger(plazoRecurrencia) || plazoRecurrencia < 0 || plazoRecurrencia > 90)) {
         setError('El plazo de las copias debe ser un número de días entre 0 y 90.')
         return
@@ -314,6 +323,9 @@ export function TicketDetalleModal({
           recurrencia_dia: recurrenciaActiva && recurrenciaFrecuencia === 'mensual'
             ? Number(recurrenciaDia)
             : ticket.recurrencia_dia ?? null,
+          ...(recurrenciaActiva && recurrenciaFrecuencia === 'semanal'
+            ? { recurrencia_dias_semana: recurrenciaDias }
+            : {}),
           recurrencia_plazo_dias: recurrenciaActiva ? plazoRecurrencia : ticket.recurrencia_plazo_dias ?? null,
         } : {}),
       })
@@ -973,10 +985,36 @@ export function TicketDetalleModal({
                           >
                             <option value="diaria">Todos los días</option>
                             <option value="habil">Lunes a viernes</option>
+                            <option value="semanal">Días de la semana</option>
                             <option value="mensual">Cada mes</option>
                           </select>
                         </dd>
                       </div>
+                      {recurrenciaFrecuencia === 'semanal' && (
+                        <div className="propiedad">
+                          <dt>Días</dt>
+                          <dd>
+                            <div className="segmentado recurrencia__dias" role="group" aria-label="Días de la semana en que se repite">
+                              {DIAS_SEMANA.map((etiqueta, i) => {
+                                const dia = i + 1
+                                const elegido = recurrenciaDias.includes(dia)
+                                return (
+                                  <button
+                                    key={etiqueta}
+                                    type="button"
+                                    aria-pressed={elegido}
+                                    onClick={() => setRecurrenciaDias((prev) => (
+                                      elegido ? prev.filter((d) => d !== dia) : [...prev, dia].sort((a, b) => a - b)
+                                    ))}
+                                  >
+                                    {etiqueta}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </dd>
+                        </div>
+                      )}
                       {recurrenciaFrecuencia === 'mensual' && (
                         <div className="propiedad">
                           <dt><label htmlFor="detalle-recurrencia-dia">Día del mes</label></dt>
