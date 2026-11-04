@@ -227,7 +227,12 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   `sincronizar-nelyoda`, que además habilita como solicitante a todo empleado
   vigente, desactiva la cuenta de quien se retira y la reactiva si vuelve
   (solo si ella la desactivó; nunca a un superadmin). El cliente solo lee las
-  columnas de directorio (grants por columna).
+  columnas de directorio (grants por columna). Nelyoda llama una vez por cada
+  escritura de un expediente y reintenta las fallidas: una ráfaga saturó la
+  API y el login el 2026-11-04. Por eso solo se reescribe lo que cambió, el
+  aviso de una persona sin cambios termina tras una consulta, y el secreto
+  `NELYODA_SYNC_PAUSADA = '1'` hace que responda ok sin tocar la base (el
+  barrido nocturno recupera lo no aplicado).
 - RLS en casi todas las tablas. **Cuidado con la recursión**: la policy de
   `tickets` consulta `ticket_asignados` y viceversa, lo cual generaba
   "infinite recursion detected in policy". Se resolvió con funciones
