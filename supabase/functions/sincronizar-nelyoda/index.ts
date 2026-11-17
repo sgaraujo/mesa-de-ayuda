@@ -11,6 +11,13 @@
 //     la desactivó. Una revocación manual de un admin se respeta.
 //   · Los superadmins nunca se desactivan desde aquí: un error de datos en
 //     Nelyoda no puede dejar la Mesa de Ayuda sin quien la administre.
+//
+// Nelyoda llama una vez por cada escritura de un expediente, así que un cambio
+// masivo son miles de llamadas, y reintenta las que fallan. Para aguantarlo:
+//   · Aviso de una persona sin cambios → termina tras una sola consulta. El
+//     barrido nocturno (varias personas) sí concilia todo, aunque no cambie.
+//   · Secreto NELYODA_SYNC_PAUSADA = '1' → responde ok sin tocar la base, y
+//     Nelyoda deja de reintentar. Lo no aplicado lo recupera el barrido nocturno.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { correoInterno } from '../_shared/cedula.ts'
@@ -26,6 +33,7 @@ const PATRON_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 // Los filtros .in() viajan en la URL: lotes chicos para no pasar su límite.
 const MAX_PERSONAS_POR_LLAMADO = 100
 const BLOQUEO_INDEFINIDO = '876000h'
+const COLUMNAS_EXISTENTE = 'ref, email, desactivo_cuenta, nombre, telefono, activo, relaciones'
 
 interface RelacionLaboral {
   empresa: string | null
@@ -72,6 +80,14 @@ const texto = (valor: unknown, max = 200): string | null => {
   return limpio ? limpio.slice(0, max) : null
 }
 
+// Para comparar con lo guardado: jsonb no conserva el orden de las llaves.
+function huella(p: Pick<PersonaNelyoda, 'email' | 'nombre' | 'telefono' | 'activo' | 'relaciones'>): string {
+  return JSON.stringify([
+    String(p.email).toLowerCase(), p.nombre, p.telefono, p.activo,
+    (p.relaciones ?? []).map((r) => [r.empresa, r.proyecto, r.area, r.cuentaAnalitica, r.cargo, r.jefe]),
+  ])
+}
+
 function normalizarPersona(valor: unknown): PersonaNelyoda | null {
   if (!valor || typeof valor !== 'object') return null
   const p = valor as Record<string, unknown>
@@ -109,6 +125,7 @@ Deno.serve(async (req) => {
   if (!(await claveValida(req.headers.get('x-sync-key')))) {
     return json({ ok: false, message: 'No autorizado' }, 401)
   }
+  if (Deno.env.get('NELYODA_SYNC_PAUSADA') === '1') return json({ ok: true, pausada: true })
 
   try {
     const cuerpo = await req.json().catch(() => null)
@@ -130,11 +147,15 @@ Deno.serve(async (req) => {
 
     // Un correo ya tomado por otro expediente de Nelyoda es un dato duplicado
     // allá: se omite y se reporta en vez de pisar a la otra persona.
-    const [porRef, porCorreo] = await Promise.all([
-      supabaseAdmin.from('personas_nelyoda').select('ref, email, desactivo_cuenta').in('ref', personas.map((p) => p.ref)),
-      supabaseAdmin.from('personas_nelyoda').select('ref, email, desactivo_cuenta').in('email', personas.map((p) => p.email)),
-    ])
+    const porRef = await supabaseAdmin.from('personas_nelyoda').select(COLUMNAS_EXISTENTE).in('ref', personas.map((p) => p.ref))
     if (porRef.error) throw porRef.error
+    const huellaGuardada = new Map((porRef.data ?? []).map((e) => [e.ref as string, huella(e as PersonaNelyoda)]))
+    const sinCambios = (p: PersonaNelyoda) => huellaGuardada.get(p.ref) === huella(p)
+    if (personas.length === 1 && sinCambios(personas[0])) {
+      return json({ ok: true, procesadas: 0, ignoradas, sinCambios: 1 })
+    }
+
+    const porCorreo = await supabaseAdmin.from('personas_nelyoda').select(COLUMNAS_EXISTENTE).in('email', personas.map((p) => p.email))
     if (porCorreo.error) throw porCorreo.error
     const existentes = [...(porRef.data ?? []), ...(porCorreo.data ?? [])]
       .map((e) => ({ ...e, email: String(e.email).toLowerCase() }))
@@ -149,19 +170,22 @@ Deno.serve(async (req) => {
     )
 
     // desactivo_cuenta no va en el upsert: se conserva y se ajusta más abajo.
-    const { error: upsertError } = await supabaseAdmin.from('personas_nelyoda').upsert(
-      personas.map((p) => ({
-        ref: p.ref,
-        email: p.email,
-        nombre: p.nombre,
-        telefono: p.telefono,
-        activo: p.activo,
-        relaciones: p.relaciones,
-        actualizado_at: new Date().toISOString(),
-      })),
-      { onConflict: 'ref' },
-    )
-    if (upsertError) throw upsertError
+    const cambiadas = personas.filter((p) => !sinCambios(p))
+    if (cambiadas.length > 0) {
+      const { error: upsertError } = await supabaseAdmin.from('personas_nelyoda').upsert(
+        cambiadas.map((p) => ({
+          ref: p.ref,
+          email: p.email,
+          nombre: p.nombre,
+          telefono: p.telefono,
+          activo: p.activo,
+          relaciones: p.relaciones,
+          actualizado_at: new Date().toISOString(),
+        })),
+        { onConflict: 'ref' },
+      )
+      if (upsertError) throw upsertError
+    }
 
     const emails = personas.map((p) => p.email)
     const [{ data: perfiles, error: perfilesError }, { data: whitelist, error: whitelistError }] = await Promise.all([

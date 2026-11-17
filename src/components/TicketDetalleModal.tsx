@@ -10,6 +10,7 @@ import { useMiembrosArea } from '../hooks/useMiembrosArea'
 import {
   clasificacionFaltante,
   describirRecurrencia,
+  DIAS_SEMANA,
   esImagenAdjunta,
   esperaAprobacion,
   estaSinAsignar,
@@ -25,6 +26,7 @@ import { ComentariosTicket } from './ComentariosTicket'
 import { HistorialCambios } from './HistorialCambios'
 import { RespuestaFinalizacion } from './RespuestaFinalizacion'
 import { RechazarSolicitud } from './RechazarSolicitud'
+import { EliminarTarea } from './EliminarTarea'
 import { Avatar } from './Avatar'
 import { SemaforoVencimiento } from './SemaforoVencimiento'
 import { SubtareasTicket } from './SubtareasTicket'
@@ -99,6 +101,9 @@ interface TicketDetalleModalProps {
   onDuplicado?: (ticket: TicketConRelaciones) => void
   // Mueve la tarea de columna igual que arrastrarla; sin él, el estado solo se muestra.
   onMover?: (destino: ColumnaId) => void
+  // Abre otra tarea en este mismo modal (p. ej. la original de una copia
+  // repetida, que es donde se cancela la repetición).
+  onAbrirTicket?: (ticket: TicketConRelaciones) => void
 }
 
 export function TicketDetalleModal({
@@ -111,6 +116,7 @@ export function TicketDetalleModal({
   onComentado,
   onDuplicado,
   onMover,
+  onAbrirTicket,
 }: TicketDetalleModalProps) {
   const { profile } = useAuth()
   const confirmar = useConfirmar()
@@ -151,6 +157,9 @@ export function TicketDetalleModal({
   const [recurrenciaFrecuencia, setRecurrenciaFrecuencia] = useState(recurrenciaFrecuenciaInicial)
   const [recurrenciaDia, setRecurrenciaDia] = useState(recurrenciaDiaInicial)
   const [recurrenciaPlazo, setRecurrenciaPlazo] = useState(recurrenciaPlazoInicial)
+  // Días de la semana de la frecuencia semanal (migración 0055), 1 = lunes.
+  const recurrenciaDiasInicial = [...(ticket.recurrencia_dias_semana ?? [])].sort((a, b) => a - b)
+  const [recurrenciaDias, setRecurrenciaDias] = useState<number[]>(recurrenciaDiasInicial)
   // Solo en la original (una copia no se repite) y desde el tablero.
   const puedeConfigurarRecurrencia = puedeEditarTiempos && soportaRecurrencia
     && !ticket.recurrencia_origen && ticket.estado !== 'rechazado'
@@ -159,11 +168,14 @@ export function TicketDetalleModal({
     || (recurrenciaActiva && (
       recurrenciaFrecuencia !== recurrenciaFrecuenciaInicial
       || (recurrenciaFrecuencia === 'mensual' && recurrenciaDia !== recurrenciaDiaInicial)
+      || (recurrenciaFrecuencia === 'semanal' && recurrenciaDias.join() !== recurrenciaDiasInicial.join())
       || recurrenciaPlazo !== recurrenciaPlazoInicial
     ))
   )
   const [guardando, setGuardando] = useState(false)
   const [eliminando, setEliminando] = useState(false)
+  // Panel del motivo al eliminar una tarea con otras personas (migración 0054).
+  const [pidiendoMotivoEliminar, setPidiendoMotivoEliminar] = useState(false)
   const [duplicando, setDuplicando] = useState(false)
   const [cambiandoArea, setCambiandoArea] = useState(false)
   // Número de la tarea de la que se duplicó esta. Se consulta aparte y no
@@ -209,7 +221,11 @@ export function TicketDetalleModal({
   // Cargo y área del solicitante según Nelyoda (migración 0034). Aparte por la
   // misma razón: si no hay datos o la consulta falla, solo no se muestran.
   const [relacionSolicitante, setRelacionSolicitante] = useState<RelacionLaboralNelyoda | null>(null)
-  const correoSolicitante = ticket.solicitante?.email
+  // Si el líder la registró por otra persona (migración 0053), los datos son
+  // los de esa persona; escrita a mano no tiene correo y no se buscan.
+  const correoSolicitante = ticket.solicitado_por_nombre
+    ? ticket.solicitado_por_email ?? undefined
+    : ticket.solicitante?.email
 
   useEffect(() => {
     if (!correoSolicitante) return
@@ -247,6 +263,10 @@ export function TicketDetalleModal({
     if (recurrenciaCambio && recurrenciaActiva) {
       if (recurrenciaFrecuencia === 'mensual' && !recurrenciaDia) {
         setError('Elige el día del mes en que se repite la tarea.')
+        return
+      }
+      if (recurrenciaFrecuencia === 'semanal' && recurrenciaDias.length === 0) {
+        setError('Elige al menos un día de la semana en que se repite la tarea.')
         return
       }
       if (plazoRecurrencia !== null && (!Number.isInteger(plazoRecurrencia) || plazoRecurrencia < 0 || plazoRecurrencia > 90)) {
@@ -307,6 +327,9 @@ export function TicketDetalleModal({
           recurrencia_dia: recurrenciaActiva && recurrenciaFrecuencia === 'mensual'
             ? Number(recurrenciaDia)
             : ticket.recurrencia_dia ?? null,
+          ...(recurrenciaActiva && recurrenciaFrecuencia === 'semanal'
+            ? { recurrencia_dias_semana: recurrenciaDias }
+            : {}),
           recurrencia_plazo_dias: recurrenciaActiva ? plazoRecurrencia : ticket.recurrencia_plazo_dias ?? null,
         } : {}),
       })
@@ -363,7 +386,38 @@ export function TicketDetalleModal({
     })
   }
 
+  // Quien la creó y sus responsables, sin contar a quien elimina: si hay
+  // alguien, eliminar pide motivo y les avisa (eliminar_ticket, migración 0054).
+  const involucradosEliminar = [
+    ...new Map(
+      [ticket.solicitante, ticket.asignado, ...ticket.asignados.map((a) => a.profile)]
+        .filter((p): p is NonNullable<typeof p> => !!p && p.id !== profile?.id)
+        .map((p) => [p.id, p.full_name?.trim() || p.email]),
+    ).values(),
+  ]
+
+  // De una copia repetida a su original: ahí se configura o se cancela la
+  // repetición (las copias no la tienen).
+  async function abrirOriginal() {
+    if (!ticket.recurrencia_origen || !onAbrirTicket) return
+    if (hayCambios && !(await confirmar({
+      titulo: 'Descartar cambios',
+      descripcion: 'Tienes cambios sin guardar en esta tarea. Si abres la original, se perderán.',
+      textoConfirmar: 'Abrir la original',
+    }))) return
+    const { data } = await supabase.from('tickets').select(TICKET_SELECT).eq('id', ticket.recurrencia_origen).maybeSingle()
+    if (!data) {
+      setError('No se pudo abrir la tarea original: ya no existe o no tienes acceso a ella.')
+      return
+    }
+    onAbrirTicket(data as unknown as TicketConRelaciones)
+  }
+
   async function handleEliminar() {
+    if (involucradosEliminar.length > 0) {
+      setPidiendoMotivoEliminar(true)
+      return
+    }
     if (!(await confirmar({
       titulo: `¿Eliminar la tarea #${ticket.numero}?`,
       descripcion: 'Se eliminará de forma permanente. Esta acción no se puede deshacer.',
@@ -372,11 +426,14 @@ export function TicketDetalleModal({
     setError(null)
     setEliminando(true)
 
-    const { error: errorEliminar } = await supabase.from('tickets').delete().eq('id', ticket.id)
+    const { error: errorEliminar } = await supabase.rpc('eliminar_ticket', { p_ticket_id: ticket.id })
 
     if (errorEliminar) {
       setEliminando(false)
-      setError('No se pudo eliminar. Intenta de nuevo.')
+      // La base encontró a alguien más en la tarea (p. ej. un responsable
+      // agregado desde otra sesión): se pide el motivo.
+      if (errorEliminar.code === '22023') setPidiendoMotivoEliminar(true)
+      else setError('No se pudo eliminar. Intenta de nuevo.')
       return
     }
 
@@ -486,7 +543,8 @@ export function TicketDetalleModal({
       : { ...ticket, area_id: destino.id, area: { id: destino.id, nombre: destino.nombre } })
   }
 
-  const solicitanteNombre = ticket.solicitante?.full_name ?? ticket.solicitante?.email ?? 'Alguien'
+  const creadorNombre = ticket.solicitante?.full_name ?? ticket.solicitante?.email ?? 'Alguien'
+  const solicitanteNombre = ticket.solicitado_por_nombre ?? creadorNombre
   // La fecha y el tipo que puso quien pidió la tarea solo los cambia esa
   // persona (migración 0036); si los dejó vacíos, el equipo puede definirlos.
   const esSolicitante = profile?.id === ticket.solicitante_id
@@ -631,10 +689,30 @@ export function TicketDetalleModal({
                 <Avatar nombre={solicitanteNombre} tamano="sm" />
                 <span>
                   <strong>{solicitanteNombre}</strong> lo solicitó el {formatearFecha(ticket.created_at)}
-                  {ticket.empresa_solicitante && <> · {ticket.empresa_solicitante}</>}
+                  {ticket.solicitado_por_nombre
+                    ? <> · Registrada por {creadorNombre}</>
+                    : ticket.empresa_solicitante && <> · {ticket.empresa_solicitante}</>}
                   {numeroOrigen != null && <> · Duplicada de #{numeroOrigen}</>}
                   {ticket.recurrencia_origen && (
-                    <> · Generada automáticamente{numeroRecurrenciaOrigen != null && <> de #{numeroRecurrenciaOrigen}</>} (repetición)</>
+                    <>
+                      {' · Generada automáticamente'}
+                      {numeroRecurrenciaOrigen != null && (
+                        onAbrirTicket ? (
+                          <>
+                            {' de '}
+                            <button
+                              type="button"
+                              className="detalle__enlace-origen"
+                              onClick={() => void abrirOriginal()}
+                              title="Abrir la tarea original: ahí se cambia o se cancela la repetición"
+                            >
+                              #{numeroRecurrenciaOrigen}
+                            </button>
+                          </>
+                        ) : <> de #{numeroRecurrenciaOrigen}</>
+                      )}
+                      {' (repetición)'}
+                    </>
                   )}
                   {relacionSolicitante && (relacionSolicitante.cargo || areaLaboral(relacionSolicitante)) && (
                     <span className="detalle__autor-cargo">
@@ -656,6 +734,15 @@ export function TicketDetalleModal({
 
               {esperaAprobacion(ticket) && profile?.id === ticket.solicitante_id && (
                 <RespuestaFinalizacion ticket={ticket} onRespondido={onGuardado} />
+              )}
+
+              {pidiendoMotivoEliminar && puedeEliminar && (
+                <EliminarTarea
+                  ticket={ticket}
+                  involucrados={involucradosEliminar.length > 0 ? involucradosEliminar : ['Quien la creó o la tiene asignada']}
+                  onEliminado={onEliminado}
+                  onCancelar={() => setPidiendoMotivoEliminar(false)}
+                />
               )}
 
               {rechazando && puedeRechazar && (
@@ -857,7 +944,7 @@ export function TicketDetalleModal({
                   </dd>
                 </div>
 
-                {/* Proyecto de RRHH que eligió quien pidió (migración 0053). */}
+                {/* Proyecto de RRHH que eligió quien pidió (migración 0056). */}
                 {ticket.proyecto_rrhh && (
                   <div className="propiedad">
                     <dt>Proyecto RRHH</dt>
@@ -945,10 +1032,36 @@ export function TicketDetalleModal({
                           >
                             <option value="diaria">Todos los días</option>
                             <option value="habil">Lunes a viernes</option>
+                            <option value="semanal">Días de la semana</option>
                             <option value="mensual">Cada mes</option>
                           </select>
                         </dd>
                       </div>
+                      {recurrenciaFrecuencia === 'semanal' && (
+                        <div className="propiedad">
+                          <dt>Días</dt>
+                          <dd>
+                            <div className="segmentado recurrencia__dias" role="group" aria-label="Días de la semana en que se repite">
+                              {DIAS_SEMANA.map((etiqueta, i) => {
+                                const dia = i + 1
+                                const elegido = recurrenciaDias.includes(dia)
+                                return (
+                                  <button
+                                    key={etiqueta}
+                                    type="button"
+                                    aria-pressed={elegido}
+                                    onClick={() => setRecurrenciaDias((prev) => (
+                                      elegido ? prev.filter((d) => d !== dia) : [...prev, dia].sort((a, b) => a - b)
+                                    ))}
+                                  >
+                                    {etiqueta}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </dd>
+                        </div>
+                      )}
                       {recurrenciaFrecuencia === 'mensual' && (
                         <div className="propiedad">
                           <dt><label htmlFor="detalle-recurrencia-dia">Día del mes</label></dt>

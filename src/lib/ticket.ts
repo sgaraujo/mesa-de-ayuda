@@ -23,8 +23,19 @@ export function nombresAsignados(ticket: TicketConRelaciones): string[] {
   return []
 }
 
-// "cada mes, el día 15" / "todos los días" / "de lunes a viernes" (0044, 0048).
-export function describirRecurrencia(ticket: Pick<TicketConRelaciones, 'recurrencia_frecuencia' | 'recurrencia_dia'>): string {
+// Abreviaturas de los días de la semana, en el orden de isodow (1 = lunes).
+export const DIAS_SEMANA = ['LU', 'MA', 'MI', 'JU', 'VI', 'SA', 'DO'] as const
+
+export function diasSemanaTexto(dias: number[] | null | undefined): string {
+  return [...(dias ?? [])].sort((a, b) => a - b).map((d) => DIAS_SEMANA[d - 1]).join(', ')
+}
+
+// "cada mes, el día 15" / "todos los días" / "de lunes a viernes" /
+// "cada semana: LU, MI" (0044, 0048, 0055).
+export function describirRecurrencia(
+  ticket: Pick<TicketConRelaciones, 'recurrencia_frecuencia' | 'recurrencia_dia' | 'recurrencia_dias_semana'>,
+): string {
+  if (ticket.recurrencia_frecuencia === 'semanal') return `cada semana: ${diasSemanaTexto(ticket.recurrencia_dias_semana)}`
   if (ticket.recurrencia_frecuencia === 'diaria') return 'todos los días'
   if (ticket.recurrencia_frecuencia === 'habil') return 'de lunes a viernes'
   return `cada mes, el día ${ticket.recurrencia_dia}`

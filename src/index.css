@@ -3490,6 +3490,23 @@ span.subtarea__responsable {
   margin-top: 0.6rem;
 }
 
+/* Días de la repetición semanal (migración 0055): se marcan varios, por eso
+   el elegido va en el color de marca y no como un segmentado de una opción. */
+.segmentado.recurrencia__dias {
+  display: flex;
+  width: 100%;
+}
+
+.segmentado.recurrencia__dias button {
+  flex: 1;
+  padding: 0;
+}
+
+.segmentado.recurrencia__dias button[aria-pressed='true'] {
+  background: var(--brand);
+  color: #fff;
+}
+
 .recurrencia__nota {
   margin: 0.5rem 0 1.25rem;
   color: var(--text-muted);
@@ -3613,6 +3630,22 @@ span.subtarea__responsable {
 .detalle__autor strong {
   color: var(--text-secondary);
   font-weight: 600;
+}
+
+/* "#120" en una copia repetida: abre la original (donde se cancela la repetición). */
+.detalle__enlace-origen {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.detalle__enlace-origen:hover {
+  filter: brightness(1.15);
 }
 
 /* Cargo y área según Nelyoda, en su propia línea bajo el nombre. */

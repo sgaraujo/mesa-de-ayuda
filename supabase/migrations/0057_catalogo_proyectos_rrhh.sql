@@ -1,6 +1,6 @@
 -- Catálogo de proyectos de RRHH para el formulario de solicitudes.
 --
--- En la 0053, proyectos_rrhh() abría en cada llamado el JSON de relaciones
+-- En la 0056, proyectos_rrhh() abría en cada llamado el JSON de relaciones
 -- laborales de todas las personas de Nelyoda (empresa, área, cargo, jefe,
 -- cuenta analítica) solo para sacar el nombre del proyecto, y devolvía cada
 -- variante de escritura como un proyecto distinto ("SOMOS", "Somos ",
@@ -13,7 +13,7 @@
 --     hasta 100 personas = un recálculo).
 --   · Las variantes se unen por una clave sin tildes, mayúsculas ni espacios
 --     repetidos; se muestra la escritura más usada.
---   · proyectos_rrhh() (misma firma que en la 0053, el cliente no cambia)
+--   · proyectos_rrhh() (misma firma que en la 0056, el cliente no cambia)
 --     lee el catálogo y, para "es_mio", solo la fila de quien consulta.
 
 create table if not exists proyectos_rrhh (
@@ -102,7 +102,7 @@ create trigger recalcular_proyectos_rrhh
 -- Carga inicial con lo que ya está sincronizado.
 select public.recalcular_proyectos_rrhh();
 
--- Misma firma que en la 0053. es_mio sale solo de la fila de quien consulta.
+-- Misma firma que en la 0056. es_mio sale solo de la fila de quien consulta.
 create or replace function public.proyectos_rrhh()
 returns table (proyecto text, es_mio boolean)
 language sql stable security definer set search_path = public

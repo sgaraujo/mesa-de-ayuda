@@ -6,13 +6,13 @@ export type RolArea = 'lider' | 'agente'
 // 'rechazado' (migración 0038): el equipo no la va a atender; sale del tablero.
 export type Estado = 'pendiente' | 'en_curso' | 'finalizado' | 'rechazado'
 export type Prioridad = 'baja' | 'media' | 'alta' | 'urgente'
-export type FrecuenciaRecurrencia = 'mensual' | 'diaria' | 'habil'
+export type FrecuenciaRecurrencia = 'mensual' | 'diaria' | 'habil' | 'semanal'
 
 export interface Area {
   id: string
   nombre: string
   orden: number
-  // Migración 0053: false = no aparece en Nueva solicitud; true en
+  // Migración 0056: false = no aparece en Nueva solicitud; true en
   // pide_proyecto = la solicitud exige el proyecto de RRHH. Opcionales: sin
   // la migración aplicada no vienen.
   recibe_solicitudes?: boolean
@@ -49,7 +49,7 @@ export interface Profile {
   role: Role
   activo: boolean
   empresa: string
-  /** Correos de notificaciones de actividad (migración 0055). */
+  /** Correos de notificaciones de actividad (migración 0058). */
   recibir_correos: boolean
   created_at: string
 }
@@ -71,6 +71,13 @@ export interface Ticket {
   updated_at: string
   finalizado_at: string | null
   fecha_requerida: string | null
+  // Quien pidió la tarea cuando el líder de un área con
+  // registra_solicitante (Gestión IT) la creó por ella (migración 0053):
+  // con cuenta (id), elegida de Nelyoda sin cuenta (nombre y correo) o
+  // escrita a mano (solo nombre). solicitante_id sigue siendo el líder.
+  solicitado_por_id?: string | null
+  solicitado_por_nombre?: string | null
+  solicitado_por_email?: string | null
   // Fecha y hora a la que se compromete el equipo (migración 0041). El
   // vencimiento se mide contra ella o, si no hay, contra fecha_requerida.
   fecha_compromiso: string | null
@@ -90,6 +97,8 @@ export interface Ticket {
   // aplica a la mensual).
   recurrencia_frecuencia?: FrecuenciaRecurrencia
   recurrencia_dia?: number | null
+  // Migración 0055: en la semanal, los días elegidos (1 = lunes … 7 = domingo).
+  recurrencia_dias_semana?: number[] | null
   recurrencia_plazo_dias?: number | null
   recurrencia_proxima?: string | null
   recurrencia_origen?: string | null
@@ -103,7 +112,7 @@ export interface Ticket {
   // Solo en áreas con catálogo de tipos (migración 0031).
   tipo_id: string | null
   // Proyecto al que pertenece la solicitud según la base de RRHH, en áreas
-  // con pide_proyecto (migración 0053).
+  // con pide_proyecto (migración 0056).
   proyecto_rrhh?: string | null
   // Respuesta de quien pidió la tarea a su finalización (migración 0032). En
   // una tarea finalizada, null = por aprobar; 'rechazada' sigue en la tarea
@@ -199,12 +208,16 @@ export interface TicketMencion {
 // Centro de notificaciones (migración 0026); las crean triggers.
 export type TipoNotificacion =
   | 'mencion' | 'comentario' | 'asignacion' | 'estado' | 'aprobacion' | 'rechazo' | 'solicitud_rechazada' | 'vencimiento' | 'subtarea'
+  | 'eliminada'
 
 export interface Notificacion {
   id: string
   destinatario_id: string
   tipo: TipoNotificacion
-  ticket_id: string
+  // null en 'eliminada' (migración 0054): la tarea ya no existe y su número
+  // y título quedan en ticket_referencia.
+  ticket_id: string | null
+  ticket_referencia?: string | null
   comentario_id: string | null
   actor_id: string | null
   detalle: string | null

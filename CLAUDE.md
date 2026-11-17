@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0055_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0058_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -84,10 +84,10 @@ asignar a la bandeja de ese tablero y quien la pidió la sigue en
 `/mis-solicitudes` (RLS: `solicitante_id = auth.uid()`), sin ver nada más
 del tablero. Opcionalmente la dirige a una persona del área (migración 0047:
 la lista sale de `miembros_area_solicitud()` y `tickets_insert` acepta un
-`asignado_a` que sea miembro, vía `es_miembro_de_area()`). Desde la 0053,
+`asignado_a` que sea miembro, vía `es_miembro_de_area()`). Desde la 0056,
 las áreas con `recibe_solicitudes = false` (NOC - ETB, Operación SOMOS) no
 aparecen como destino, y las de `pide_proyecto` (Operación) exigen elegir
-`tickets.proyecto_rrhh` de la lista de `proyectos_rrhh()`. Desde la 0054 esa
+`tickets.proyecto_rrhh` de la lista de `proyectos_rrhh()`. Desde la 0057 esa
 RPC lee la tabla `proyectos_rrhh` (solo nombre y personas vigentes, variantes
 de escritura unidas), que un trigger por sentencia recalcula desde
 `personas_nelyoda` cada vez que escribe la sincronización. En RLS se usa `rol_en_area()`, `es_superadmin()`,
@@ -155,6 +155,9 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   repetirse. Desde la 0048, `recurrencia_frecuencia` (`mensual` | `diaria` |
   `habil` = lunes a viernes, sin festivos); `recurrencia_dia` solo aplica a
   la mensual y las copias diarias llevan la fecha completa en el título.
+  Desde la 0055 también `semanal`, con los días elegidos en
+  `recurrencia_dias_semana` (1 = lunes … 7 = domingo; uno o varios); la
+  copia lleva en el título el día de la semana y la fecha.
 - Vencimientos (migración 0041): `tickets.fecha_compromiso` la define el
   equipo; el vencimiento se mide contra ella o, si está vacía, contra
   `fecha_requerida` (`src/lib/vencimiento.ts`: semáforo verde / amarillo a
@@ -167,6 +170,25 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   administra el líder del área en `/grupos` (`TiposSolicitudArea`;
   `puedo_editar_tipos_area()`): agrega, renombra, ordena y desactiva; no se
   borran ni cambian de área.
+- Solicitante registrado por el líder (migración 0053): en las áreas con
+  `areas.registra_solicitante` (hoy Gestión IT) el líder o un superadmin, al crear desde
+  "+ Nueva tarea", indica quién se la pidió (`puedo_registrar_solicitante()`).
+  La lista junta los vigentes de `personas_nelyoda` y los perfiles activos
+  (`usePersonasSolicitante`); si no está, se escribe a mano. La tarea sigue a
+  nombre del líder (`solicitante_id`, aprobada al cerrarla él); aparte quedan
+  `solicitado_por_id` (si tiene cuenta), `solicitado_por_nombre` y
+  `solicitado_por_email`, que un trigger solo deja poner al crearla. Es solo
+  registro: a esa persona no se le avisa nada (con cuenta, sí puede ver la
+  tarea en `/mis-solicitudes` vía `puedo_ver_ticket`). Cuando quien pidió la
+  tarea es quien la cierra, `notify-finalizacion` le envía solo una
+  constancia, sin pedir aprobación.
+- Eliminar tareas (migración 0054): solo el líder del área o el superadmin,
+  y solo con la RPC `eliminar_ticket()` (no hay policy de delete en
+  `tickets`). Si hay otras personas involucradas (quien la creó, `asignado_a`
+  o `ticket_asignados`, sin contar a quien elimina), exige motivo, lo guarda
+  en `tickets_eliminados` y les avisa: notificación `eliminada` (con
+  `ticket_id` null y el número y título en `ticket_referencia`) y correo con
+  la Edge Function `notify-eliminacion`. Sin involucrados se borra sin aviso.
 - `fecha_requerida` y `tipo_id`, una vez definidos, solo los cambia quien
   pidió la tarea (trigger `proteger_datos_solicitante`, migración 0036).
 - `ticket_status_history`: auditoría de cada cambio de estado (se inserta a
@@ -197,7 +219,7 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   correo; el cliente solo lee las propias, las marca con
   `marcar_notificaciones_leidas()` y las borra (una o todas) con
   `limpiar_notificaciones()` (migración 0046). Publicada en realtime.
-- `profiles.recibir_correos` (migración 0055): preferencia de cada persona en
+- `profiles.recibir_correos` (migración 0058): preferencia de cada persona en
   `/configuracion` (ícono de engranaje del Layout). En `false`, las funciones
   `notify-assignment`, `notify-mention`, `notify-finalizacion` y
   `notify-vencimientos` no le envían correo; la campanita sigue igual y los
@@ -217,7 +239,12 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   `sincronizar-nelyoda`, que además habilita como solicitante a todo empleado
   vigente, desactiva la cuenta de quien se retira y la reactiva si vuelve
   (solo si ella la desactivó; nunca a un superadmin). El cliente solo lee las
-  columnas de directorio (grants por columna).
+  columnas de directorio (grants por columna). Nelyoda llama una vez por cada
+  escritura de un expediente y reintenta las fallidas: una ráfaga saturó la
+  API y el login el 2026-11-04. Por eso solo se reescribe lo que cambió, el
+  aviso de una persona sin cambios termina tras una consulta, y el secreto
+  `NELYODA_SYNC_PAUSADA = '1'` hace que responda ok sin tocar la base (el
+  barrido nocturno recupera lo no aplicado).
 - RLS en casi todas las tablas. **Cuidado con la recursión**: la policy de
   `tickets` consulta `ticket_asignados` y viceversa, lo cual generaba
   "infinite recursion detected in policy". Se resolvió con funciones
@@ -259,6 +286,7 @@ para el HTML de los correos). Funciones actuales: `invite-user`,
 LanguageTool; API pública gratuita salvo que se definan los secretos
 `LANGUAGETOOL_USERNAME`/`LANGUAGETOOL_API_KEY` o `LANGUAGETOOL_URL`),
 `sincronizar-teams` (reuniones de Teams como tareas; ver migración 0045),
+`notify-eliminacion` (aviso al eliminar una tarea con involucrados, migración 0054),
 `notify-vencimientos` (la llama pg_cron con el header `x-cron-key` =
 secreto `VENCIMIENTOS_CRON_KEY`; se despliega con `--no-verify-jwt`; la URL y
 la llave para el cron van en Vault),

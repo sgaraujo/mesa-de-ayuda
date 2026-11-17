@@ -6,7 +6,7 @@ export interface ProyectoRrhh {
   es_mio: boolean
 }
 
-// Proyectos vigentes de la base de RRHH (Nelyoda, migración 0053). Solo se
+// Proyectos vigentes de la base de RRHH (Nelyoda, migración 0056). Solo se
 // piden cuando hacen falta (activo = el área elegida pide proyecto).
 export function useProyectosRrhh(activo: boolean) {
   const [proyectos, setProyectos] = useState<ProyectoRrhh[]>([])

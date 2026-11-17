@@ -8,7 +8,8 @@ import { useMiembrosArea } from '../hooks/useMiembrosArea'
 import { useProyectosRrhh } from '../hooks/useProyectosRrhh'
 import { SugerenciasTexto } from './SugerenciasTexto'
 import { AsistenteSolicitud } from './AsistenteSolicitud'
-import { SelectorPersona, type PersonaOpcion } from './SelectorPersona'
+import { SelectorPersona, type OpcionFija, type PersonaOpcion } from './SelectorPersona'
+import { PREFIJO_SIN_CUENTA, usePersonasSolicitante } from '../hooks/usePersonasSolicitante'
 import type { Prioridad } from '../types/database'
 import { notificarAsignacion, notificarNuevaTarea } from '../lib/notificaciones'
 import {
@@ -49,6 +50,27 @@ function fechaRequeridaIso(fecha: string): string | null {
 function iniciales(nombre: string): string {
   const palabras = nombre.trim().split(/\s+/)
   return (palabras.length > 1 ? palabras[0][0] + palabras[1][0] : nombre.slice(0, 2)).toUpperCase()
+}
+
+// Solicitante escrito a mano: no está en la lista (migración 0053).
+const PREFIJO_MANUAL = 'manual:'
+
+function opcionManual(texto: string): OpcionFija {
+  return { valor: `${PREFIJO_MANUAL}${texto}`, etiqueta: `Usar «${texto}»` }
+}
+
+// Columnas de quien pidió la tarea según lo elegido en el campo Solicitante:
+// con cuenta, de Nelyoda sin cuenta o escrito a mano.
+function columnasSolicitadoPor(valor: string, personas: PersonaOpcion[]) {
+  if (!valor) return {}
+  if (valor.startsWith(PREFIJO_MANUAL)) return { solicitado_por_nombre: valor.slice(PREFIJO_MANUAL.length) }
+  const persona = personas.find((p) => p.id === valor)
+  if (!persona) return {}
+  const datos = {
+    solicitado_por_nombre: persona.full_name?.trim() || persona.email,
+    solicitado_por_email: persona.email || null,
+  }
+  return valor.startsWith(PREFIJO_SIN_CUENTA) ? datos : { ...datos, solicitado_por_id: persona.id }
 }
 
 // Cada área toma un color fijo de la paleta según su posición (orden).
@@ -106,6 +128,24 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
       cancelado = true
     }
   }, [elegirArea, areaDestinoId])
+  // El líder de Gestión IT o un superadmin (que tiene rol 'lider' en todas
+  // las áreas; areas.registra_solicitante, migración 0053) indica quién le
+  // pidió la tarea; para los demás, quien la crea es el
+  // solicitante.
+  const [puedeRegistrarSolicitante, setPuedeRegistrarSolicitante] = useState(false)
+  useEffect(() => {
+    setPuedeRegistrarSolicitante(false)
+    if (elegirArea || rolEnDestino !== 'lider' || !areaId) return
+    let cancelado = false
+    void supabase.rpc('puedo_registrar_solicitante', { p_area_id: areaId }).then(({ data }) => {
+      if (!cancelado) setPuedeRegistrarSolicitante(data === true)
+    })
+    return () => {
+      cancelado = true
+    }
+  }, [elegirArea, rolEnDestino, areaId])
+  const { personas: personasSolicitante, cargando: cargandoSolicitantes } = usePersonasSolicitante(puedeRegistrarSolicitante, profile?.id)
+  const [solicitadoPor, setSolicitadoPor] = useState('')
   const { tipos } = useTiposSolicitud(areaId)
   const [tipoId, setTipoId] = useState('')
   // El tipo es del área: si cambia el destino, se vuelve a elegir.
@@ -140,9 +180,9 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
 
   useEffect(() => {
     onDirtyChange?.(
-      titulo.trim() !== '' || descripcion.trim() !== '' || archivos.length > 0 || fechaRequerida !== '' || fechaCompromiso !== '',
+      titulo.trim() !== '' || descripcion.trim() !== '' || archivos.length > 0 || fechaRequerida !== '' || fechaCompromiso !== '' || solicitadoPor !== '',
     )
-  }, [titulo, descripcion, archivos, fechaRequerida, fechaCompromiso, onDirtyChange])
+  }, [titulo, descripcion, archivos, fechaRequerida, fechaCompromiso, solicitadoPor, onDirtyChange])
 
   // Agrega los válidos a la lista; los que no sirven se explican en el error.
   function agregarArchivos(lista: FileList | null) {
@@ -216,7 +256,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
         empresa_solicitante: profile.empresa,
         area_id: areaId,
         tipo_id: tipos.length > 0 ? tipoId || null : null,
-        // Solo se envía en áreas que lo piden: sin la migración 0053 la
+        // Solo se envía en áreas que lo piden: sin la migración 0056 la
         // columna no existe.
         ...(pideProyecto ? { proyecto_rrhh: proyectoRrhh || null } : {}),
         asignado_a: asignadoFinal,
@@ -224,6 +264,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
         fecha_requerida: fechaRequeridaIso(fechaRequerida),
         fecha_compromiso: compromisoFinal?.toISOString() ?? null,
         estado: 'pendiente',
+        ...(puedeRegistrarSolicitante ? columnasSolicitadoPor(solicitadoPor, personasSolicitante) : {}),
       })
       .select('id')
       .single()
@@ -264,6 +305,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
     setFechaRequerida('')
     setFechaCompromiso('')
     setAsignadoA(asignadoAPorDefecto)
+    setSolicitadoPor('')
     setArchivos([])
     // Si los archivos fallaron, el formulario no se cierra solo: así se lee el aviso.
     if (errorArchivos) {
@@ -443,6 +485,25 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
       <form onSubmit={handleSubmit} className="nueva-tarea">
         <div className="nueva-tarea__cuerpo">
           {campoProyectoRrhh}
+          {puedeRegistrarSolicitante && (
+            <label title="Quién te pidió la tarea. Si no aparece en la lista, escribe su nombre y elige «Usar…».">
+              <span>Solicitante <small className="ticket-form__opcional">Opcional</small></span>
+              <SelectorPersona
+                personas={personasSolicitante}
+                valor={solicitadoPor}
+                onCambiar={setSolicitadoPor}
+                opcionesFijas={[
+                  { valor: '', etiqueta: 'Yo mismo' },
+                  ...(solicitadoPor.startsWith(PREFIJO_MANUAL)
+                    ? [{ valor: solicitadoPor, etiqueta: `${solicitadoPor.slice(PREFIJO_MANUAL.length)} (escrito a mano)` }]
+                    : []),
+                ]}
+                opcionTextoLibre={opcionManual}
+                maxResultados={100}
+                placeholder={cargandoSolicitantes ? 'Cargando personas…' : 'Busca por nombre o correo, o escríbelo'}
+              />
+            </label>
+          )}
           {campoTipo}
           {campoTitulo}
           {campoDescripcion}
@@ -523,7 +584,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
 
   // Solicitud a cualquier área: pasos numerados con el destino siempre visible.
   // Áreas cuyas solicitudes se centralizan en otra (NOC - ETB y Operación
-  // SOMOS → Operación, migración 0053) no se ofrecen como destino.
+  // SOMOS → Operación, migración 0056) no se ofrecen como destino.
   const areasDestino = todasLasAreas.filter((a) => a.recibe_solicitudes !== false)
   const indiceDestino = areasDestino.findIndex((a) => a.id === areaDestinoId)
   const areaDestino = indiceDestino >= 0 ? areasDestino[indiceDestino] : null
