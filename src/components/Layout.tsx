@@ -5,6 +5,7 @@ import { useArea } from '../context/AreaContext'
 import { CompletarPerfilForm } from './CompletarPerfilForm'
 import { Avatar } from './Avatar'
 import { CentroNotificaciones } from './CentroNotificaciones'
+import { AvisoNovedades } from './AvisoNovedades'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
@@ -87,6 +88,7 @@ export function Layout() {
         </Fragment>
       </main>
       <footer className="app-firma">by Santiago Garcia</footer>
+      <AvisoNovedades />
     </div>
   )
 }

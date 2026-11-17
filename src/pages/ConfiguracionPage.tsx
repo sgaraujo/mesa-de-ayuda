@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { novedadesPara } from '../lib/novedades'
+import { NovedadesModal } from '../components/NovedadesModal'
+import { useContextoNovedades } from '../hooks/useContextoNovedades'
 
 // Las cuentas de ingreso por cédula sin correo corporativo usan un correo
 // interno (supabase/functions/_shared/cedula.ts) al que nunca se envía nada.
@@ -10,8 +13,12 @@ export function ConfiguracionPage() {
   const { profile, refrescarPerfil } = useAuth()
   const [guardando, setGuardando] = useState(false)
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
+  const [verNovedades, setVerNovedades] = useState(false)
+  const contextoNovedades = useContextoNovedades()
 
   if (!profile) return null
+
+  const novedades = novedadesPara(contextoNovedades)
 
   const sinBuzon = esCorreoInterno(profile.email)
 
@@ -66,6 +73,20 @@ export function ConfiguracionPage() {
           </p>
         )}
       </section>
+
+      {novedades.length > 0 && (
+        <section className="configuracion__seccion">
+          <h2>Novedades</h2>
+          <p className="configuracion__ayuda">Lo último que cambió en la Mesa de Ayuda.</p>
+          <div>
+            <button type="button" className="configuracion__boton" onClick={() => setVerNovedades(true)}>
+              Ver novedades
+            </button>
+          </div>
+        </section>
+      )}
+
+      {verNovedades && <NovedadesModal novedades={novedades} onCerrar={() => setVerNovedades(false)} />}
     </div>
   )
 }

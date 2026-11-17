@@ -51,6 +51,8 @@ export interface Profile {
   empresa: string
   /** Correos de notificaciones de actividad (migración 0058). */
   recibir_correos: boolean
+  /** Id de la última novedad vista (src/lib/novedades.ts, migración 0059). */
+  novedad_vista?: string | null
   created_at: string
 }
 

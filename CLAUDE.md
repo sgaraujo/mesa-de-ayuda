@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0058_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0059_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -225,6 +225,12 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   `notify-vencimientos` no le envían correo; la campanita sigue igual y los
   correos de cuenta (invitación, contraseña, cambio de correo) salen siempre.
   Toda función nueva que avise actividad por correo debe filtrar por ella.
+- Novedades (migración 0059): los anuncios de lo nuevo se escriben en
+  [src/lib/novedades.ts](src/lib/novedades.ts) (entrada nueva al principio,
+  con `id` nuevo; cada punto con `audiencia` `todos` | `equipo` | `lideres`).
+  `AvisoNovedades` (en el Layout) los muestra una vez a cada persona y guarda
+  el `id` más reciente en `profiles.novedad_vista`; no se muestran los
+  anteriores a la creación de la cuenta. Se vuelven a ver en `/configuracion`.
 - `allowed_emails`: whitelist de acceso (independiente de `profiles`).
   Su `role`/`area_id` y `area_miembros` se sincronizan en ambos sentidos:
   editar la whitelist crea la membresía (`sincronizar_whitelist_con_perfil`)
