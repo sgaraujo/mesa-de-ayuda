@@ -6,6 +6,7 @@ import { MiembrosArea } from '../components/MiembrosArea'
 import { TiposSolicitudArea } from '../components/TiposSolicitudArea'
 import type { MiembroArea } from '../hooks/useMiembrosArea'
 import type { Profile, Ticket, TipoSolicitud } from '../types/database'
+import { PantallaCarga } from '../components/PantallaCarga'
 
 type TicketResumen = Pick<Ticket, 'area_id' | 'estado' | 'asignado_a' | 'es_grupal'>
 
@@ -122,7 +123,7 @@ export function GruposPage() {
     navigate('/tablero')
   }
 
-  if (loading) return <div className="pantalla-carga">Cargando grupos...</div>
+  if (loading) return <PantallaCarga mensaje="Cargando grupos..." />
 
   return (
     <div className="admin-page">

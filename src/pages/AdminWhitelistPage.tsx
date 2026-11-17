@@ -6,6 +6,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { SetPasswordDialog } from '../components/SetPasswordDialog'
 import { CambiarCorreoDialog } from '../components/CambiarCorreoDialog'
 import { RowActionsMenu } from '../components/RowActionsMenu'
+import { PantallaCarga } from '../components/PantallaCarga'
 
 const TAMANO_BLOQUE_EQUIPO = 1000
 
@@ -588,7 +589,7 @@ export function AdminWhitelistPage() {
     return 'No hay correos en la whitelist.'
   }
 
-  if (loading) return <div className="pantalla-carga">Cargando whitelist...</div>
+  if (loading) return <PantallaCarga mensaje="Cargando whitelist..." />
 
   function renderFila(e: AllowedEmail) {
     const enEdicion = editandoEmail === e.email

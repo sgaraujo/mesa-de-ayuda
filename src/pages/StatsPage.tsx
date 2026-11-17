@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useArea } from '../context/AreaContext'
+import { PantallaCarga } from '../components/PantallaCarga'
 import {
   claveDia,
   claveFecha,
@@ -336,7 +337,7 @@ export function StatsPage() {
     return ticketsBase.filter((t) => !filtroEstado || t.estado === filtroEstado)
   }, [ticketsBase, filtroEstado])
 
-  if (loading) return <div className="pantalla-carga">Cargando estadísticas...</div>
+  if (loading) return <PantallaCarga mensaje="Cargando estadísticas..." />
 
   // ---- El periodo, visto de tres formas independientes ----
   const enPeriodo = (iso: string | null) => !!iso && dentroDeRango(iso, filtroRango, rangoPersonalizado)

@@ -14,6 +14,7 @@ import { SelectorPersona } from '../components/SelectorPersona'
 import { coincideBusqueda, estaSinAsignar, TICKET_SELECT } from '../lib/ticket'
 import type { Estado, TicketConRelaciones } from '../types/database'
 import type { UsuarioActivo } from '../hooks/useUsuariosActivos'
+import { PantallaCarga } from '../components/PantallaCarga'
 
 const COLUMNAS: { id: ColumnaId; titulo: string }[] = [
   { id: 'tareas', titulo: 'Tareas (sin asignar)' },
@@ -390,7 +391,7 @@ export function BoardPage() {
     guardarVistaTodas(valor)
   }
 
-  if (loading) return <div className="pantalla-carga">Cargando tablero...</div>
+  if (loading) return <PantallaCarga mensaje="Cargando tablero..." />
 
   // El detalle muestra la versión del tablero, que se actualiza al moverla
   // desde el campo Estado (y con realtime), no la copia de cuando se abrió.

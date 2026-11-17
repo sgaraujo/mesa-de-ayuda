@@ -7,6 +7,7 @@ import { SemaforoVencimiento } from '../components/SemaforoVencimiento'
 import { semaforo } from '../lib/vencimiento'
 import { coincideBusqueda, esperaAprobacion, fueRechazada, nombresAsignados, TICKET_SELECT } from '../lib/ticket'
 import type { Estado, TicketConRelaciones } from '../types/database'
+import { PantallaCarga } from '../components/PantallaCarga'
 
 const ESTADO_LABEL: Record<Estado, string> = {
   pendiente: 'Pendiente',
@@ -145,7 +146,7 @@ export function MisSolicitudesPage() {
     setFiltroRelacion('')
   }
 
-  if (loading) return <div className="pantalla-carga">Cargando solicitudes...</div>
+  if (loading) return <PantallaCarga mensaje="Cargando solicitudes..." />
 
   return (
     <div className="admin-page">

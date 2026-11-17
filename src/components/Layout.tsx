@@ -6,6 +6,7 @@ import { CompletarPerfilForm } from './CompletarPerfilForm'
 import { Avatar } from './Avatar'
 import { CentroNotificaciones } from './CentroNotificaciones'
 import { AvisoNovedades } from './AvisoNovedades'
+import { PantallaCarga } from './PantallaCarga'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
@@ -17,7 +18,7 @@ export function Layout() {
     return <CompletarPerfilForm />
   }
 
-  if (cargandoAreas) return <div className="pantalla-carga">Cargando...</div>
+  if (cargandoAreas) return <PantallaCarga mensaje="Cargando..." completa />
 
   return (
     <div className="app-shell">

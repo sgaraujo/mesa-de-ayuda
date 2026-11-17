@@ -5,6 +5,7 @@ import { AreaProvider } from './context/AreaContext'
 import { ConfirmacionProvider } from './context/ConfirmacionContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Layout } from './components/Layout'
+import { PantallaCarga } from './components/PantallaCarga'
 
 // Tras un nuevo despliegue, los nombres de los archivos (hash) cambian. Si el
 // navegador tenía la app abierta desde antes, al navegar a una ruta que carga
@@ -50,7 +51,7 @@ export default function App() {
       <AuthProvider>
         <AreaProvider>
         <ConfirmacionProvider>
-        <Suspense fallback={<div className="pantalla-carga">Cargando...</div>}>
+        <Suspense fallback={<PantallaCarga mensaje="Cargando..." completa />}>
           <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/solicitar-acceso" element={<RequestAccessPage />} />
