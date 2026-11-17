@@ -177,6 +177,8 @@ export function StatsPage() {
   // Por nombre, como se muestran (incluye "Bandeja general" para las sin asignar).
   const [filtroResponsable, setFiltroResponsable] = useState('')
   const [filtroEmpresa, setFiltroEmpresa] = useState('')
+  // Proyecto de la base de RRHH que eligió quien pidió (Operación, migración 0056).
+  const [filtroProyectoRrhh, setFiltroProyectoRrhh] = useState('')
 
   // Pestaña abierta; se recuerda entre visitas. Los filtros son de todas.
   const [vista, setVista] = useState<Vista>(leerVista)
@@ -254,9 +256,17 @@ export function StatsPage() {
         (!filtroProyecto || t.proyecto_id === filtroProyecto) &&
         (!filtroResponsable || personasDe(t).includes(filtroResponsable)) &&
         (!filtroEmpresa || t.empresa_solicitante === filtroEmpresa) &&
+        (!filtroProyectoRrhh || t.proyecto_rrhh === filtroProyectoRrhh) &&
         dentroDeRango(t.created_at, filtroRango, rangoPersonalizado),
     )
-  }, [tickets, personasDe, filtroProyecto, filtroResponsable, filtroEmpresa, filtroRango, rangoPersonalizado])
+  }, [tickets, personasDe, filtroProyecto, filtroResponsable, filtroEmpresa, filtroProyectoRrhh, filtroRango, rangoPersonalizado])
+
+  // Solo hay opciones (y el filtro solo se muestra) en áreas que piden el
+  // proyecto de RRHH; en las demás nada cambia.
+  const opcionesProyectoRrhh = useMemo(
+    () => [...new Set(tickets.map((t) => t.proyecto_rrhh).filter((p): p is string => !!p))].sort((a, b) => a.localeCompare(b, 'es')),
+    [tickets],
+  )
 
   const opcionesResponsable = useMemo(
     () => [...new Set(tickets.flatMap(personasDe))].sort((a, b) => a.localeCompare(b, 'es')),
@@ -307,6 +317,7 @@ export function StatsPage() {
   const porAgente = contarPorPersonaAsignada(ticketsFiltrados)
   const porEmpresa = contarPor(ticketsFiltrados, (t) => t.empresa_solicitante)
   const porProyecto = contarPor(ticketsFiltrados, (t) => t.proyecto?.nombre ?? null)
+  const porProyectoRrhh = contarPor(ticketsFiltrados, (t) => t.proyecto_rrhh ?? null)
   const porPersonaResuelto = contarPorPersonaAsignada(ticketsBase.filter((t) => t.estado === 'finalizado'))
   const agrupacionTendencia = agrupacionPara(filtroRango, rangoPersonalizado)
   const tendencia = serieTemporal(ticketsBase, agrupacionTendencia, filtroRango, rangoPersonalizado)
@@ -349,6 +360,7 @@ export function StatsPage() {
     ? colaboradores.reduce((acc, d) => acc + d.total, 0) / colaboradores.length
     : null
   const horasProyecto = sumarPor(ticketsFiltrados, (t) => t.proyecto?.nombre ?? null, (t) => t.tiempo_ejecutado_horas)
+  const horasProyectoRrhh = sumarPor(ticketsFiltrados, (t) => t.proyecto_rrhh ?? null, (t) => t.tiempo_ejecutado_horas)
   const horasEmpresa = sumarPor(ticketsFiltrados, (t) => t.empresa_solicitante || null, (t) => t.tiempo_ejecutado_horas)
   const ticketsMasHoras = sumarPor(ticketsFiltrados, (t) => `#${t.numero} ${t.titulo}`, (t) => t.tiempo_ejecutado_horas, 10)
   const subtareasFiltradas = ticketsFiltrados.flatMap((t) => (subtareasPorTicket.get(t.id) ?? []).map((s) => ({ ...s, numero: t.numero })))
@@ -373,7 +385,7 @@ export function StatsPage() {
     }))
 
   const hayFiltros = filtroProyecto !== '' || filtroEstado !== '' || filtroRango !== 'todo'
-    || filtroResponsable !== '' || filtroEmpresa !== '' || filtroArea !== ''
+    || filtroResponsable !== '' || filtroEmpresa !== '' || filtroArea !== '' || filtroProyectoRrhh !== ''
 
   return (
     <div className="stats-page">
@@ -446,6 +458,7 @@ export function StatsPage() {
                 setFiltroArea(e.target.value === areaActiva?.id ? '' : e.target.value)
                 // Los proyectos son de cada área.
                 setFiltroProyecto('')
+                setFiltroProyectoRrhh('')
               }}
               aria-label="Filtrar por área"
             >
@@ -463,6 +476,14 @@ export function StatsPage() {
               </option>
             ))}
           </select>
+          {opcionesProyectoRrhh.length > 0 && (
+            <select value={filtroProyectoRrhh} onChange={(e) => setFiltroProyectoRrhh(e.target.value)} aria-label="Filtrar por proyecto de RRHH">
+              <option value="">Todos los proyectos RRHH</option>
+              {opcionesProyectoRrhh.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          )}
           <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value as Estado | '')} aria-label="Filtrar por estado">
             <option value="">Todos los estados</option>
             <option value="pendiente">Pendiente</option>
@@ -495,6 +516,7 @@ export function StatsPage() {
                 setFiltroEstado('')
                 setFiltroResponsable('')
                 setFiltroEmpresa('')
+                setFiltroProyectoRrhh('')
                 setFiltroRango('todo')
                 setRangoPersonalizado({ desde: '', hasta: '' })
               }}
@@ -569,6 +591,12 @@ export function StatsPage() {
               <h2>Ranking por proyecto</h2>
               <RankingLista datos={porProyecto} />
             </div>
+            {opcionesProyectoRrhh.length > 0 && (
+              <div className="chart-card">
+                <h2>Solicitudes por proyecto (RRHH)</h2>
+                <BarraHorizontal datos={porProyectoRrhh} />
+              </div>
+            )}
             <div className="chart-card">
               <h2>Tickets resueltos por persona</h2>
               <DonutChart datos={porPersonaResuelto} centroEtiqueta="Resueltos" />
@@ -654,6 +682,12 @@ export function StatsPage() {
                 <h2>Horas por proyecto</h2>
                 <BarraHorizontal datos={horasProyecto} />
               </div>
+              {opcionesProyectoRrhh.length > 0 && (
+                <div className="chart-card">
+                  <h2>Horas por proyecto (RRHH)</h2>
+                  <BarraHorizontal datos={horasProyectoRrhh} />
+                </div>
+              )}
               <div className="chart-card">
                 <h2>Horas por empresa solicitante</h2>
                 <BarraHorizontal datos={horasEmpresa} />

@@ -185,6 +185,8 @@ export async function exportarReporteDetalladoExcel(tickets: TicketConRelaciones
     'Rango semana',
     'Fecha Y hora de actualizacion',
     ...ENCABEZADOS_VENCIMIENTO,
+    // Al final para no correr las columnas de reportes que ya existen.
+    'Proyecto RRHH',
   ]
 
   const ahora = Date.now()
@@ -217,6 +219,7 @@ export async function exportarReporteDetalladoExcel(tickets: TicketConRelaciones
       rangoSemana(creado),
       formatearFecha(t.updated_at),
       ...columnasVencimiento(t, ahora),
+      t.proyecto_rrhh ?? '',
     ]
   })
 
