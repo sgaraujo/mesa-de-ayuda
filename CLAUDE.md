@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0052_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0055_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -84,7 +84,13 @@ asignar a la bandeja de ese tablero y quien la pidió la sigue en
 `/mis-solicitudes` (RLS: `solicitante_id = auth.uid()`), sin ver nada más
 del tablero. Opcionalmente la dirige a una persona del área (migración 0047:
 la lista sale de `miembros_area_solicitud()` y `tickets_insert` acepta un
-`asignado_a` que sea miembro, vía `es_miembro_de_area()`). En RLS se usa `rol_en_area()`, `es_superadmin()`,
+`asignado_a` que sea miembro, vía `es_miembro_de_area()`). Desde la 0053,
+las áreas con `recibe_solicitudes = false` (NOC - ETB, Operación SOMOS) no
+aparecen como destino, y las de `pide_proyecto` (Operación) exigen elegir
+`tickets.proyecto_rrhh` de la lista de `proyectos_rrhh()`. Desde la 0054 esa
+RPC lee la tabla `proyectos_rrhh` (solo nombre y personas vigentes, variantes
+de escritura unidas), que un trigger por sentencia recalcula desde
+`personas_nelyoda` cada vez que escribe la sincronización. En RLS se usa `rol_en_area()`, `es_superadmin()`,
 `puedo_gestionar_area()` y `puedo_gestionar_ticket()` (security definer).
 El primer superadmin se inserta a mano por SQL.
 
@@ -191,6 +197,12 @@ Esquema completo en `supabase/migrations/`. Piezas clave:
   correo; el cliente solo lee las propias, las marca con
   `marcar_notificaciones_leidas()` y las borra (una o todas) con
   `limpiar_notificaciones()` (migración 0046). Publicada en realtime.
+- `profiles.recibir_correos` (migración 0055): preferencia de cada persona en
+  `/configuracion` (ícono de engranaje del Layout). En `false`, las funciones
+  `notify-assignment`, `notify-mention`, `notify-finalizacion` y
+  `notify-vencimientos` no le envían correo; la campanita sigue igual y los
+  correos de cuenta (invitación, contraseña, cambio de correo) salen siempre.
+  Toda función nueva que avise actividad por correo debe filtrar por ella.
 - `allowed_emails`: whitelist de acceso (independiente de `profiles`).
   Su `role`/`area_id` y `area_miembros` se sincronizan en ambos sentidos:
   editar la whitelist crea la membresía (`sincronizar_whitelist_con_perfil`)

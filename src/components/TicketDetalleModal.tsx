@@ -857,6 +857,14 @@ export function TicketDetalleModal({
                   </dd>
                 </div>
 
+                {/* Proyecto de RRHH que eligió quien pidió (migración 0053). */}
+                {ticket.proyecto_rrhh && (
+                  <div className="propiedad">
+                    <dt>Proyecto RRHH</dt>
+                    <dd title="Proyecto al que pertenece la solicitud">{ticket.proyecto_rrhh}</dd>
+                  </div>
+                )}
+
                 {(tipos.length > 0 || ticket.tipo) && (
                   <div className="propiedad">
                     <dt><label htmlFor="detalle-tipo">Tipo</label></dt>

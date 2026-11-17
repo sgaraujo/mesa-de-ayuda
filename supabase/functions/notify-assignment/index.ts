@@ -107,6 +107,8 @@ Deno.serve(async (req) => {
       .select('id, email, full_name')
       .in('id', destinatariosIds)
       .eq('activo', true)
+      // Quien desactivó los correos en /configuracion solo ve la campanita.
+      .eq('recibir_correos', true)
     if (agentesError) return json({ ok: false, message: 'No se pudieron consultar los agentes' }, 500)
 
     const siteUrl = Deno.env.get('SITE_URL') ?? ''

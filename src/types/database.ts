@@ -12,6 +12,11 @@ export interface Area {
   id: string
   nombre: string
   orden: number
+  // Migración 0053: false = no aparece en Nueva solicitud; true en
+  // pide_proyecto = la solicitud exige el proyecto de RRHH. Opcionales: sin
+  // la migración aplicada no vienen.
+  recibe_solicitudes?: boolean
+  pide_proyecto?: boolean
 }
 
 export interface Proyecto {
@@ -44,6 +49,8 @@ export interface Profile {
   role: Role
   activo: boolean
   empresa: string
+  /** Correos de notificaciones de actividad (migración 0055). */
+  recibir_correos: boolean
   created_at: string
 }
 
@@ -95,6 +102,9 @@ export interface Ticket {
   duplicado_de: string | null
   // Solo en áreas con catálogo de tipos (migración 0031).
   tipo_id: string | null
+  // Proyecto al que pertenece la solicitud según la base de RRHH, en áreas
+  // con pide_proyecto (migración 0053).
+  proyecto_rrhh?: string | null
   // Respuesta de quien pidió la tarea a su finalización (migración 0032). En
   // una tarea finalizada, null = por aprobar; 'rechazada' sigue en la tarea
   // reabierta hasta que la vuelvan a finalizar.

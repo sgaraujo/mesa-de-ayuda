@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     const { data: ticket, error: ticketError } = await supabaseAdmin
       .from('tickets')
-      .select('id, titulo, estado, nota_finalizacion, motivo_rechazo, area_id, solicitante:profiles!tickets_solicitante_id_fkey(id, email, full_name, activo)')
+      .select('id, titulo, estado, nota_finalizacion, motivo_rechazo, area_id, solicitante:profiles!tickets_solicitante_id_fkey(id, email, full_name, activo, recibir_correos)')
       .eq('id', ticketId)
       .maybeSingle()
     if (ticketError || !ticket) return json({ ok: false, message: 'Tarea no encontrada' }, 404)
@@ -64,7 +64,10 @@ Deno.serve(async (req) => {
     }
 
     const solicitante = Array.isArray(ticket.solicitante) ? ticket.solicitante[0] : ticket.solicitante
-    if (!solicitante || solicitante.activo === false) return json({ ok: true, enviados: 0 })
+    // Quien desactivó los correos en /configuracion solo ve la campanita.
+    if (!solicitante || solicitante.activo === false || solicitante.recibir_correos === false) {
+      return json({ ok: true, enviados: 0 })
+    }
 
     const { error: reservaError } = await supabaseAdmin
       .from('ticket_email_notifications')

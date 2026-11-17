@@ -5,6 +5,7 @@ import { useArea } from '../context/AreaContext'
 import { useAreas } from '../hooks/useAreas'
 import { useTiposSolicitud } from '../hooks/useTiposSolicitud'
 import { useMiembrosArea } from '../hooks/useMiembrosArea'
+import { useProyectosRrhh } from '../hooks/useProyectosRrhh'
 import { SugerenciasTexto } from './SugerenciasTexto'
 import { AsistenteSolicitud } from './AsistenteSolicitud'
 import { SelectorPersona, type PersonaOpcion } from './SelectorPersona'
@@ -110,6 +111,18 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   // El tipo es del área: si cambia el destino, se vuelve a elegir.
   useEffect(() => setTipoId(''), [areaId])
 
+  // Áreas como Operación piden el proyecto de RRHH al que pertenece la
+  // solicitud (migración 0053): obligatorio en Nueva solicitud, opcional para
+  // el equipo desde su tablero.
+  const pideProyecto = !!todasLasAreas.find((a) => a.id === areaId)?.pide_proyecto
+  const { proyectos: proyectosRrhh, loading: cargandoProyectos } = useProyectosRrhh(pideProyecto)
+  const [proyectoRrhh, setProyectoRrhh] = useState('')
+  // Si quien pide está en un solo proyecto, ese queda preseleccionado.
+  const proyectoPropio = proyectosRrhh.filter((p) => p.es_mio).length === 1
+    ? proyectosRrhh.find((p) => p.es_mio)!.proyecto
+    : ''
+  useEffect(() => setProyectoRrhh(pideProyecto ? proyectoPropio : ''), [areaId, pideProyecto, proyectoPropio])
+
   const [titulo, setTitulo] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [prioridad, setPrioridad] = useState<Prioridad>('media')
@@ -179,6 +192,10 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
       setError('Elige el tipo de solicitud.')
       return
     }
+    if (elegirArea && pideProyecto && !proyectoRrhh) {
+      setError('Elige el proyecto al que pertenece la solicitud.')
+      return
+    }
     const puedeAutoasignarse = rolEnDestino === 'agente' || rolEnDestino === 'lider'
     const compromisoFinal = puedeAutoasignarse && fechaCompromiso ? new Date(fechaCompromiso) : null
     // Lo valida también la base (migración 0041); aquí se avisa antes.
@@ -199,6 +216,9 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
         empresa_solicitante: profile.empresa,
         area_id: areaId,
         tipo_id: tipos.length > 0 ? tipoId || null : null,
+        // Solo se envía en áreas que lo piden: sin la migración 0053 la
+        // columna no existe.
+        ...(pideProyecto ? { proyecto_rrhh: proyectoRrhh || null } : {}),
         asignado_a: asignadoFinal,
         prioridad,
         fecha_requerida: fechaRequeridaIso(fechaRequerida),
@@ -237,6 +257,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
 
     setExito(true)
     setTipoId('')
+    setProyectoRrhh(pideProyecto ? proyectoPropio : '')
     setTitulo('')
     setDescripcion('')
     setPrioridad('media')
@@ -260,6 +281,28 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
         <option value="" disabled>-- Selecciona --</option>
         {tipos.map((tipo) => (
           <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
+        ))}
+      </select>
+    </label>
+  )
+
+  const campoProyectoRrhh = pideProyecto && (
+    <label className={elegirArea ? 'solicitud-paso__persona' : undefined}>
+      <span>
+        Proyecto al que pertenece la solicitud
+        {!elegirArea && <> <small className="ticket-form__opcional">Opcional</small></>}
+      </span>
+      <select
+        value={proyectoRrhh}
+        onChange={(e) => setProyectoRrhh(e.target.value)}
+        required={elegirArea}
+        disabled={cargandoProyectos}
+      >
+        <option value="" disabled={elegirArea}>
+          {cargandoProyectos ? 'Cargando proyectos…' : elegirArea ? '-- Selecciona --' : 'Sin definir'}
+        </option>
+        {proyectosRrhh.map((p) => (
+          <option key={p.proyecto} value={p.proyecto}>{p.proyecto}</option>
         ))}
       </select>
     </label>
@@ -399,6 +442,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
       // enviarla a otra área está Nueva solicitud.
       <form onSubmit={handleSubmit} className="nueva-tarea">
         <div className="nueva-tarea__cuerpo">
+          {campoProyectoRrhh}
           {campoTipo}
           {campoTitulo}
           {campoDescripcion}
@@ -478,8 +522,11 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
   }
 
   // Solicitud a cualquier área: pasos numerados con el destino siempre visible.
-  const indiceDestino = todasLasAreas.findIndex((a) => a.id === areaDestinoId)
-  const areaDestino = indiceDestino >= 0 ? todasLasAreas[indiceDestino] : null
+  // Áreas cuyas solicitudes se centralizan en otra (NOC - ETB y Operación
+  // SOMOS → Operación, migración 0053) no se ofrecen como destino.
+  const areasDestino = todasLasAreas.filter((a) => a.recibe_solicitudes !== false)
+  const indiceDestino = areasDestino.findIndex((a) => a.id === areaDestinoId)
+  const areaDestino = indiceDestino >= 0 ? areasDestino[indiceDestino] : null
   const personaDestino = personasDestino.find((p) => p.id === asignadoA)
   const detalleCompleto = titulo.trim() !== '' && descripcion.trim() !== '' && (tipos.length === 0 || tipoId !== '')
 
@@ -488,7 +535,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
       <section className="solicitud-paso">
         <PasoEncabezado
           numero={1}
-          completo={!!areaDestino}
+          completo={!!areaDestino && (!pideProyecto || proyectoRrhh !== '')}
           titulo="¿A qué área se la envías?"
           ayuda="Llega a la bandeja general de esa área para que su equipo la tome, o directo a la persona que elijas."
         />
@@ -496,7 +543,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
           <p className="solicitud-areas__vacio">Cargando áreas…</p>
         ) : (
           <div className="solicitud-areas" role="radiogroup" aria-label="Área destino">
-            {todasLasAreas.map((area, i) => {
+            {areasDestino.map((area, i) => {
               const seleccionada = area.id === areaDestinoId
               return (
                 <label
@@ -528,6 +575,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
             })}
           </div>
         )}
+        {areaDestino && campoProyectoRrhh}
         {areaDestino && personasDestino.length > 0 && (
           <label className="solicitud-paso__persona">
             <span>¿A alguien en particular? <small className="ticket-form__opcional">Opcional</small></span>
@@ -609,6 +657,7 @@ export function TicketForm({ asignadoAPorDefecto = '', elegirArea = false, onCre
               <small>Se enviará a</small>
               <strong>
                 {areaDestino.nombre}
+                {proyectoRrhh && ` · ${proyectoRrhh}`}
                 {personaDestino && ` · ${personaDestino.full_name ?? personaDestino.email}`}
               </strong>
             </span>

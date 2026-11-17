@@ -76,6 +76,8 @@ Deno.serve(async (req) => {
       .select('id, email, full_name')
       .in('id', idsDestinatarios)
       .eq('activo', true)
+      // Quien desactivó los correos en /configuracion solo ve la campanita.
+      .eq('recibir_correos', true)
     if (personasError) throw personasError
 
     const nombreAutor = escaparHtml(autor.full_name?.trim() || autor.email)

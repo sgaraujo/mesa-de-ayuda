@@ -41,6 +41,7 @@ const MisSolicitudesPage = lazyConReintento(() => import('./pages/MisSolicitudes
 const BoardPage = lazyConReintento(() => import('./pages/BoardPage').then((m) => ({ default: m.BoardPage })))
 const StatsPage = lazyConReintento(() => import('./pages/StatsPage').then((m) => ({ default: m.StatsPage })))
 const GruposPage = lazyConReintento(() => import('./pages/GruposPage').then((m) => ({ default: m.GruposPage })))
+const ConfiguracionPage = lazyConReintento(() => import('./pages/ConfiguracionPage').then((m) => ({ default: m.ConfiguracionPage })))
 const AdminWhitelistPage = lazyConReintento(() => import('./pages/AdminWhitelistPage').then((m) => ({ default: m.AdminWhitelistPage })))
 
 export default function App() {
@@ -63,6 +64,8 @@ export default function App() {
               <Route path="/nueva-solicitud" element={<NewTicketPage />} />
 
               <Route path="/mis-solicitudes" element={<MisSolicitudesPage />} />
+
+              <Route path="/configuracion" element={<ConfiguracionPage />} />
 
               <Route element={<ProtectedRoute rolesPermitidos={['agente', 'lider']} />}>
                 <Route path="/tablero" element={<BoardPage />} />

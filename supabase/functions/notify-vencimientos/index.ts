@@ -31,6 +31,7 @@ interface Persona {
   email: string
   full_name: string | null
   activo: boolean
+  recibir_correos: boolean
 }
 
 const ASUNTO: Record<TipoAlerta, string> = {
@@ -66,9 +67,9 @@ Deno.serve(async (req) => {
         .from('tickets')
         .select(`
           id, numero, titulo, area_id, asignado_a,
-          solicitante:profiles!tickets_solicitante_id_fkey(id, email, full_name, activo),
-          asignado:profiles!tickets_asignado_a_fkey(id, email, full_name, activo),
-          asignados:ticket_asignados(profile:profiles(id, email, full_name, activo))
+          solicitante:profiles!tickets_solicitante_id_fkey(id, email, full_name, activo, recibir_correos),
+          asignado:profiles!tickets_asignado_a_fkey(id, email, full_name, activo, recibir_correos),
+          asignados:ticket_asignados(profile:profiles(id, email, full_name, activo, recibir_correos))
         `)
         .eq('id', alerta.ticket_id)
         .maybeSingle()
@@ -85,7 +86,7 @@ Deno.serve(async (req) => {
       if (responsables.length === 0) {
         const { data: lideres } = await supabaseAdmin
           .from('area_miembros')
-          .select('profile:profiles(id, email, full_name, activo)')
+          .select('profile:profiles(id, email, full_name, activo, recibir_correos)')
           .eq('area_id', ticket.area_id)
           .eq('rol', 'lider')
         responsables = (lideres ?? []).map((l) => uno(l.profile as Persona | Persona[] | null)).filter((p): p is Persona => !!p)
@@ -100,7 +101,8 @@ Deno.serve(async (req) => {
       const tarea = `<strong>#${ticket.numero} ${escaparHtml(ticket.titulo)}</strong>`
 
       for (const { persona, esSolicitante } of destinatarios.values()) {
-        if (!persona.activo) continue
+        // Quien desactivó los correos en /configuracion solo ve la campanita.
+        if (!persona.activo || persona.recibir_correos === false) continue
         const nombre = escaparHtml(persona.full_name?.trim() || persona.email)
         try {
           await enviarCorreo(

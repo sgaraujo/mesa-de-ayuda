@@ -93,6 +93,7 @@ export function coincideBusqueda(ticket: TicketConRelaciones, busqueda: string):
     ticket.solicitante?.full_name,
     ticket.solicitante?.email,
     ticket.proyecto?.nombre,
+    ticket.proyecto_rrhh,
     ticket.area?.nombre,
     ticket.empresa_solicitante,
     ...nombresAsignados(ticket),
