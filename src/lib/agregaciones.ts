@@ -69,7 +69,36 @@ export function dentroDeRango(fechaIso: string, rango: RangoFecha, personalizado
   return fecha.getFullYear() === mesAnterior.getFullYear() && fecha.getMonth() === mesAnterior.getMonth()
 }
 
-export type Agrupacion = 'dia' | 'mes'
+// Límites del periodo como instantes, para pedirle a la base solo lo de ese
+// periodo (mismo criterio que dentroDeRango). null = sin límite por ese lado.
+export function limitesDeRango(
+  rango: RangoFecha,
+  personalizado?: RangoPersonalizado,
+  ahora = new Date(),
+): { desde: Date | null; hasta: Date | null } {
+  switch (rango) {
+    case 'todo':
+      return { desde: null, hasta: null }
+    case '7d':
+      return { desde: new Date(ahora.getTime() - 7 * 86400000), hasta: null }
+    case '30d':
+      return { desde: new Date(ahora.getTime() - 30 * 86400000), hasta: null }
+    case 'mes_actual':
+      return { desde: new Date(ahora.getFullYear(), ahora.getMonth(), 1), hasta: null }
+    case 'mes_anterior':
+      return {
+        desde: new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1),
+        hasta: new Date(new Date(ahora.getFullYear(), ahora.getMonth(), 1).getTime() - 1),
+      }
+    case 'personalizado':
+      return {
+        desde: personalizado?.desde ? new Date(`${personalizado.desde}T00:00:00`) : null,
+        hasta: personalizado?.hasta ? new Date(`${personalizado.hasta}T23:59:59.999`) : null,
+      }
+  }
+}
+
+export type Agrupacion = 'dia' | 'semana' | 'mes'
 
 export interface PuntoSerieTemporal {
   periodo: string
@@ -77,9 +106,24 @@ export interface PuntoSerieTemporal {
   resueltos: number
 }
 
+const dosDigitos = (n: number) => String(n).padStart(2, '0')
+const diaLocal = (fecha: Date) => `${fecha.getFullYear()}-${dosDigitos(fecha.getMonth() + 1)}-${dosDigitos(fecha.getDate())}`
+
+// En hora local (Colombia): toISOString pasaba al día siguiente lo de
+// después de las 7 p. m. La semana se identifica por su lunes.
 export function claveFecha(fecha: Date, agrupacion: Agrupacion): string {
-  if (agrupacion === 'dia') return fecha.toISOString().slice(0, 10)
-  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`
+  if (agrupacion === 'dia') return diaLocal(fecha)
+  if (agrupacion === 'semana') {
+    const lunes = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate())
+    lunes.setDate(lunes.getDate() - ((lunes.getDay() + 6) % 7))
+    return diaLocal(lunes)
+  }
+  return `${fecha.getFullYear()}-${dosDigitos(fecha.getMonth() + 1)}`
+}
+
+/** Clave de periodo para un día "AAAA-MM-DD" (los que devuelve la base). */
+export function claveDia(dia: string, agrupacion: Agrupacion): string {
+  return claveFecha(new Date(`${dia}T00:00:00`), agrupacion)
 }
 
 export function serieTemporal(
@@ -113,6 +157,9 @@ export function serieTemporal(
 export function formatearEtiquetaPeriodo(periodo: string, agrupacion: Agrupacion): string {
   if (agrupacion === 'dia') {
     return new Date(`${periodo}T00:00:00`).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+  }
+  if (agrupacion === 'semana') {
+    return `Sem. ${new Date(`${periodo}T00:00:00`).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}`
   }
   const [anio, mes] = periodo.split('-')
   return new Date(Number(anio), Number(mes) - 1, 1).toLocaleDateString('es-CO', {

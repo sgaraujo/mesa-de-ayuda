@@ -23,6 +23,25 @@ export interface Novedad {
 
 export const NOVEDADES: Novedad[] = [
   {
+    id: '2026-11-17-estadisticas',
+    fecha: '2026-11-17',
+    titulo: 'Estadísticas con el trabajo real del periodo',
+    puntos: [
+      {
+        titulo: 'Creadas, actualizadas y finalizadas por separado',
+        texto:
+          'Una tarea creada la semana pasada y cerrada esta semana ahora cuenta como finalizada (y actualizada) esta semana. También verás el balance entre lo que entra y lo que se cierra.',
+        audiencia: 'equipo',
+      },
+      {
+        titulo: 'Horas del periodo',
+        texto:
+          'Las horas cuentan el día en que se registraron, por persona, proyecto y área, con la tendencia semanal del trabajo real.',
+        audiencia: 'equipo',
+      },
+    ],
+  },
+  {
     id: '2026-11-17',
     fecha: '2026-11-17',
     titulo: 'Lo nuevo en la Mesa de Ayuda',

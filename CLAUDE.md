@@ -33,7 +33,7 @@ supabase secrets set SITE_URL=...         # variables de las Edge Functions
 ```
 
 Las migraciones son SQL plano, numeradas secuencialmente (`0001_...` a
-`0059_...` actualmente) y nunca se editan retroactivamente — un cambio de
+`0060_...` actualmente) y nunca se editan retroactivamente — un cambio de
 esquema siempre es una migración nueva.
 
 ## Arquitectura
@@ -278,6 +278,24 @@ del frontend. Combina:
   solicitudes), agente/admin ven 4. `vistaHistorial` (solo admin) filtra
   tickets finalizados hace más de 30 días, que de otro modo desaparecen del
   tablero activo.
+
+### Estadísticas (StatsPage)
+
+[src/pages/StatsPage.tsx](src/pages/StatsPage.tsx) no filtra por fecha de
+creación: el periodo se aplica por separado a **creadas** (`created_at`),
+**actualizadas** (algún cambio en `ticket_cambios`, `ticket_status_history`
+o un comentario dentro del periodo) y **finalizadas** (`finalizado_at`). Las
+"trabajadas" son la unión, y de ellas salen los conteos por persona, proyecto
+y el semáforo. La actividad y las horas del periodo vienen de la RPC
+`actividad_tickets()` (migración 0060, security invoker), que devuelve una
+fila por tarea y día (hora de Colombia): las horas son las diferencias de
+`tiempo_ejecutado_horas` registradas ese día, más lo que el historial no
+explica (horas puestas al crear la tarea) en la fecha de finalización o de
+creación. Las horas de una tarea con subtareas se reparten entre sus
+responsables en proporción a cada subtarea. Si la RPC falla, la página
+aproxima (`actividadAproximada` en [src/lib/actividad.ts](src/lib/actividad.ts))
+y lo avisa. Toda consulta que pueda pasar de 1000 filas va por
+`cargarPaginado()`: PostgREST corta en 1000 sin avisar.
 
 ### Edge Functions (`supabase/functions/`)
 
