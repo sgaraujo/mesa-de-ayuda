@@ -6664,12 +6664,14 @@ kbd {
   opacity: 0.6;
 }
 
-/* Aviso flotante cuando llega una notificación nueva. */
+/* Aviso flotante cuando llega una notificación nueva. Queda sobre el
+   encabezado y la firma, pero debajo de cualquier modal (.modal-overlay,
+   z-index 100): si hay una ventana abierta, no se le monta encima. */
 .notificaciones__aviso {
   position: fixed;
   right: 1.25rem;
   bottom: 1.25rem;
-  z-index: 200;
+  z-index: 90;
   display: flex;
   align-items: flex-start;
   gap: 0.7rem;
