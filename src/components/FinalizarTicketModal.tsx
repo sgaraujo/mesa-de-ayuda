@@ -4,9 +4,14 @@ import { SugerenciasTexto } from './SugerenciasTexto'
 import { CampoMenciones } from './CampoMenciones'
 import { mencionadosEnTexto, nombreDe } from '../lib/menciones'
 import type { UsuarioActivo } from '../hooks/useUsuariosActivos'
+import { useProyectos } from '../hooks/useProyectos'
+import type { Proyecto } from '../types/database'
 
 interface FinalizarTicketModalProps {
   tituloTicket: string
+  // Área de la tarea (sus proyectos) y el proyecto que ya tiene, si alguno.
+  areaId: string | null
+  proyectoId: string | null
   tiempoEjecutadoHoras: number | null
   // Con subtareas el tiempo es su suma (migración 0042): no se pide.
   subtareasTotal?: number
@@ -14,12 +19,19 @@ interface FinalizarTicketModalProps {
   guardando: boolean
   error: string | null
   // mencionados: personas etiquetadas con @ que siguen escritas en la nota.
-  onConfirmar: (nota: string, tiempoEjecutadoHoras: number | null, mencionados: UsuarioActivo[]) => void
+  onConfirmar: (
+    nota: string,
+    tiempoEjecutadoHoras: number | null,
+    mencionados: UsuarioActivo[],
+    proyecto: Pick<Proyecto, 'id' | 'nombre'> | null,
+  ) => void
   onCancelar: () => void
 }
 
 export function FinalizarTicketModal({
   tituloTicket,
+  areaId,
+  proyectoId: proyectoInicial,
   tiempoEjecutadoHoras,
   subtareasTotal = 0,
   subtareasFinalizadas = 0,
@@ -33,14 +45,24 @@ export function FinalizarTicketModal({
   const [horasIniciales, minutosIniciales] = separarTiempo(tiempoEjecutadoHoras)
   const [horas, setHoras] = useState(horasIniciales)
   const [minutos, setMinutos] = useState(minutosIniciales)
+  const { proyectos, loading: cargandoProyectos } = useProyectos(areaId ?? undefined)
+  const [proyectoId, setProyectoId] = useState(proyectoInicial ?? '')
+  const [errorProyecto, setErrorProyecto] = useState<string | null>(null)
 
   const conSubtareas = subtareasTotal > 0
   const subtareasAbiertas = subtareasTotal - subtareasFinalizadas
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    // Una tarea finalizada debe quedar con proyecto para contar en las
+    // estadísticas (clasificacionFaltante); solo se exige si el área tiene.
+    if (!proyectoId && proyectos.length > 0) {
+      setErrorProyecto('Elige el proyecto de la tarea.')
+      return
+    }
     const tiempo = conSubtareas ? tiempoEjecutadoHoras : combinarTiempo(horas, minutos)
-    onConfirmar(nota.trim(), tiempo, mencionadosEnTexto(nota, mencionados))
+    const proyecto = proyectos.find((p) => p.id === proyectoId) ?? null
+    onConfirmar(nota.trim(), tiempo, mencionadosEnTexto(nota, mencionados), proyecto)
   }
 
   return (
@@ -94,6 +116,30 @@ export function FinalizarTicketModal({
             />
           </fieldset>
           )}
+          {(cargandoProyectos || proyectos.length > 0) && (
+            <>
+              <label htmlFor="proyecto-finalizacion">Proyecto</label>
+              <select
+                id="proyecto-finalizacion"
+                value={proyectoId}
+                onChange={(e) => {
+                  setProyectoId(e.target.value)
+                  setErrorProyecto(null)
+                }}
+                disabled={cargandoProyectos}
+                aria-invalid={errorProyecto ? true : undefined}
+                className={errorProyecto ? 'propiedad__control--falta' : undefined}
+              >
+                <option value="">{cargandoProyectos ? 'Cargando proyectos...' : 'Elige el proyecto'}</option>
+                {proyectos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre}
+                  </option>
+                ))}
+              </select>
+              {errorProyecto && <p className="auth-error">{errorProyecto}</p>}
+            </>
+          )}
           <label htmlFor="nota-finalizacion">
             Nota para el solicitante <small>Opcional · usa @ para etiquetar a alguien</small>
           </label>
@@ -118,7 +164,7 @@ export function FinalizarTicketModal({
           )}
           <SugerenciasTexto texto={nota} onCambiar={setNota} />
           {error && <p className="auth-error">{error}</p>}
-          <button type="submit" disabled={guardando}>
+          <button type="submit" disabled={guardando || cargandoProyectos}>
             {guardando ? 'Finalizando...' : 'Finalizar tarea'}
           </button>
         </form>

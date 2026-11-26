@@ -12,7 +12,7 @@ import { NuevaTareaModal } from '../components/NuevaTareaModal'
 import { FinalizarTicketModal } from '../components/FinalizarTicketModal'
 import { SelectorPersona } from '../components/SelectorPersona'
 import { coincideBusqueda, estaSinAsignar, TICKET_SELECT } from '../lib/ticket'
-import type { Estado, TicketConRelaciones } from '../types/database'
+import type { Estado, Proyecto, TicketConRelaciones } from '../types/database'
 import type { UsuarioActivo } from '../hooks/useUsuariosActivos'
 import { PantallaCarga } from '../components/PantallaCarga'
 
@@ -81,6 +81,8 @@ export function BoardPage() {
   const [ticketAFinalizar, setTicketAFinalizar] = useState<{
     ticketId: string
     titulo: string
+    areaId: string | null
+    proyectoId: string | null
     tiempoEjecutadoHoras: number | null
     subtareasTotal: number
     subtareasFinalizadas: number
@@ -259,6 +261,8 @@ export function BoardPage() {
         setTicketAFinalizar({
           ticketId,
           titulo: ticket.titulo,
+          areaId: ticket.area_id,
+          proyectoId: ticket.proyecto_id,
           tiempoEjecutadoHoras: ticket.tiempo_ejecutado_horas,
           subtareasTotal: ticket.subtareas_total ?? 0,
           subtareasFinalizadas: ticket.subtareas_finalizadas ?? 0,
@@ -311,6 +315,8 @@ export function BoardPage() {
       setTicketAFinalizar({
         ticketId,
         titulo: ticket.titulo,
+        areaId: ticket.area_id,
+        proyectoId: ticket.proyecto_id,
         tiempoEjecutadoHoras: ticket.tiempo_ejecutado_horas,
         subtareasTotal: ticket.subtareas_total ?? 0,
         subtareasFinalizadas: ticket.subtareas_finalizadas ?? 0,
@@ -335,7 +341,12 @@ export function BoardPage() {
     await notificarCambio(ticketId)
   }
 
-  async function confirmarFinalizacion(nota: string, tiempoEjecutadoHoras: number | null, mencionados: UsuarioActivo[]) {
+  async function confirmarFinalizacion(
+    nota: string,
+    tiempoEjecutadoHoras: number | null,
+    mencionados: UsuarioActivo[],
+    proyecto: Pick<Proyecto, 'id' | 'nombre'> | null,
+  ) {
     if (!ticketAFinalizar) return
     const { ticketId, cambios, estadoAnterior } = ticketAFinalizar
     setFinalizando(true)
@@ -345,6 +356,8 @@ export function BoardPage() {
       ...cambios,
       nota_finalizacion: nota || null,
       tiempo_ejecutado_horas: tiempoEjecutadoHoras,
+      // Sin proyecto elegido (área sin proyectos) se deja el que tenía.
+      ...(proyecto ? { proyecto_id: proyecto.id } : {}),
     }
     const { error } = await supabase.from('tickets').update(cambiosFinales).eq('id', ticketId)
 
@@ -354,7 +367,9 @@ export function BoardPage() {
       return
     }
 
-    setTickets((prev) => prev.map((t) => (t.id === ticketId ? { ...t, ...cambiosFinales } : t)))
+    setTickets((prev) => prev.map((t) => (
+      t.id === ticketId ? { ...t, ...cambiosFinales, ...(proyecto ? { proyecto } : {}) } : t
+    )))
 
     if (cambios.asignado_a && profile?.id) void notificarAsignacion(ticketId, [profile.id])
     if (estadoAnterior !== 'finalizado') {
@@ -543,12 +558,14 @@ export function BoardPage() {
       {ticketAFinalizar && (
         <FinalizarTicketModal
           tituloTicket={ticketAFinalizar.titulo}
+          areaId={ticketAFinalizar.areaId}
+          proyectoId={ticketAFinalizar.proyectoId}
           tiempoEjecutadoHoras={ticketAFinalizar.tiempoEjecutadoHoras}
           subtareasTotal={ticketAFinalizar.subtareasTotal}
           subtareasFinalizadas={ticketAFinalizar.subtareasFinalizadas}
           guardando={finalizando}
           error={errorFinalizar}
-          onConfirmar={(nota, horas, mencionados) => void confirmarFinalizacion(nota, horas, mencionados)}
+          onConfirmar={(nota, horas, mencionados, proyecto) => void confirmarFinalizacion(nota, horas, mencionados, proyecto)}
           onCancelar={() => {
             if (finalizando) return
             setTicketAFinalizar(null)
