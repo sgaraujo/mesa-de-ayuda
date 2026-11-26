@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { esImagen, pesoLegible, urlArchivo, urlDescarga } from '../lib/archivos'
 import { nombreDe } from '../lib/menciones'
-import { IconoArchivo, IconoDescarga } from './ArchivoAdjunto'
+import { EnlaceDescarga, IconoArchivo } from './ArchivoAdjunto'
 import type { Profile, TicketArchivo, TicketConRelaciones } from '../types/database'
 
 type ArchivoConRelaciones = TicketArchivo & {
@@ -127,9 +127,7 @@ export function ArchivosTicket({ ticket }: { ticket: TicketConRelaciones }) {
             </span>
             <span className="archivos-ticket__origen">{fila.origen}</span>
           </div>
-          <a href={fila.urlDescarga} className="archivo-adjunto__descargar" aria-label={`Descargar ${fila.nombre}`} title="Descargar">
-            <IconoDescarga />
-          </a>
+          <EnlaceDescarga url={fila.url} urlDescarga={fila.urlDescarga} nombre={fila.nombre} />
         </li>
       ))}
     </ul>

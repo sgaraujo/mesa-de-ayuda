@@ -1,4 +1,5 @@
-import { esImagen, extensionDe, pesoLegible } from '../lib/archivos'
+import { useState, type MouseEvent } from 'react'
+import { descargarConNombre, esImagen, extensionDe, pesoLegible } from '../lib/archivos'
 
 interface ArchivoAdjuntoProps {
   nombre: string
@@ -29,6 +30,43 @@ export function IconoDescarga() {
   )
 }
 
+// Botón de descarga que guarda el archivo con su nombre original. El href
+// (con ?download=) queda de respaldo: si la descarga por la app falla, o se
+// abre con clic medio o "guardar enlace como", el navegador usa ese.
+export function EnlaceDescarga({ url, urlDescarga, nombre }: { url: string; urlDescarga: string; nombre: string }) {
+  const [descargando, setDescargando] = useState(false)
+
+  async function descargar(e: MouseEvent<HTMLAnchorElement>) {
+    // Ctrl/Cmd/Shift + clic: se respeta lo que el navegador haga con el enlace.
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return
+    e.preventDefault()
+    if (descargando) return
+    setDescargando(true)
+    try {
+      await descargarConNombre(url, nombre)
+    } catch (error) {
+      console.error('No se pudo descargar con el nombre original:', (error as Error).message)
+      window.location.href = urlDescarga
+    } finally {
+      setDescargando(false)
+    }
+  }
+
+  return (
+    <a
+      href={urlDescarga}
+      download={nombre}
+      onClick={(e) => void descargar(e)}
+      className={`archivo-adjunto__descargar${descargando ? ' archivo-adjunto__descargar--cargando' : ''}`}
+      aria-label={`Descargar ${nombre}`}
+      aria-busy={descargando}
+      title={descargando ? 'Descargando…' : 'Descargar'}
+    >
+      <IconoDescarga />
+    </a>
+  )
+}
+
 export function ArchivoAdjunto({ nombre, url, urlDescarga, tamano }: ArchivoAdjuntoProps) {
   return (
     <div className="archivo-adjunto">
@@ -41,9 +79,7 @@ export function ArchivoAdjunto({ nombre, url, urlDescarga, tamano }: ArchivoAdju
           {tamano ? <span>{pesoLegible(tamano)}</span> : null}
         </span>
       </a>
-      <a href={urlDescarga} className="archivo-adjunto__descargar" aria-label={`Descargar ${nombre}`} title="Descargar">
-        <IconoDescarga />
-      </a>
+      <EnlaceDescarga url={url} urlDescarga={urlDescarga} nombre={nombre} />
     </div>
   )
 }

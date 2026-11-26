@@ -41,10 +41,32 @@ export interface ArchivoSubido {
   tipo: string
 }
 
+// Nombre del archivo apto para una ruta de Storage, que solo admite un juego
+// reducido de caracteres: sin tildes ni eñes y con "_" en lugar de espacios y
+// símbolos. Así, si alguien abre el archivo en una pestaña y lo guarda desde
+// el navegador, conserva un nombre reconocible.
+function nombreParaRuta(nombreArchivo: string): string {
+  const extension = extensionDe(nombreArchivo)
+  const base = (extension ? nombreArchivo.slice(0, -(extension.length + 1)) : nombreArchivo)
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^A-Za-z0-9._-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^[._]+|[._]+$/g, '')
+    .slice(0, 100)
+  return `${base || 'archivo'}${extension ? `.${extension}` : ''}`
+}
+
+// Carpeta con uuid (las rutas deben ser únicas) y dentro el archivo con su
+// nombre. Las anteriores quedaron como <uuid>.<ext> y siguen funcionando.
+function rutaArchivo(carpeta: string, ticketId: string, archivo: File): string {
+  return `${carpeta}/${ticketId}/${crypto.randomUUID()}/${nombreParaRuta(archivo.name)}`
+}
+
 // Sube el archivo a la carpeta de la tarea; el registro en ticket_archivos lo
 // hace comentar_ticket() al publicar el comentario.
 export async function subirArchivoComentario(ticketId: string, archivo: File): Promise<ArchivoSubido> {
-  const ruta = `comentarios/${ticketId}/${crypto.randomUUID()}.${extensionDe(archivo.name)}`
+  const ruta = rutaArchivo('comentarios', ticketId, archivo)
   const { error } = await supabase.storage.from(BUCKET).upload(ruta, archivo, { contentType: archivo.type || undefined })
   if (error) throw error
   return { ruta, nombre: archivo.name, tamano: archivo.size, tipo: archivo.type }
@@ -60,7 +82,7 @@ export const ARCHIVO_SOLICITUD_MAX_MB = 10
 export const ARCHIVOS_POR_SOLICITUD = 10
 
 export async function subirArchivoSolicitud(ticketId: string, archivo: File): Promise<ArchivoSubido> {
-  const ruta = `solicitudes/${ticketId}/${crypto.randomUUID()}.${extensionDe(archivo.name)}`
+  const ruta = rutaArchivo('solicitudes', ticketId, archivo)
   const { error } = await supabase.storage.from(BUCKET).upload(ruta, archivo, { contentType: archivo.type || undefined })
   if (error) throw error
   return { ruta, nombre: archivo.name, tamano: archivo.size, tipo: archivo.type }
@@ -73,4 +95,22 @@ export function urlArchivo(ruta: string): string {
 // Fuerza la descarga con el nombre original (en el bucket se guarda con un uuid).
 export function urlDescarga(ruta: string, nombre: string): string {
   return supabase.storage.from(BUCKET).getPublicUrl(ruta, { download: nombre }).data.publicUrl
+}
+
+// Descarga el archivo con su nombre original. El ?download= de urlDescarga
+// depende del encabezado que arma Storage, que con tildes, eñes o espacios no
+// siempre respeta el nombre, y el atributo download de un <a> se ignora entre
+// dominios. Por eso se baja como blob y se guarda desde la propia app.
+export async function descargarConNombre(url: string, nombre: string): Promise<void> {
+  const respuesta = await fetch(url)
+  if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`)
+  const blob = await respuesta.blob()
+  const enlace = document.createElement('a')
+  enlace.href = URL.createObjectURL(blob)
+  enlace.download = nombre
+  document.body.appendChild(enlace)
+  enlace.click()
+  enlace.remove()
+  // Se libera después: revocarla en el mismo tick cancela la descarga en algunos navegadores.
+  setTimeout(() => URL.revokeObjectURL(enlace.href), 10_000)
 }

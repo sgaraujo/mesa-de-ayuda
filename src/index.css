@@ -4496,6 +4496,11 @@ span.subtarea__responsable {
   color: var(--brand-text);
 }
 
+.archivo-adjunto__descargar--cargando {
+  cursor: progress;
+  opacity: 0.55;
+}
+
 .archivos-ticket {
   list-style: none;
   margin: 0 0 1rem;
