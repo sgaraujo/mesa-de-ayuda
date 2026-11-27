@@ -10,6 +10,7 @@ import { KanbanColumn, type ColumnaId } from '../components/KanbanColumn'
 import { TicketDetalleModal } from '../components/TicketDetalleModal'
 import { NuevaTareaModal } from '../components/NuevaTareaModal'
 import { FinalizarTicketModal } from '../components/FinalizarTicketModal'
+import { useEstadoGuardado } from '../hooks/useEstadoGuardado'
 import { SelectorPersona } from '../components/SelectorPersona'
 import { coincideBusqueda, estaSinAsignar, TICKET_SELECT } from '../lib/ticket'
 import type { Estado, Proyecto, TicketConRelaciones } from '../types/database'
@@ -73,9 +74,14 @@ export function BoardPage() {
   // son suyas, ahí registra sus horas.
   const [idsConSubtarea, setIdsConSubtarea] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
-  const [filtroAgente, setFiltroAgente] = useState('')
+  // El filtro de persona y la vista (tablero / historial) se recuerdan por
+  // área: al volver al tablero queda como se dejó. La página se remonta al
+  // cambiar de área, así que la clave se lee con el área ya definida.
+  const [filtroAgente, setFiltroAgente] = useEstadoGuardado(`tablero-filtro-persona:${areaId ?? ''}`, '')
   const [busqueda, setBusqueda] = useState('')
-  const [vistaHistorial, setVistaHistorial] = useState(false)
+  const [vistaHistorialGuardada, setVistaHistorial] = useEstadoGuardado(`tablero-vista-historial:${areaId ?? ''}`, false)
+  // El historial es solo del líder: si dejó de serlo, vuelve al tablero.
+  const vistaHistorial = esLider && vistaHistorialGuardada
   const [ticketSeleccionado, setTicketSeleccionado] = useState<TicketConRelaciones | null>(null)
   const [mostrarNuevaTarea, setMostrarNuevaTarea] = useState(false)
   const [ticketAFinalizar, setTicketAFinalizar] = useState<{
